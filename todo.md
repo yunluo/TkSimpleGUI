@@ -14,19 +14,23 @@
 - [x] 第三批（41d7801）：ActionList、UserSettings、Table.bind、i18n、动画、SystemTray 托盘菜单、CLI+dbg
 - [x] 语法现代化（963c155/5482b18）：底线 3.7，f-string/零参 super/直连 typing 全覆盖，双守卫测试
 
-## 🎯 新阶段 · 战线 A：Tk/ttk API 全覆盖（原生能做的全部暴露）
+## 🎯 新阶段 · 战线 A：Tk/ttk API 全覆盖（原生能做的全部暴露）✅ 全部完成
 
-- [ ] **Element.bind(event, callback 或 key)** — 元素级任意事件绑定（`<Double-1>`/`<Motion>`/`<FocusIn>`…），对标 Qt eventFilter 入口；回调签名 `(element, event)`
-- [ ] **Multiline 补全**：`scroll_y` 滚动条（目前没有！）、`wrap` 模式（word/char/none）、`tag_bind` 超链接（可点击文字→事件）、`search_all` 高亮全部匹配
-- [ ] **Image 补全（PhotoImage 原生能力）**：`zoom/subsample` 缩放参数、GIF 逐帧读取 → **GIF 动画播放**（after 循环）
-- [ ] **ttk.Spinbox 迁移**：Spin 改用 ttk.Spinbox（原生外观），保留 tk 兜底参数
-- [ ] **sg.ttk_theme(name)**：切换底层 ttk 主题（clam/vista/aqua…），不与 160 主题冲突
-- [ ] **Window wm 缺口**：`fullscreen`、`toolwindow`（Win 无常驻按钮小窗）、`transient(parent)`（真正的模态从属窗）、`set_max_size`、`bell()`、`stack_above(other)`
-- [ ] **Selection（PRIMARY 选区）**：`selection_get/selection_set` 与剪贴板并列
-- [ ] **字体工具**：`sg.font_families()`、`sg.font_measure(text, font)`、`sg.font_description(font)`
-- [ ] **独立 Menubutton / Scrollbar 元素**（Toolbar 内部已用，未导出）
-- [ ] **Notebook 增强**：`<<NotebookTabChanged>>` 事件、`enable_traversal`（Ctrl+Tab）、`tab(state=disabled/hidden)`、Tab 关闭按钮（× 图标变体，战线 B 技法）
-- [ ] **Style 深水区**：`ThemeManager.configure_ttk` 暴露 `style.map`/`layout` 自定义入口（高级用户钩子）
+- [x] **Element.bind(event, callback 或 key)** — 元素级任意事件绑定（`<Double-1>`/`<Motion>`/`<FocusIn>`…），回调签名 `(element, event)` 或投递 key 进窗口队列；`unbind` 对应移除；`_bind_target` 可重写点让复合元素（Multiline）绑定到内部控件
+- [x] **Multiline 补全**：`scroll_y` 滚动条、`wrap` 模式（word/char/none）、`link()` 超链接（tag_bind 可点击文字→事件）、`search_all` 高亮全部匹配 + `clear_highlights`
+- [x] **Image 补全（PhotoImage 原生能力）**：`zoom/subsample` 缩放参数、GIF 逐帧读取 → **GIF 动画播放**（after 循环 + `animation_control(start/delay)`）
+- [x] **ttk.Spinbox 迁移**：Spin 改用 ttk.Spinbox（原生外观），主题样式 TSpinbox
+- [x] **sg.ttk_theme(name) / sg.ttk_themes()**：切换底层 ttk 主题（clam/vista/aqua…），不与 160 主题冲突
+- [x] **Window wm 缺口**：`set_fullscreen`、`make_toolwindow`（Win）、`transient(parent)`（真模态从属）、`stack_above`、`set_max_size`、`bell()`
+- [x] **Selection（PRIMARY 选区）**：`selection_get/selection_set` 与剪贴板并列
+- [x] **字体工具**：`sg.font_families()`、`sg.font_measure(text, font)`、`sg.font_actual(font)`
+- [x] **独立 Menubutton / Scrollbar 元素**（目标元素暴露 `_scroll_command` 供驱动）
+- [x] **Notebook 增强**：`<<NotebookTabChanged>>` 页切换事件（投递 `(key, title)`）、`enable_traversal`（Ctrl+Tab）、`update(tab=, tab_state=)` 页禁用/隐藏、`select_tab`/`current_tab`
+- [x] **Style 深水区**：`window.configure_style(style, **options)` / `window.map_style(style, **state_map)` 高级钩子
+
+## 🎯 新阶段 · 100% 类型标注 ✅ 完成
+
+- [x] **ty 零诊断（5865778）**：370 → 0；技法：非 Optional 类级槽注解（`_widget`/`_tk_root`/`_text`…，None 初始化行加 `# ty: ignore[invalid-assignment]`）、`Element.update(*args, **kwargs)` Liskov 基签名、tk stub Literal 参数 `cast(Literal[...], x)`、popup 布局行显式 `List[ElementRow]`；守卫：`python tests/check_types.py` 进回归基线
 
 ## 🎯 新阶段 · 战线 B：Tk/ttk 做不到的也做（组合控件 / Canvas 自绘 / ctypes）
 
@@ -47,6 +51,7 @@
 
 ## 附：回归基线
 
-- 测试：`python -m unittest tests.test_package`（91 个，含三批全部回归；托盘测试以子进程隔离运行）
-- 冒烟：`python _split/oo_smoke.py`（32+ 项，含 3.8+ 语法扫描与现代风格守卫）
-- 每批提交后：compileall + 上述两项 + `python demo.py --smoke` + git commit（中文 + fix:/feat:/refactor: 前缀）
+- 测试：`python -m unittest tests.test_package`（105 个，含全部批次回归；托盘测试以子进程隔离运行）
+- 类型：`python tests/check_types.py`（ty 零诊断守卫）
+- 冒烟：`python _split/oo_smoke.py`（32+ 项，含 3.8+ 语法扫描与现代风格守卫）+ `python demo.py --smoke`
+- 每批提交后：compileall + 上述四项 + git commit（中文 + fix:/feat:/refactor: 前缀）
