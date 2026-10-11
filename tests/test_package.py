@@ -127,43 +127,39 @@ class TestElementConstruction(unittest.TestCase):
         self.assertIs(sg.ProgBar, sg.ProgressBar)
 
     def test_t_prefixed_aliases(self):
-        """Delphi VCL style T<Name> aliases point at the same classes."""
-        self.assertIs(sg.TLabel, sg.Text)
-        self.assertIs(sg.TText, sg.Text)
-        self.assertIs(sg.TEdit, sg.Input)
-        self.assertIs(sg.TComboBox, sg.Combo)
-        self.assertIs(sg.TListBox, sg.Listbox)
-        self.assertIs(sg.TSpinbox, sg.Spin)
-        self.assertIs(sg.TCheckbox, sg.Checkbox)
-        self.assertIs(sg.TCheckListBox, sg.CheckList)
-        self.assertIs(sg.TTrackBar, sg.Slider)
-        self.assertIs(sg.TMemo, sg.Multiline)
-        self.assertIs(sg.TButton, sg.Button)
-        self.assertIs(sg.TGroupBox, sg.Frame)
-        self.assertIs(sg.TPanel, sg.Column)
-        self.assertIs(sg.TSplitter, sg.Splitter)
-        self.assertIs(sg.TScrollBox, sg.ScrollableColumn)
-        self.assertIs(sg.TToolBar, sg.Toolbar)
-        self.assertIs(sg.TLabeledEdit, sg.LabeledEdit)
-        self.assertIs(sg.TValEdit, sg.KeyValueEditor)
-        self.assertIs(sg.TPageControl, sg.TabGroup)
-        self.assertIs(sg.TMainMenu, sg.Menu)
-        self.assertIs(sg.TStringGrid, sg.Table)
-        self.assertIs(sg.TTreeView, sg.Tree)
-        self.assertIs(sg.TCalendar, sg.Calendar)
-        self.assertIs(sg.TShape, sg.Shape)
-        self.assertIs(sg.TImage, sg.Image)
-        self.assertIs(sg.TRoundButton, sg.RoundButton)
-        self.assertIs(sg.TImageButton, sg.ImageButton)
-        self.assertIs(sg.TTextProgressBar, sg.TextProgressBar)
-        self.assertIs(sg.TWindow if hasattr(sg, "TWindow") else sg.Window, sg.Window)
+        """Uniform T-prefix rule: T<Name> is the same class as <Name>."""
+        pairs = [
+            ("TText", "Text"), ("TInput", "Input"), ("TInputText", "InputText"),
+            ("TCombo", "Combo"), ("TOptionMenu", "OptionMenu"),
+            ("TListbox", "Listbox"), ("TSpin", "Spin"), ("TCheckbox", "Checkbox"),
+            ("TCheckList", "CheckList"), ("TRadio", "Radio"), ("TSlider", "Slider"),
+            ("TMultiline", "Multiline"), ("TOutput", "Output"),
+            ("TProgressBar", "ProgressBar"), ("TButton", "Button"),
+            ("TSubmit", "Submit"), ("TCloseButton", "CloseButton"),
+            ("TImage", "Image"), ("TCanvas", "Canvas"), ("TGraph", "Graph"),
+            ("TShape", "Shape"), ("TFrame", "Frame"), ("TColumn", "Column"),
+            ("TSplitter", "Splitter"), ("TScrollableColumn", "ScrollableColumn"),
+            ("TToolbar", "Toolbar"), ("TLabeledEdit", "LabeledEdit"),
+            ("TKeyValueEditor", "KeyValueEditor"), ("TFlowPanel", "FlowPanel"),
+            ("TCalendar", "Calendar"), ("TTab", "Tab"), ("TTabGroup", "TabGroup"),
+            ("TMenu", "Menu"), ("TTable", "Table"), ("TTree", "Tree"),
+            ("TStatusBar", "StatusBar"), ("TVerticalSeparator", "VerticalSeparator"),
+            ("THorizontalSeparator", "HorizontalSeparator"), ("TSizegrip", "Sizegrip"),
+            ("TMenubutton", "Menubutton"), ("TScrollbar", "Scrollbar"),
+            ("TRoundButton", "RoundButton"), ("TImageButton", "ImageButton"),
+            ("TTextProgressBar", "TextProgressBar"),
+        ]
+        for alias_name, original_name in pairs:
+            self.assertIs(getattr(sg, alias_name), getattr(sg, original_name),
+                          f"{alias_name} must alias {original_name}")
+            self.assertIn(alias_name, sg.__all__)
 
     def test_t_aliases_construct(self):
         """T* aliases build working elements."""
         layout = [
-            [sg.TLabel("name"), sg.TEdit("world", key="-E-")],
-            [sg.TComboBox(["a", "b"], key="-C-"), sg.TButton("OK", key="-B-")],
-            [sg.TMemo("text", key="-M-")],
+            [sg.TText("name"), sg.TInput("world", key="-E-")],
+            [sg.TCombo(["a", "b"], key="-C-"), sg.TButton("OK", key="-B-")],
+            [sg.TMultiline("text", key="-M-")],
         ]
         window = sg.Window("t", layout, finalize=True)
         self.assertEqual(window["-E-"].get(), "world")

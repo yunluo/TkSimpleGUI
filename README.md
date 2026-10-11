@@ -59,9 +59,9 @@ PySimpleGUI4/
   `InputElement` / `ContainerElement` intermediate bases; the window builds
   layouts through polymorphism, no giant type-checking chains
 - **Three naming styles** - plain (`sg.Text`), PySimpleGUI short aliases
-  (`sg.T`, `sg.B`), and Delphi VCL style T-prefixed aliases (`sg.TLabel`,
-  `sg.TEdit`, `TButton`, `TStringGrid`, `TPageControl`...) — all the same
-  classes, pick whichever reads best for you
+  (`sg.T`, `sg.B`), and the uniform T-prefix rule (`sg.TText`, `sg.TInput`,
+  `sg.TButton`, `sg.TRoundButton`... — every widget's own name with a "T"
+  in front) — all the same classes, pick whichever reads best for you
 - **Encapsulated** - `__slots__` everywhere, private attributes, `@property`
   accessors; the mutable look & feel and options state live in the
   `ThemeManager` and `Settings` singletons instead of module globals
