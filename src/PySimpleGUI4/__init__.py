@@ -66,6 +66,9 @@ from .utils import (
     running_trinket,
     running_replit,
     set_dpi_awareness,
+    font_families,
+    font_measure,
+    font_actual,
 )
 
 # --- settings -------------------------------------------------------------------
@@ -85,6 +88,8 @@ from ._theming import (
     theme_slider_color,
     theme_border_width,
     theme_add_new,
+    ttk_theme,
+    ttk_themes,
     LOOK_AND_FEEL_TABLE,
 )
 
@@ -132,6 +137,8 @@ from .elements import (
     VerticalSeparator,
     HorizontalSeparator,
     Sizegrip,
+    Menubutton,
+    Scrollbar,
     validate_integer,
     validate_float,
     validate_regex,
@@ -227,12 +234,14 @@ __all__ = [
     "rgb", "Timer", "timer_start", "timer_stop", "formatted_datetime_now",
     "running_windows", "running_linux", "running_mac", "running_trinket",
     "running_replit", "set_dpi_awareness",
+    "font_families", "font_measure", "font_actual",
     "set_options", "get_options",
     "theme", "theme_manager", "list_of_look_and_feel_values",
     "theme_background_color", "theme_text_color", "theme_button_color",
     "theme_input_background_color", "theme_input_text_color",
     "theme_progress_bar_color", "theme_slider_color", "theme_border_width",
     "theme_add_new", "LOOK_AND_FEEL_TABLE",
+    "ttk_theme", "ttk_themes",
     "Element", "InputElement", "ContainerElement",
     "Text", "Input", "InputText", "Combo", "OptionMenu", "Listbox", "Spin",
     "Checkbox", "CheckList", "Radio", "Slider", "Multiline", "Output",
@@ -241,6 +250,7 @@ __all__ = [
     "Toolbar", "LabeledEdit", "KeyValueEditor", "FlowPanel", "Calendar",
     "Tab", "TabGroup", "Menu", "Table", "Tree",
     "StatusBar", "VerticalSeparator", "HorizontalSeparator", "Sizegrip",
+    "Menubutton", "Scrollbar",
     "validate_integer", "validate_float", "validate_regex",
     "Window", "SystemTray", "PySimpleEvent", "singleton_window",
     "Action", "ActionList", "UserSettings",

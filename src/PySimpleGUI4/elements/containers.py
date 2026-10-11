@@ -171,15 +171,23 @@ class Tab(ContainerElement):
 
 
 class TabGroup(Element):
-    """Notebook of :class:`Tab` elements."""
+    """Notebook of :class:`Tab` elements.
 
-    __slots__ = ("_tabs",)
+    With ``enable_events=True`` switching tabs posts the tab's title (or
+    ``(key, title)`` when the group has a key). ``enable_traversal`` adds
+    Ctrl+Tab keyboard navigation; individual tabs can be disabled or hidden
+    through :meth:`update`.
+    """
+
+    __slots__ = ("_tabs", "_enable_events", "_enable_traversal")
 
     def __init__(
         self,
         layout,
         key=None,
         tab_location=C.Location.TOP,
+        enable_events=True,
+        enable_traversal=False,
         tooltip=None,
         visible=True,
         pad=None,
@@ -208,6 +216,8 @@ class TabGroup(Element):
                     raise TypeError("TabGroup layout may only contain Tab elements")
                 tabs.append(element)
         self._tabs = tabs
+        self._enable_events = bool(enable_events)
+        self._enable_traversal = bool(enable_traversal)
 
     @property
     def tabs(self):
@@ -219,9 +229,63 @@ class TabGroup(Element):
         for tab in self._tabs:
             widget = tab._build(notebook, self._window)
             notebook.add(widget, text=tab.title)
+        if self._enable_traversal:
+            notebook.enable_traversal()
         return notebook
 
-    def update(self, visible=None):
+    def _bind_events(self):
+        if self._enable_events:
+            self._widget.bind(
+                "<<NotebookTabChanged>>", self._on_tab_changed
+            )
+
+    def _on_tab_changed(self, _event):
+        try:
+            index = self._widget.index("current")
+        except tk.TclError:
+            return
+        if 0 <= index < len(self._tabs):
+            title = self._tabs[index].title
+            if self._key is not None:
+                self._post_event((self._key, title))
+            else:
+                self._post_event(title)
+
+    @property
+    def current_tab(self):
+        """The title of the currently selected tab."""
+        index = self._widget.index("current")
+        return self._tabs[index].title if 0 <= index < len(self._tabs) else None
+
+    def select_tab(self, title_or_index):
+        """Programmatically select a tab by title or index."""
+        if isinstance(title_or_index, int):
+            index = title_or_index
+        else:
+            index = next(
+                (i for i, tab in enumerate(self._tabs) if tab.title == title_or_index),
+                None,
+            )
+            if index is None:
+                raise ValueError(f"no tab titled {title_or_index!r}")
+        self._widget.select(index)
+        return self
+
+    def update(self, visible=None, tab=None, tab_state=None):
+        """Show/hide the group, or set one tab's state ("normal"/"disabled"/"hidden").
+
+        ``tab`` identifies the target tab by title or index.
+        """
+        if tab is not None and tab_state is not None:
+            if isinstance(tab, int):
+                index = tab
+            else:
+                index = next(
+                    (i for i, item in enumerate(self._tabs) if item.title == tab),
+                    None,
+                )
+            if index is not None:
+                self._widget.tab(index, state=tab_state)
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -486,6 +550,10 @@ class ScrollableColumn(ContainerElement):
             self._window._build_layout(self._layout, self._inner_frame)
 
     # --- mouse wheel -----------------------------------------------------------
+    def _scroll_command(self):
+        """The yview command a standalone :class:`Scrollbar` can drive."""
+        return self._canvas.yview
+
     def _bind_wheel(self, _event):
         self._canvas.bind_all("<MouseWheel>", self._on_wheel)
         self._canvas.bind_all("<Button-4>", self._on_wheel)

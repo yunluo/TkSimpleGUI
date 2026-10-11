@@ -748,6 +748,99 @@ class Window(object):
             self._apply_icon(icon)
         return self
 
+    def set_fullscreen(self, fullscreen=True):
+        """Toggle true fullscreen (no title bar, covers the whole screen)."""
+        if self._root_alive():
+            self._tk_root.attributes("-fullscreen", bool(fullscreen))
+        return self
+
+    def make_toolwindow(self, toolwindow=True):
+        """Windows-only small tool window (no task bar entry)."""
+        if self._root_alive():
+            try:
+                self._tk_root.attributes("-toolwindow", bool(toolwindow))
+            except tk.TclError:
+                pass
+        return self
+
+    def transient(self, parent_window=None):
+        """Mark this window as a transient (dialog) of ``parent_window``.
+
+        The window manager groups it above its parent and keeps it on the
+        parent's screen; pass the parent :class:`Window` or None to clear.
+        """
+        if not self._root_alive():
+            return self
+        if parent_window is None:
+            self._tk_root.transient("")
+        else:
+            parent_root = getattr(parent_window, "tk_root", parent_window)
+            if parent_root is not None:
+                self._tk_root.transient(parent_root)
+        return self
+
+    def stack_above(self, other_window):
+        """Keep this window stacked above ``other_window`` (WM transient hint)."""
+        if self._root_alive():
+            other_root = getattr(other_window, "tk_root", other_window)
+            if other_root is not None:
+                self._tk_root.transient(other_root)
+        return self
+
+    def set_max_size(self, size):
+        """Limit the largest allowed window size ``(width, height)``."""
+        if self._root_alive() and size is not None:
+            self._tk_root.maxsize(int(size[0]), int(size[1]))
+        return self
+
+    def bell(self):
+        """Ring the system bell."""
+        if self._root_alive():
+            self._tk_root.bell()
+        return self
+
+    # --- selection (PRIMARY selection, distinct from clipboard) --------------------------
+    def selection_get(self):
+        """Read the PRIMARY selection (text highlighted anywhere)."""
+        if not self._root_alive():
+            return ""
+        try:
+            return self._tk_root.selection_get(selection="PRIMARY")
+        except tk.TclError:
+            return ""
+
+    def selection_set(self, text):
+        """Own the PRIMARY selection with ``text`` (e.g. highlighted text)."""
+        if self._root_alive():
+            self._tk_root.selection_clear()
+            self._tk_root.selection_own()
+            self._tk_root.selection_handle(
+                lambda _kind, _fmt: str(text)
+            )
+        return self
+
+    # --- ttk style hooks -------------------------------------------------------------------
+    def configure_style(self, style=".", **options):
+        """Advanced hook: ``style.configure`` on the window's ttk style.
+
+        Tweak the ttk engine beyond what ThemeManager offers::
+
+            window.configure_style("TButton", padding=(12, 6))
+        """
+        if self._root_alive():
+            self._ttk_style.configure(style, **options)
+        return self
+
+    def map_style(self, style, **query_options):
+        """Advanced hook: ``style.map`` for dynamic state colors::
+
+            window.map_style("TButton",
+                             background=[("active", "#3a7bd5")])
+        """
+        if self._root_alive():
+            self._ttk_style.map(style, **query_options)
+        return self
+
     # --- clipboard / desktop integration -------------------------------------------------
     def clipboard_set(self, text):
         """Replace the system clipboard contents with ``text``."""

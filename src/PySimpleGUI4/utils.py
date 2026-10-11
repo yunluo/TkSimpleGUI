@@ -119,6 +119,67 @@ def set_dpi_awareness():
         return False
 
 
+# --- font tools (tkinter.font, needs a tk root) ---------------------------------
+def _window_alive():
+    """True when at least one package Window is alive."""
+    from .window import Window
+
+    return any(window._root_alive() for window in Window._open_windows)
+
+
+def _font_root():
+    """Borrow the first open window's tk root, or create a hidden one."""
+    from .window import Window
+
+    for window in Window._open_windows:
+        if window._root_alive():
+            return window.tk_root
+    import tkinter as tk
+
+    root = tk.Tk()
+    root.withdraw()
+    return root
+
+
+def font_families():
+    """Sorted list of the font family names installed on this system."""
+    import tkinter.font as tkfont
+
+    root = _font_root()
+    try:
+        return sorted(tkfont.families(root=root))
+    finally:
+        # only destroy a root we created; open windows keep theirs
+        if not _window_alive():
+            root.destroy()
+
+
+def font_measure(text, font):
+    """Pixel width of ``text`` rendered in ``font`` (a name-size tuple)."""
+    import tkinter.font as tkfont
+
+    root = _font_root()
+    try:
+        named = tkfont.Font(root=root, font=font)
+        return named.measure(str(text))
+    finally:
+        if not _window_alive():
+            root.destroy()
+
+
+def font_actual(font):
+    """The resolved tk description of ``font`` as a dict (family, size, weight…)."""
+    import tkinter.font as tkfont
+
+    root = _font_root()
+    try:
+        named = tkfont.Font(root=root, font=font)
+        return named.actual()
+    finally:
+        if not _window_alive():
+            root.destroy()
+
+
 def running_linux():
     """True when running on Linux."""
     return sys.platform.startswith("linux")

@@ -7,6 +7,7 @@ system's native look (Windows Vista style, macOS Aqua, ...). Applying a named
 theme from :data:`LOOK_AND_FEEL_TABLE` switches to PySimpleGUI colors.
 """
 
+import tkinter as tk
 from tkinter import ttk
 
 from ._theme_data import LOOK_AND_FEEL_TABLE
@@ -246,6 +247,7 @@ class ThemeManager(object):
         input_bg = self.input_background_color or bg
         input_fg = self.input_text_color or fg
         style.configure("TEntry", fieldbackground=input_bg, foreground=input_fg)
+        style.configure("TSpinbox", fieldbackground=input_bg, foreground=input_fg)
         style.configure("TCombobox", fieldbackground=input_bg, foreground=input_fg)
         style.configure(
             "Treeview",
@@ -377,3 +379,58 @@ def theme_add_new(name, colors):
 def theme_global():
     """Baseline compatibility: returns the name to apply at startup (native)."""
     return None
+
+
+# --- ttk engine themes (clam/vista/aqua/alt/default…) -------------------------
+def ttk_themes():
+    """Names of the underlying ttk engine themes available on this platform."""
+    import tkinter as tk
+
+    root = None
+    from .window import Window
+
+    for window in Window._open_windows:
+        if window._root_alive():
+            root = window.tk_root
+            break
+    temporary = root is None
+    if temporary:
+        root = tk.Tk()
+        root.withdraw()
+    try:
+        return sorted(ttk.Style(root).theme_names())
+    finally:
+        if temporary:
+            root.destroy()
+
+
+def ttk_theme(name=None):
+    """Get or set the ttk engine theme on every open window.
+
+    Independent from the 160 PySimpleGUI color themes: this selects the
+    widget *engine* look (Windows: "vista"/"xpnative"; Linux: "clam"/"alt";
+    macOS: "aqua"). Without arguments returns the current engine theme.
+    """
+    if name is None:
+        from .window import Window
+
+        for window in Window._open_windows:
+            if window._root_alive():
+                return ttk.Style(window.tk_root).theme_use()
+        return None
+    from .window import Window
+
+    applied = None
+    for window in Window._open_windows:
+        if window._root_alive():
+            try:
+                ttk.Style(window.tk_root).theme_use(name)
+                applied = name
+            except tk.TclError:
+                pass
+    if applied is None:
+        raise ValueError(
+            f"Unknown ttk theme {name!r} (or no open window); "
+            f"available: {ttk_themes()}"
+        )
+    return applied

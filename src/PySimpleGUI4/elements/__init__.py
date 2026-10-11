@@ -38,7 +38,14 @@ from .containers import (
 )
 from .calendar import Calendar
 from .data import Table, Tree
-from .misc import HorizontalSeparator, Sizegrip, StatusBar, VerticalSeparator
+from .misc import (
+    HorizontalSeparator,
+    Menubutton,
+    Scrollbar,
+    Sizegrip,
+    StatusBar,
+    VerticalSeparator,
+)
 
 __all__ = [
     "Element",
@@ -83,6 +90,8 @@ __all__ = [
     "VerticalSeparator",
     "HorizontalSeparator",
     "Sizegrip",
+    "Menubutton",
+    "Scrollbar",
     "validate_integer",
     "validate_float",
     "validate_regex",

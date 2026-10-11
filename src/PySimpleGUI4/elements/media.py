@@ -11,7 +11,18 @@ from .. import _theming as theme_mod
 class Image(Element):
     """Displays a PNG/GIF image from a file or base64 data."""
 
-    __slots__ = ("_filename", "_data_base64", "_photo")
+    __slots__ = (
+        "_filename",
+        "_data_base64",
+        "_photo",
+        "_zoom",
+        "_subsample",
+        "_enable_animation",
+        "_animation_job",
+        "_frames",
+        "_frame_index",
+        "_frame_delay",
+    )
 
     def __init__(
         self,
@@ -20,6 +31,9 @@ class Image(Element):
         data_base64=None,
         key=None,
         size=(None, None),
+        zoom=None,
+        subsample=None,
+        enable_animation=True,
         tooltip=None,
         visible=True,
         pad=None,
@@ -42,6 +56,13 @@ class Image(Element):
         self._filename = filename
         self._data_base64 = data_base64
         self._photo = None
+        self._zoom = zoom
+        self._subsample = subsample
+        self._animation_job = None
+        self._frames = []
+        self._frame_index = 0
+        self._frame_delay = 100
+        self._enable_animation = bool(enable_animation)
         if source is not None and filename is None and data_base64 is None:
             self._filename = source
 
@@ -50,18 +71,108 @@ class Image(Element):
         self._apply_image(label)
         return label
 
-    def _apply_image(self, label):
-        self._photo = None
-        if self._data_base64 is not None:
-            import base64
+    def _load_photo(self, master):
+        """PhotoImage from the source, honouring zoom/subsample scaling."""
+        import base64
 
-            self._photo = tk.PhotoImage(
-                data=base64.b64decode(self._data_base64), master=label
-            )
+        if self._data_base64 is not None:
+            photo = tk.PhotoImage(data=base64.b64decode(self._data_base64), master=master)
         elif self._filename is not None:
-            self._photo = tk.PhotoImage(file=self._filename, master=label)
+            photo = tk.PhotoImage(file=self._filename, master=master)
+        else:
+            return None
+        if self._zoom is not None and self._zoom != 1:
+            zx, zy = self._zoom if isinstance(self._zoom, tuple) else (self._zoom, self._zoom)
+            if zx != 1 or zy != 1:
+                photo = photo.zoom(int(zx), int(zy))
+        if self._subsample is not None and self._subsample != 1:
+            sx, sy = self._subsample if isinstance(self._subsample, tuple) else (self._subsample, self._subsample)
+            if sx != 1 or sy != 1:
+                photo = photo.subsample(int(sx), int(sy))
+        return photo
+
+    def _apply_image(self, label):
+        self._stop_animation()
+        self._photo = self._load_photo(label)
         if self._photo is not None:
             label.configure(image=self._photo)
+        if self._enable_animation:
+            self._start_animation_if_gif(label)
+
+    # --- GIF animation (PhotoImage format subimage frames) -----------------------
+    def _gif_frame_count(self, label):
+        """Number of images inside a GIF (1 for PNG/PPM which are single-frame)."""
+        import base64
+
+        probe = tk.PhotoImage(
+            format="gif -index 1",
+            **(
+                {"data": base64.b64decode(self._data_base64)}
+                if self._data_base64 is not None
+                else {"file": self._filename}
+            ),
+            master=label,
+        )
+        # Tk raises TclError when the index is out of range; success means
+        # there are at least 2 frames
+        del probe
+        return 2  # existence of frame 1 proves multiple frames
+
+    def _start_animation_if_gif(self, label):
+        """Load every GIF frame and start an ``after`` loop when animated."""
+        try:
+            frame_count = self._gif_frame_count(label)
+        except tk.TclError:
+            return  # single-frame GIF or a PNG (no "-index 1")
+        frames = [self._photo]
+        index = 2
+        while True:
+            try:
+                frames.append(tk.PhotoImage(
+                    format=f"gif -index {index}",
+                    **(
+                        {"data": __import__("base64").b64decode(self._data_base64)}
+                        if self._data_base64 is not None
+                        else {"file": self._filename}
+                    ),
+                    master=label,
+                ))
+            except tk.TclError:
+                break
+            index += 1
+        if len(frames) <= 1:
+            return
+        self._frames = frames
+        self._frame_index = 0
+        self._frame_delay = 100  # ~10 fps default; animation_control() retunes
+        self._start_animation(label)
+
+    def _animate(self, label):
+        self._frame_index = (self._frame_index + 1) % len(self._frames)
+        label.configure(image=self._frames[self._frame_index])
+        self._animation_job = label.after(self._frame_delay, lambda: self._animate(label))
+
+    def _start_animation(self, label):
+        if self._animation_job is None and len(self._frames) > 1:
+            self._animation_job = label.after(self._frame_delay, lambda: self._animate(label))
+
+    def _stop_animation(self):
+        if self._animation_job is not None and self._widget is not None:
+            try:
+                self._widget.after_cancel(self._animation_job)
+            except tk.TclError:
+                pass
+            self._animation_job = None
+
+    def animation_control(self, start=True, delay=None):
+        """Start or pause a GIF animation manually. Returns self."""
+        if delay is not None:
+            self._frame_delay = int(delay)
+        if start:
+            self._start_animation(self._widget)
+        else:
+            self._stop_animation()
+        return self
 
     def update(self, source=None, filename=None, data_base64=None, visible=None):
         if filename is not None:
@@ -126,6 +237,10 @@ class Canvas(Element):
 
     def _bind_events(self):
         self._widget.bind("<Button-1>", self._on_click)
+
+    def _scroll_command(self):
+        """The yview command a standalone :class:`Scrollbar` can drive."""
+        return self._widget.yview
 
     def _on_click(self, event):
         self._post_event()

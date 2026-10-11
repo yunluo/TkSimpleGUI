@@ -223,9 +223,9 @@ class Element(object, metaclass=ElementBaseMeta):
     # --- right click menu ---------------------------------------------------------
     def _attach_right_click_menu(self):
         self._popup_menu = build_popup_menu(
-            self, self._widget, self._right_click_menu
+            self, self._bind_target, self._right_click_menu
         )
-        self._widget.bind("<Button-3>", self._show_popup_menu)
+        self._bind_target.bind("<Button-3>", self._show_popup_menu)
 
     def _show_popup_menu(self, event):
         if self._popup_menu is not None:
@@ -242,7 +242,7 @@ class Element(object, metaclass=ElementBaseMeta):
             self._window._post_event(key if key is not None else self._key)
 
     def _attach_tooltip(self):
-        self._tooltip_binding = Tooltip(self._widget, self._tooltip)
+        self._tooltip_binding = Tooltip(self._bind_target, self._tooltip)
 
     def _resolve_font(self, font):
         return font if font is not None else settings_mod.settings.font
@@ -257,6 +257,39 @@ class Element(object, metaclass=ElementBaseMeta):
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support update()"
         )
+
+    @property
+    def _bind_target(self):
+        """The widget that :meth:`bind` attaches to (composite elements may
+        override this to point at the interactive inner widget)."""
+        return self._widget
+
+    def bind(self, event_pattern, callback=None, key=None):
+        """Bind a tk event pattern (``"<Double-1>"``, ``"<Motion>"``…).
+
+        ``callback(element, event)`` runs on the event, or ``key`` (or the
+        element's own key when both are omitted) is posted into the window
+        queue. Returns self.
+        """
+        widget = self._bind_target
+        if widget is None:
+            raise RuntimeError("bind requires a finalized window")
+        if callback is not None:
+            widget.bind(
+                event_pattern, lambda event: callback(self, event)
+            )
+        elif key is not None:
+            widget.bind(event_pattern, lambda _event: self._post_event(key))
+        else:
+            widget.bind(event_pattern, lambda _event: self._post_event())
+        return self
+
+    def unbind(self, event_pattern):
+        """Remove a binding added with :meth:`bind`. Returns self."""
+        widget = self._bind_target
+        if widget is not None:
+            widget.unbind(event_pattern)
+        return self
 
     def set_focus(self):
         """Give the keyboard focus to this element."""

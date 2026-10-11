@@ -252,8 +252,15 @@ def popup_get_date(message="Choose a date", title="", default_date=None, datefor
 
 
 # --- find / replace helpers (tk.Text search API) --------------------------------
+def _as_text_widget(target):
+    """The underlying tk.Text of a Multiline element (or the widget itself)."""
+    text = getattr(target, "_text", None)
+    return text if text is not None else target
+
+
 def _text_find(widget, needle, start="1.0", case_sensitive=False):
     """First "line.col" index of ``needle`` in a tk.Text, or None."""
+    widget = _as_text_widget(widget)
     needle = str(needle)
     if not needle:
         return None
@@ -267,6 +274,7 @@ def _text_replace_all(widget, needle, replacement, case_sensitive=False):
     The search resumes after each inserted replacement so replacements that
     contain the needle cannot loop forever.
     """
+    widget = _as_text_widget(widget)
     needle = str(needle)
     replacement = str(replacement)
     if not needle:
@@ -302,7 +310,7 @@ def popup_find(multiline, title="Find Text", case_sensitive=False):
     event, values = window.read(close=True)
     if event != "Find":
         return None
-    widget = multiline.widget
+    widget = _as_text_widget(multiline)
     needle = values.get("-IN-", "")
     pos = _text_find(widget, needle, case_sensitive=case_sensitive)
     if pos:
@@ -331,7 +339,7 @@ def popup_replace(multiline, title="Replace", case_sensitive=False):
     event, values = window.read(close=True)
     if event != "RA":
         return None
-    widget = multiline.widget
+    widget = _as_text_widget(multiline)
     was_disabled = str(widget.cget("state")) == "disabled"
     widget.configure(state="normal")
     count = _text_replace_all(

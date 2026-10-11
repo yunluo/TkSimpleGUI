@@ -488,6 +488,10 @@ class Listbox(InputElement):
         if self._enable_events:
             self._widget.bind("<<ListboxSelect>>", lambda _e: self._post_event())
 
+    def _scroll_command(self):
+        """The yview command a standalone :class:`Scrollbar` can drive."""
+        return self._widget.yview
+
     @property
     def values(self):
         return list(self._values)
@@ -579,16 +583,19 @@ class Spin(InputElement):
 
     def _create_widget(self, master):
         self._variable = tk.StringVar(value=str(self._initial_value))
-        kwargs = theme_mod.theme_manager.input_kwargs(
-            text_color=self._text_color, background_color=self._background_color
+        style_name = theme_mod.theme_manager.ttk_widget_style(
+            master,
+            "TSpinbox",
+            foreground=self._text_color,
+            fieldbackground=self._background_color,
+            font=self._font,
         )
+        kwargs = {"style": style_name}
         width = _char_width(self._size)
         if width is not None:
             kwargs["width"] = width
-        if self._font is not None:
-            kwargs["font"] = self._font
         state = "disabled" if self._disabled else "readonly"
-        spin = tk.Spinbox(
+        spin = ttk.Spinbox(
             master,
             values=[str(v) for v in self._values],
             textvariable=self._variable,
@@ -892,6 +899,9 @@ class Multiline(InputElement):
         "_text_color",
         "_background_color",
         "_font",
+        "_wrap",
+        "_scroll_y",
+        "_text",
     )
 
     def __init__(
@@ -901,6 +911,8 @@ class Multiline(InputElement):
         size=(40, 5),
         enable_events=False,
         enter_submits=False,
+        wrap="word",
+        scroll_y=False,
         text_color=None,
         background_color=None,
         font=None,
@@ -930,6 +942,9 @@ class Multiline(InputElement):
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
+        self._wrap = wrap if wrap in ("word", "char", "none") else "word"
+        self._scroll_y = bool(scroll_y)
+        self._text = None
 
     def _create_widget(self, master):
         kwargs = theme_mod.theme_manager.input_kwargs(
@@ -944,15 +959,35 @@ class Multiline(InputElement):
         if self._font is not None:
             kwargs["font"] = self._font
         kwargs["undo"] = True  # native tk.Text undo/redo stack
-        text = tk.Text(master, **kwargs)
+        kwargs["wrap"] = self._wrap
+        container = tk.Frame(master)
+        text = tk.Text(container, **kwargs)
         text.insert("1.0", self._default_text)
         self._apply_disabled(text)
-        return text
+        text.grid(row=0, column=0, sticky="nsew")
+        container.rowconfigure(0, weight=1)
+        container.columnconfigure(0, weight=1)
+        if self._scroll_y:
+            scrollbar = tk.Scrollbar(
+                container, orient="vertical", command=text.yview
+            )
+            text.configure(yscrollcommand=scrollbar.set)
+            scrollbar.grid(row=0, column=1, sticky="ns")
+        self._text = text
+        return container
+
+    @property
+    def _bind_target(self):
+        return self._text
+
+    def _scroll_command(self):
+        """The yview command a standalone :class:`Scrollbar` can drive."""
+        return self._text.yview
 
     def _bind_events(self):
         if self._enable_events:
-            self._widget.bind("<KeyRelease>", lambda _e: self._post_event())
-        self._widget.bind("<Return>", self._on_return)
+            self._text.bind("<KeyRelease>", lambda _e: self._post_event())
+        self._text.bind("<Return>", self._on_return)
 
     def _on_return(self, event):
         if self._enable_events:
@@ -961,7 +996,7 @@ class Multiline(InputElement):
 
     def get(self):
         """Full contents (without the trailing newline)."""
-        return self._widget.get("1.0", "end-1c")
+        return self._text.get("1.0", "end-1c")
 
     def _end_state(self):
         """State a freshly written widget should be left in."""
@@ -978,29 +1013,81 @@ class Multiline(InputElement):
         sep = kwargs.get("sep", " ")
         end = kwargs.get("end", "\n")
         text_color = kwargs.get("text_color")
-        self._widget.configure(state="normal")
+        self._text.configure(state="normal")
         text = sep.join(str(a) for a in args) + end
         if text_color is not None:
             tag = f"print_{str(text_color).lstrip('#')}"
-            self._widget.tag_configure(tag, foreground=text_color)
-            self._widget.insert("end", text, tag)
+            self._text.tag_configure(tag, foreground=text_color)
+            self._text.insert("end", text, tag)
         else:
-            self._widget.insert("end", text)
-        self._widget.see("end")
-        self._widget.configure(state=self._end_state())
+            self._text.insert("end", text)
+        self._text.see("end")
+        self._text.configure(state=self._end_state())
+        return self
+
+    def link(self, text, key=None, text_color="#0563c1", underline=True):
+        """Append clickable text that posts ``key`` (or the text itself).
+
+        The native tk.Text ``tag_bind`` mechanism turns the word into a
+        hyperlink; style it like one by default.
+        """
+        tag = f"link_{id(text)}"
+        self._text.configure(state="normal")
+        self._text.tag_configure(
+            tag, foreground=text_color, underline=1 if underline else 0
+        )
+        start = self._text.index("end-1c")
+        self._text.insert("end", str(text), tag)
+        self._text.tag_bind(
+            tag, "<Button-1>", lambda _e: self._post_event(key if key is not None else str(text))
+        )
+        self._text.tag_bind(tag, "<Enter>", lambda _e: self._text.configure(cursor="hand2"))
+        self._text.tag_bind(tag, "<Leave>", lambda _e: self._text.configure(cursor=""))
+        self._text.see("end")
+        self._text.mark_set("insert", start)
+        self._text.configure(state=self._end_state())
+        return self
+
+    def search_all(self, needle, case_sensitive=False, background="#ffe08a"):
+        """Highlight every occurrence of ``needle``; returns the match count.
+
+        Matches are tagged with a native tk.Text tag until
+        :meth:`clear_highlights` is called.
+        """
+        needle = str(needle)
+        self._text.tag_delete("search_all")
+        if not needle:
+            return 0
+        self._text.tag_configure("search_all", background=background)
+        count = 0
+        start = "1.0"
+        while True:
+            pos = self._text.search(
+                needle, start, stopindex="end", nocase=not case_sensitive
+            )
+            if not pos:
+                break
+            self._text.tag_add("search_all", pos, f"{pos}+{len(needle)}c")
+            count += 1
+            start = f"{pos}+{len(needle)}c"
+        return count
+
+    def clear_highlights(self):
+        """Remove tags added by :meth:`search_all`."""
+        self._text.tag_delete("search_all")
         return self
 
     def clear(self):
         """Remove all text."""
-        self._widget.configure(state="normal")
-        self._widget.delete("1.0", "end")
-        self._widget.configure(state=self._end_state())
+        self._text.configure(state="normal")
+        self._text.delete("1.0", "end")
+        self._text.configure(state=self._end_state())
         return self
 
     def undo(self):
         """Undo the last edit (native tk.Text undo stack)."""
         try:
-            self._widget.edit_undo()
+            self._text.edit_undo()
         except tk.TclError:
             pass
         return self
@@ -1008,24 +1095,24 @@ class Multiline(InputElement):
     def redo(self):
         """Re-apply the last undone edit (native tk.Text undo stack)."""
         try:
-            self._widget.edit_redo()
+            self._text.edit_redo()
         except tk.TclError:
             pass
         return self
 
     def update(self, value=None, append=False, disabled=None, visible=None):
         if value is not None:
-            self._widget.configure(state="normal")
+            self._text.configure(state="normal")
             if append:
-                self._widget.insert("end", str(value))
-                self._widget.see("end")
+                self._text.insert("end", str(value))
+                self._text.see("end")
             else:
-                self._widget.delete("1.0", "end")
-                self._widget.insert("1.0", str(value))
-            self._widget.configure(state=self._end_state())
+                self._text.delete("1.0", "end")
+                self._text.insert("1.0", str(value))
+            self._text.configure(state=self._end_state())
         if disabled is not None:
             self._disabled = bool(disabled)
-            self._widget.configure(state="disabled" if disabled else "normal")
+            self._text.configure(state="disabled" if disabled else "normal")
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -1037,9 +1124,9 @@ class Output(Multiline):
     __slots__ = ()
 
     def _create_widget(self, master):
-        widget = super()._create_widget(master)
-        widget.configure(state="disabled")
-        return widget
+        container = super()._create_widget(master)
+        self._text.configure(state="disabled")
+        return container
 
 
 class ProgressBar(Element):

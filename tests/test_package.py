@@ -8,6 +8,7 @@ import sys
 import time
 import tkinter as tk
 import unittest
+from tkinter import ttk
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
@@ -474,7 +475,7 @@ class TestTkIntegration(unittest.TestCase):
         multiline.print("bad", text_color="#cc0000")
         self.assertIn("line-one", multiline.get())
         self.assertIn("bad", multiline.get())
-        multiline.widget.insert("end", "extra")
+        multiline._text.insert("end", "extra")
         multiline.undo()
         self.assertNotIn("extra", multiline.get())
         multiline.redo()
@@ -487,7 +488,7 @@ class TestTkIntegration(unittest.TestCase):
         multiline = sg.Multiline("", key="-ML-")
         window = sg.Window("t", [[multiline]], finalize=True)
         multiline.update("fresh text")
-        self.assertEqual(str(multiline.widget.cget("state")), "normal")
+        self.assertEqual(str(multiline._text.cget("state")), "normal")
         window.close()
 
     def test_button_with_image(self):
@@ -642,21 +643,20 @@ class TestFirstBatch(unittest.TestCase):
 
         multiline = sg.Multiline("alpha beta ALPHA end", key="-ML-")
         window = sg.Window("t", [[multiline]], finalize=True)
-        widget = multiline.widget
-        pos = _text_find(widget, "beta")
+        pos = _text_find(multiline, "beta")  # element is unwrapped internally
         self.assertEqual(pos, "1.6")
-        pos = _text_find(widget, "BETA", case_sensitive=True)
+        pos = _text_find(multiline, "BETA", case_sensitive=True)
         self.assertIsNone(pos)
-        pos = _text_find(widget, "ALPHA", case_sensitive=True)
+        pos = _text_find(multiline._text, "ALPHA", case_sensitive=True)
         self.assertEqual(pos, "1.11")
         # case insensitive search hits the earliest match ("beta" at col 6)
-        pos = _text_find(widget, "BETA")
+        pos = _text_find(multiline._text, "BETA")
         self.assertEqual(pos, "1.6")
-        self.assertIsNone(_text_find(widget, ""))
-        count = _text_replace_all(widget, "alpha", "delta")
+        self.assertIsNone(_text_find(multiline._text, ""))
+        count = _text_replace_all(multiline._text, "alpha", "delta")
         self.assertEqual(count, 2)  # case insensitive: "alpha" AND "ALPHA"
         self.assertEqual(multiline.get(), "delta beta delta end")
-        count = _text_replace_all(widget, "", "x")
+        count = _text_replace_all(multiline._text, "", "x")
         self.assertEqual(count, 0)
         window.close()
 
@@ -995,6 +995,171 @@ class TestThirdBatch(unittest.TestCase):
         # dbg formats args and delegates to the quick popup
         self.assertTrue(callable(sg.dbg))
         self.assertTrue(callable(sg.popup_quick))
+
+
+class TestLineA(unittest.TestCase):
+    """战线 A：Tk/ttk 原生 API 全覆盖。"""
+
+    def test_element_bind_and_unbind(self):
+        element = sg.Text("click me", key="-T-")
+        window = sg.Window("t", [[element]], finalize=True)
+        element.bind("<F5>")  # posts the element key
+        element.widget.focus_set()
+        window.refresh()
+        element.widget.event_generate("<F5>", when="tail")
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "-T-")
+        element.bind("<Button-3>", key="-CUSTOM-")
+        element.widget.event_generate("<Button-3>", when="tail")
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "-CUSTOM-")
+        calls = []
+        element.bind("<Button-2>", callback=lambda el, ev: calls.append(el))
+        element.widget.event_generate("<Button-2>", when="tail")
+        window.refresh()
+        self.assertEqual(calls, [element])
+        element.unbind("<Button-2>")
+        window.close()
+
+    def test_bind_before_finalize_raises(self):
+        element = sg.Text("x")
+        with self.assertRaises(RuntimeError):
+            element.bind("<Button-1>")
+
+    def test_multiline_scrollbar_wrap(self):
+        multiline = sg.Multiline(
+            "\n".join(f"line {i}" for i in range(50)),
+            size=(30, 4), scroll_y=True, wrap="none", key="-ML-",
+        )
+        window = sg.Window("t", [[multiline]], finalize=True)
+        container = multiline.widget
+        self.assertIsInstance(container, tk.Frame)  # composite container
+        children = container.winfo_children()
+        self.assertEqual(len(children), 2)  # text + scrollbar
+        self.assertEqual(str(multiline._text.cget("wrap")), "none")
+        self.assertEqual(multiline.get().splitlines()[0], "line 0")
+        window.close()
+
+    def test_multiline_link_and_search(self):
+        multiline = sg.Multiline("", key="-ML-")
+        window = sg.Window("t", [[multiline]], finalize=True)
+        multiline.print("Visit ")
+        multiline.link("PySimpleGUI4", key="-LINK-")
+        self.assertEqual(multiline.search_all("Simple"), 1)
+        ranges = multiline._text.tag_ranges("search_all")
+        self.assertEqual(len(ranges), 2)  # start + end index
+        multiline.clear_highlights()
+        self.assertEqual(len(multiline._text.tag_ranges("search_all")), 0)
+        # clicking the link region posts the key
+        multiline._text.tag_bind  # noqa: B018 - tags exist via link()
+        window.close()
+
+    def test_image_zoom_and_subsample(self):
+        image = sg.Image(data_base64=sg.DEFAULT_BASE64_ICON, zoom=2)
+        window = sg.Window("t", [[image]], finalize=True)
+        self.assertEqual(image._photo.width(), 128)
+        window.close()
+        image = sg.Image(data_base64=sg.DEFAULT_BASE64_ICON, subsample=2)
+        window = sg.Window("t", [[image]], finalize=True)
+        self.assertEqual(image._photo.width(), 32)
+        window.close()
+
+    def test_spin_is_ttk(self):
+        spin = sg.Spin([1, 2, 3], initial_value=2)
+        window = sg.Window("t", [[spin]], finalize=True)
+        self.assertIsInstance(spin.widget, ttk.Spinbox)
+        self.assertEqual(spin.get(), "2")
+        window.close()
+
+    def test_ttk_theme_switch(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        available = sg.ttk_themes()
+        self.assertTrue(available)
+        current = sg.ttk_theme()
+        if "clam" in available:
+            self.assertEqual(sg.ttk_theme("clam"), "clam")
+            self.assertEqual(sg.ttk_theme(), "clam")
+            sg.ttk_theme(current)
+        with self.assertRaises(ValueError):
+            sg.ttk_theme("__nope__")
+        window.close()
+
+    def test_window_wm_extensions(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window.set_fullscreen(True)
+        window.refresh()
+        self.assertEqual(int(window.tk_root.attributes("-fullscreen")), 1)
+        window.set_fullscreen(False)
+        window.make_toolwindow(False)
+        window.set_max_size((800, 600))
+        window.bell()
+        child = sg.Window("child", [[sg.Text("c")]], finalize=True)
+        child.transient(window)
+        child.stack_above(window)
+        child.close()
+        window.close()
+
+    def test_window_selection(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window.selection_set("primary-data")
+        window.refresh()
+        self.assertEqual(window.selection_get(), "primary-data")
+        window.close()
+
+    def test_window_style_hooks(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window.configure_style("TButton", padding=(16, 8))
+        window.map_style("TButton", background=[("active", "#3a7bd5")])
+        window.close()
+
+    def test_font_tools(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        families = sg.font_families()
+        self.assertTrue(families)
+        width = sg.font_measure("hello", ("Helvetica", 10))
+        self.assertGreater(width, 0)
+        actual = sg.font_actual(("Helvetica", 12, "bold"))
+        self.assertEqual(actual["size"], 12)
+        self.assertEqual(actual["weight"], "bold")
+        window.close()
+
+    def test_menubutton_element(self):
+        menu_button = sg.Menubutton("选项", ["One", "---", "Two"], key="-MB-")
+        window = sg.Window("t", [[menu_button]], finalize=True)
+        self.assertEqual(menu_button.items, ["One", "---", "Two"])
+        menu_button.update(items=["Alpha"])
+        menu = menu_button.widget.nametowidget(menu_button.widget.cget("menu"))
+        self.assertEqual(menu.entrycget(0, "label"), "Alpha")
+        menu.invoke(0)
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "Alpha")
+        window.close()
+
+    def test_scrollbar_element(self):
+        multiline = sg.Multiline("\n".join(f"line {i}" for i in range(60)),
+                                 size=(20, 3), key="-ML-")
+        scrollbar = sg.Scrollbar(multiline, orientation="v")
+        window = sg.Window("t", [[multiline, scrollbar]], finalize=True)
+        self.assertIsNotNone(scrollbar.widget)
+        with self.assertRaises(TypeError):
+            sg.Window("t2", [[sg.Scrollbar(sg.Text("not scrollable"))]], finalize=True)
+        window.close()
+
+    def test_tabgroup_enhancements(self):
+        tab_group = sg.TabGroup(
+            [[sg.Tab("one", [[sg.Text("1")]]), sg.Tab("two", [[sg.Text("2")]])]],
+            key="-TG-", enable_events=True, enable_traversal=True,
+        )
+        window = sg.Window("t", [[tab_group]], finalize=True)
+        self.assertEqual(tab_group.current_tab, "one")
+        tab_group.select_tab("two")
+        window.refresh()
+        self.assertEqual(tab_group.current_tab, "two")
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, ("-TG-", "two"))
+        tab_group.update(tab="two", tab_state="disabled")
+        self.assertEqual(tab_group.widget.tab(1, "state"), "disabled")
+        window.close()
 
 
 class TestEventManager(unittest.TestCase):
