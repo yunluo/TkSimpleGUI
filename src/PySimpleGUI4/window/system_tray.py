@@ -23,6 +23,7 @@ import queue
 import struct
 import tempfile
 import time
+import tkinter
 
 from .. import constants as C
 
@@ -92,6 +93,9 @@ class WNDCLASSW(ctypes.Structure):
 class SystemTray(object):
     """A system tray icon with a context menu and notifications."""
 
+    # borrowed from an open Window or a private hidden Tk root
+    _tk_root: "tkinter.Tk"
+
     def __init__(self, title="Tray", icon=None, tooltip=None, menu=None):
         if not hasattr(ctypes, "windll"):
             raise RuntimeError("SystemTray requires Windows")
@@ -104,7 +108,7 @@ class SystemTray(object):
         self._icon_handle = None
         self._created = False
         self._owns_root = False
-        self._tk_root = None
+        self._tk_root = None  # ty: ignore[invalid-assignment]
         self._events = queue.Queue()
         self._register_and_show()
 
@@ -330,7 +334,7 @@ class SystemTray(object):
                 self._tk_root.destroy()
             except Exception:
                 pass
-            self._tk_root = None
+            self._tk_root = None  # ty: ignore[invalid-assignment]
         return self
 
     # --- PSG style aliases -----------------------------------------------------

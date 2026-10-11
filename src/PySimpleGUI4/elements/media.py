@@ -1,10 +1,17 @@
 #!/usr/bin/env python3
 """Image, canvas and graph elements."""
 
+import base64
 import tkinter as tk
+from typing import List, Optional, Tuple, Union
 
 from .base import Element
 from .. import _theming as theme_mod
+
+# A drawing point in user/graph coordinates.
+Point = Tuple[float, float]
+# An image source: base64 bytes or a file path.
+ImageSource = Union[bytes, str]
 
 
 
@@ -23,6 +30,9 @@ class Image(Element):
         "_frame_index",
         "_frame_delay",
     )
+
+    # the current frame's PhotoImage; None only before the source is set
+    _photo: Optional[tk.PhotoImage]
 
     def __init__(
         self,
@@ -73,8 +83,6 @@ class Image(Element):
 
     def _load_photo(self, master):
         """PhotoImage from the source, honouring zoom/subsample scaling."""
-        import base64
-
         if self._data_base64 is not None:
             photo = tk.PhotoImage(data=base64.b64decode(self._data_base64), master=master)
         elif self._filename is not None:
@@ -100,28 +108,26 @@ class Image(Element):
             self._start_animation_if_gif(label)
 
     # --- GIF animation (PhotoImage format subimage frames) -----------------------
-    def _gif_frame_count(self, label):
-        """Number of images inside a GIF (1 for PNG/PPM which are single-frame)."""
-        import base64
+    def _photo_kwargs(self):
+        """Source kwargs for constructing additional PhotoImage frames."""
+        if self._data_base64 is not None:
+            return {"data": base64.b64decode(self._data_base64)}
+        return {"file": self._filename}
 
+    def _gif_frame_count(self, label):
+        """Return True when the source GIF has a second frame (animated)."""
         probe = tk.PhotoImage(
-            format="gif -index 1",
-            **(
-                {"data": base64.b64decode(self._data_base64)}
-                if self._data_base64 is not None
-                else {"file": self._filename}
-            ),
-            master=label,
+            format="gif -index 1", **self._photo_kwargs(), master=label
         )
         # Tk raises TclError when the index is out of range; success means
         # there are at least 2 frames
         del probe
-        return 2  # existence of frame 1 proves multiple frames
+        return True
 
     def _start_animation_if_gif(self, label):
         """Load every GIF frame and start an ``after`` loop when animated."""
         try:
-            frame_count = self._gif_frame_count(label)
+            self._gif_frame_count(label)
         except tk.TclError:
             return  # single-frame GIF or a PNG (no "-index 1")
         frames = [self._photo]
@@ -130,11 +136,7 @@ class Image(Element):
             try:
                 frames.append(tk.PhotoImage(
                     format=f"gif -index {index}",
-                    **(
-                        {"data": __import__("base64").b64decode(self._data_base64)}
-                        if self._data_base64 is not None
-                        else {"file": self._filename}
-                    ),
+                    **self._photo_kwargs(),
                     master=label,
                 ))
             except tk.TclError:
@@ -381,12 +383,10 @@ class Graph(Canvas):
 
         Returns the canvas item id. The photo is retained by the graph.
         """
-        import base64
-
         if data_base64 is not None:
             photo = tk.PhotoImage(data=base64.b64decode(data_base64), master=self._widget)
         else:
-            photo = tk.PhotoImage(file=filename, master=self._widget)
+            photo = tk.PhotoImage(file=str(filename), master=self._widget)
         self._images.append(photo)
         x, y = self._to_canvas(location)
         return self._widget.create_image(x, y, image=photo, anchor="nw")
@@ -516,22 +516,23 @@ class Shape(Element):
         )
         width = self._size[0] or 40
         height = self._size[1] or 20
+        fill = self._fill_color or ""  # "" = transparent fill
         if self._shape_type == "rectangle":
             canvas.create_rectangle(
                 0, 0, width, height,
-                fill=self._fill_color, outline=self._line_color,
+                fill=fill, outline=self._line_color,
                 width=self._line_width,
             )
         elif self._shape_type == "oval":
             canvas.create_oval(
                 0, 0, width, height,
-                fill=self._fill_color, outline=self._line_color,
+                fill=fill, outline=self._line_color,
                 width=self._line_width,
             )
         elif self._shape_type == "triangle":
             canvas.create_polygon(
                 width / 2.0, 0, width, height, 0, height,
-                fill=self._fill_color, outline=self._line_color,
+                fill=fill, outline=self._line_color,
                 width=self._line_width,
             )
         else:  # line

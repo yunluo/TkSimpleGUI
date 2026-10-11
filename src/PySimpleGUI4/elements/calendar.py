@@ -35,6 +35,10 @@ class Calendar(Element):
         "_day_area",
     )
 
+    # created together in _create_widget
+    _header: ttk.Label
+    _day_area: tk.Frame
+
     def __init__(
         self,
         default_date=None,
@@ -71,8 +75,8 @@ class Calendar(Element):
         self._dateformat = dateformat or "%Y-%m-%d"
         self._enable_events = enable_events
         self._viewed = default_date.replace(day=1)
-        self._header = None
-        self._day_area = None
+        self._header = None  # ty: ignore[invalid-assignment]
+        self._day_area = None  # ty: ignore[invalid-assignment]
 
     # --- date state -------------------------------------------------------------
     @property

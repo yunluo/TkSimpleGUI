@@ -3,6 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from typing import Literal, Optional, cast
 
 from .base import Element
 from .. import constants as C
@@ -10,14 +11,14 @@ from .. import constants as C
 
 
 _SELECT_MODE_MAP = {
-    C.SelectMode.BROWSE: tk.BROWSE,
-    C.SelectMode.EXTENDED: tk.EXTENDED,
-    C.SelectMode.MULTIPLE: tk.MULTIPLE,
-    C.SelectMode.SINGLE: tk.NONE,
-    "browse": tk.BROWSE,
-    "extended": tk.EXTENDED,
-    "multiple": tk.MULTIPLE,
-    "none": tk.NONE,
+    C.SelectMode.BROWSE: "browse",
+    C.SelectMode.EXTENDED: "extended",
+    C.SelectMode.MULTIPLE: "multiple",
+    C.SelectMode.SINGLE: "none",
+    "browse": "browse",
+    "extended": "extended",
+    "multiple": "multiple",
+    "none": "none",
 }
 
 
@@ -48,6 +49,9 @@ class Table(Element):
         "_editor",
         "_records",
     )
+
+    # inline cell editor Entry; None when no edit is in progress
+    _editor: Optional[tk.Entry]
 
     def __init__(
         self,
@@ -105,7 +109,11 @@ class Table(Element):
 
     def _create_widget(self, master):
         kwargs = {}
-        mode = _SELECT_MODE_MAP.get(self._select_mode, tk.EXTENDED)
+        # the stub narrows selectmode to these three literals
+        mode = cast(
+            Literal["extended", "browse", "none"],
+            _SELECT_MODE_MAP.get(self._select_mode, "extended"),
+        )
         columns = [f"col{i}" for i in range(len(self._headings))]
         # item images render in the #0 tree column, which "headings" mode
         # hides — include a narrow #0 column when row icons are wanted
@@ -166,14 +174,22 @@ class Table(Element):
             pass
 
     # --- data binding (lightweight TDataSource) ---------------------------------------
-    def bind(self, records, headings=None):
+    def bind(self, records=None, headings=None, **kwargs):  # ty: ignore[invalid-method-override]
         """Bind a list of dicts (or objects) as the table contents.
 
         Columns come from ``headings`` (explicit order) or from the union of
         record keys in first-appearance order. Rebuilds the widget columns
         and rows; the original records stay available through
         :attr:`selected_records` and stay in sync with cell edits.
+
+        The ``records`` parameter reuses the ``bind`` name for PySimpleGUI
+        compatibility (``Table.bind(records)``); the keyword names
+        intentionally differ from :meth:`Element.bind`, whose tk event
+        binding is still reachable via ``super().bind(event_pattern)`` when
+        ``records`` is not a sequence — hence the accepted override warning.
         """
+        if not isinstance(records, (list, tuple)):
+            return super().bind(records, **kwargs)
         self._records = list(records)
         if headings is not None:
             columns = [str(heading) for heading in headings]
@@ -486,7 +502,9 @@ class Tree(Element):
                     data=base64.b64decode(image_data), master=self._widget
                 )
             else:
-                photo = tk.PhotoImage(file=image_filename, master=self._widget)
+                photo = tk.PhotoImage(
+                    file=str(image_filename), master=self._widget
+                )
             self._images.append(photo)
             kwargs["image"] = photo
         item_id = self._widget.insert(

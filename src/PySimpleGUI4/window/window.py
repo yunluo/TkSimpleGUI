@@ -6,6 +6,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import ttk
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .. import constants as C
 from .. import _theming as theme_mod
@@ -13,6 +14,11 @@ from .. import settings as settings_mod
 from ..actions import ActionList
 from ..elements.base import Element, build_popup_menu
 from ..elements.containers import Menu
+
+# A Window size or on-screen position as (x, y) pixels.
+WindowPoint = Tuple[int, int]
+# Sizes/locations accept None components ("let the wm decide").
+OptionalPoint = Tuple[Optional[int], Optional[int]]
 
 
 
@@ -28,6 +34,11 @@ class Window(object):
 
     The class is also a context manager: ``with sg.Window(...) as win:``
     finalizes on entry and closes on exit.
+
+    Typing note: ``_tk_root`` is ``None`` until :meth:`finalize` (or the
+    auto-finalize inside :meth:`read`) and cleared on close, but every
+    method that touches it guards with :meth:`_root_alive` first, so it is
+    annotated as non-optional to keep the call sites narrow.
     """
 
     __slots__ = (
@@ -62,7 +73,38 @@ class Window(object):
         "_drag_offset",
     )
 
-    _open_windows = []  # class level registry, access via active_windows()
+    _open_windows: List["Window"] = []  # class level registry
+
+    # Typed views of the slots (runtime stays __slots__-based).
+    _title: str
+    _layout: List[List[Element]]
+    _tk_root: Union[tk.Tk, tk.Toplevel]
+    _finalized: bool
+    _closed: bool
+    _elements_by_key: Dict[Any, Element]
+    _event_queue: "queue.Queue[Any]"
+    _keep_on_top: Optional[bool]
+    _modal: bool
+    _no_titlebar: bool
+    _grab_anywhere: bool
+    _return_keyboard_events: bool
+    _location: OptionalPoint
+    _size: OptionalPoint
+    _margins: Tuple[int, int]
+    _background_color: Optional[str]
+    _icon: Any
+    _resizable: Optional[Union[bool, Tuple[bool, bool]]]
+    _disable_close: bool
+    _element_justification: Optional[str]
+    _right_click_menu: Optional[list]
+    _popup_menu: Optional[tk.Menu]
+    _action_by_key: Dict[Any, Any]
+    _action_by_text: Dict[str, Any]
+    _event_binds: List[Tuple[str, Optional[Any]]]
+    _radio_groups: Dict[Any, tk.StringVar]
+    _toggle_groups: Dict[Any, List[Any]]
+    _ttk_style: ttk.Style
+    _drag_offset: Optional[Tuple[int, int]]
 
     def __init__(
         self,
@@ -87,7 +129,7 @@ class Window(object):
     ):
         self._title = title
         self._layout = _validate_layout(layout)
-        self._tk_root = None
+        self._tk_root = None  # ty: ignore[invalid-assignment]
         self._finalized = False
         self._closed = False
         self._elements_by_key = {}
@@ -114,7 +156,7 @@ class Window(object):
         self._event_binds = []
         self._radio_groups = {}
         self._toggle_groups = {}
-        self._ttk_style = None
+        self._ttk_style = None  # ty: ignore[invalid-assignment]
         self._drag_offset = None
         if actions is not None:
             self.set_actions(actions)
@@ -182,18 +224,17 @@ class Window(object):
     @classmethod
     def get_screen_size(cls):
         """``(width, height)`` of the primary screen in pixels."""
-        root = None
+        borrowed = None
         if cls._open_windows and cls._open_windows[0]._root_alive():
-            root = cls._open_windows[0]._tk_root
-        temporary = root is None
-        if temporary:
-            root = tk.Tk()
-            root.withdraw()
+            borrowed = cls._open_windows[0]._tk_root
+        if borrowed is not None:
+            return (borrowed.winfo_screenwidth(), borrowed.winfo_screenheight())
+        temporary = tk.Tk()
+        temporary.withdraw()
         try:
-            return (root.winfo_screenwidth(), root.winfo_screenheight())
+            return (temporary.winfo_screenwidth(), temporary.winfo_screenheight())
         finally:
-            if temporary:
-                root.destroy()
+            temporary.destroy()
 
     # --- construction -------------------------------------------------------------
     def finalize(self):
@@ -767,12 +808,13 @@ class Window(object):
         """Mark this window as a transient (dialog) of ``parent_window``.
 
         The window manager groups it above its parent and keeps it on the
-        parent's screen; pass the parent :class:`Window` or None to clear.
+        parent's screen; pass the parent :class:`Window` or None to clear
+        the hint (the window becomes independent again).
         """
         if not self._root_alive():
             return self
         if parent_window is None:
-            self._tk_root.transient("")
+            self._tk_root.transient(None)  # clear the WM hint
         else:
             parent_root = getattr(parent_window, "tk_root", parent_window)
             if parent_root is not None:
@@ -898,7 +940,7 @@ class Window(object):
                 self._tk_root.destroy()
             except tk.TclError:
                 pass
-            self._tk_root = None
+            self._tk_root = None  # ty: ignore[invalid-assignment]
 
     def __enter__(self):
         return self.finalize()

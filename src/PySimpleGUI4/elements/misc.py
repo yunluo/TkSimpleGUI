@@ -3,6 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from typing import Literal, cast
 
 from .base import Element
 from .. import _theming as theme_mod
@@ -120,6 +121,8 @@ class Menubutton(Element):
 
     __slots__ = ("_text", "_items", "_menu", "_direction")
 
+    _menu: tk.Menu
+
     def __init__(
         self,
         text,
@@ -146,7 +149,7 @@ class Menubutton(Element):
         )
         self._text = str(text)
         self._items = list(items)
-        self._menu = None
+        self._menu = None  # ty: ignore[invalid-assignment]
         self._direction = direction
 
     def _create_widget(self, master):
@@ -159,8 +162,13 @@ class Menubutton(Element):
             self._menu.add_command(
                 label=label, command=lambda t=label: self._post_event(t)
             )
+        # narrow the direction to the literal set ttk.Menubutton accepts
+        direction = cast(
+            Literal["above", "below", "left", "right", "flush"],
+            self._direction if self._direction in ("above", "below", "left", "right", "flush") else "below",
+        )
         button = ttk.Menubutton(
-            master, text=self._text, direction=self._direction, menu=self._menu
+            master, text=self._text, direction=direction, menu=self._menu
         )
         return button
 
@@ -197,6 +205,8 @@ class Scrollbar(Element):
 
     __slots__ = ("_target", "_orientation")
 
+    _orientation: str  # always "horizontal" or "vertical"
+
     def __init__(
         self,
         target,
@@ -217,10 +227,18 @@ class Scrollbar(Element):
             metadata=metadata,
         )
         self._target = target
-        self._orientation = "vertical" if str(orientation).lower() in ("v", "vertical") else "horizontal"
+        # narrow to the two literals tk.Scrollbar accepts
+        self._orientation = (
+            "vertical"
+            if str(orientation).lower() in ("v", "vertical")
+            else "horizontal"
+        )
 
     def _create_widget(self, master):
-        widget = tk.Scrollbar(master, orient=self._orientation)
+        widget = tk.Scrollbar(
+            master,
+            orient=cast(Literal["horizontal", "vertical"], self._orientation),
+        )
         command = getattr(self._target, "_scroll_command", None)
         if command is None:
             raise TypeError(

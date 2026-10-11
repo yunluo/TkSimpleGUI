@@ -3,6 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser
+from typing import Literal, cast
 
 from .base import Element
 from .. import constants as C
@@ -188,10 +189,19 @@ class Button(Element):
                 if self._image_data is not None:
                     self._photo = tk.PhotoImage(data=self._image_data, master=master)
                 else:
-                    self._photo = tk.PhotoImage(file=self._image_filename, master=master)
+                    self._photo = tk.PhotoImage(
+                        file=str(self._image_filename), master=master
+                    )
                 button.configure(image=self._photo)
                 if self._compound is not None:
-                    button.configure(compound=self._compound)
+                    compound = cast(
+                        Literal[
+                            "", "text", "image", "top", "left",
+                            "right", "center", "bottom", "none",
+                        ],
+                        self._compound,
+                    )
+                    button.configure(compound=compound)
             except tk.TclError:
                 self._photo = None
         if self._disabled:

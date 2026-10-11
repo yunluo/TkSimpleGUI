@@ -5,6 +5,7 @@ Every popup is built from :class:`~PySimpleGUI4.window.Window` itself, so
 popups automatically follow the active theme.
 """
 
+from typing import Any, Dict, Iterable, List, Optional, Tuple, Union
 
 from . import constants as C
 from . import settings as settings_mod
@@ -13,6 +14,9 @@ from .elements.calendar import Calendar
 from .elements.containers import Column
 from .elements.widgets import Checkbox, Input, Listbox, Multiline, Spin, Text
 from .window.window import Window
+
+# A popup layout row is a list of elements (narrowed to Element's common base).
+ElementRow = List[Any]
 
 
 
@@ -25,7 +29,7 @@ def _popup_window(
     size=(None, None),
 ):
     """Shared helper: build and read a simple popup window."""
-    rows = [[Text(line)] for line in lines]
+    rows: List[ElementRow] = [[Text(line)] for line in lines]
     if not no_buttons and buttons:
         rows.append([Button(label, key=label) for label in buttons])
     window = Window(title, rows, size=size, finalize=True)
@@ -124,7 +128,7 @@ def popup_auto_close(*args, title="", auto_close_duration=None, buttons=("OK",))
         else settings_mod.settings.autoclose_time
     )
     lines = _message_lines(args)
-    rows = [[Text(line)] for line in lines]
+    rows: List[ElementRow] = [[Text(line)] for line in lines]
     rows.append([Button(label, key=label) for label in buttons])
     window = Window(title, rows, finalize=True)
     event, _values = window.read(timeout=int(duration * 1000), close=True)
@@ -153,7 +157,7 @@ def popup_no_titlebar(*args, title="", **kwargs):
 
 def popup_scrolled(*args, title="", size=(80, 20)):
     """Show a scrollable message; returns the text (or None on cancel)."""
-    rows = [[Multiline("\n".join(_message_lines(args)), size=size, key="-ML-")]]
+    rows: List[ElementRow] = [[Multiline("\n".join(_message_lines(args)), size=size, key="-ML-")]]
     rows.append([Button("OK", key="OK"), Button("Cancel", key="Cancel")])
     window = Window(title, rows, finalize=True)
     window["-ML-"].widget.configure(state="disabled")
@@ -196,7 +200,7 @@ def popup_get_file(
     """Native file picker; returns a path (or delimiter joined paths) or None."""
     from tkinter import filedialog
 
-    options = {
+    options: Dict[str, Any] = {
         "title": title or message,
         "filetypes": tuple(file_types),
     }
@@ -370,7 +374,7 @@ def popup_get_font(
     italic = len(default_font) > 2 and "italic" in default_font[2:]
 
     picker_column = [Listbox([], key="-FONTS-", size=(26, 10), enable_events=True)]
-    option_rows = [
+    option_rows: List[ElementRow] = [
         [Text("Size")],
         [Spin([str(n) for n in range(1, 101)], initial_value=str(size), key="-SIZE-")],
     ]
@@ -380,7 +384,7 @@ def popup_get_font(
     option_rows.append(
         [Multiline("AaBbYyZz 123", key="-PREVIEW-", size=(20, 3), font=(family, size))]
     )
-    rows = [
+    rows: List[ElementRow] = [
         [Text(message)],
         [Column(picker_column), Column(option_rows)],
         [Button("OK", key="OK"), Button("Cancel", key="Cancel")],

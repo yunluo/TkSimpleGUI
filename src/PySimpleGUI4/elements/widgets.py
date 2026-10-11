@@ -179,6 +179,9 @@ class Input(InputElement):
         "_invalid_command",
     )
 
+    # created in _create_widget before any accessor runs
+    _textvariable: tk.StringVar
+
     def __init__(
         self,
         default_text="",
@@ -216,7 +219,7 @@ class Input(InputElement):
         self._default_text = "" if default_text is None else str(default_text)
         self._enable_events = enable_events
         self._password_char = password_char
-        self._textvariable = None
+        self._textvariable = None  # ty: ignore[invalid-assignment]
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
@@ -316,6 +319,8 @@ class Combo(InputElement):
         "_font",
     )
 
+    _variable: tk.StringVar
+
     def __init__(
         self,
         values=(),
@@ -352,7 +357,7 @@ class Combo(InputElement):
         self._default_value = default_value
         self._enable_events = enable_events
         self._readonly = readonly
-        self._variable = None
+        self._variable = None  # ty: ignore[invalid-assignment]
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
@@ -540,6 +545,8 @@ class Spin(InputElement):
         "_font",
     )
 
+    _variable: tk.StringVar
+
     def __init__(
         self,
         values=(),
@@ -576,7 +583,7 @@ class Spin(InputElement):
             initial_value if initial_value is not None else (values[0] if values else "")
         )
         self._enable_events = enable_events
-        self._variable = None
+        self._variable = None  # ty: ignore[invalid-assignment]
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
@@ -634,6 +641,8 @@ class Checkbox(InputElement):
 
     __slots__ = ("_text", "_default", "_enable_events", "_variable", "_text_color", "_background_color", "_font")
 
+    _variable: tk.BooleanVar
+
     def __init__(
         self,
         text,
@@ -666,7 +675,7 @@ class Checkbox(InputElement):
         self._text = text
         self._default = bool(default)
         self._enable_events = enable_events
-        self._variable = None
+        self._variable = None  # ty: ignore[invalid-assignment]
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
@@ -904,6 +913,9 @@ class Multiline(InputElement):
         "_text",
     )
 
+    # the inner tk.Text of the composite (container + optional scrollbar)
+    _text: tk.Text
+
     def __init__(
         self,
         default_text="",
@@ -944,7 +956,7 @@ class Multiline(InputElement):
         self._font = font
         self._wrap = wrap if wrap in ("word", "char", "none") else "word"
         self._scroll_y = bool(scroll_y)
-        self._text = None
+        self._text = None  # ty: ignore[invalid-assignment]
 
     def _create_widget(self, master):
         kwargs = theme_mod.theme_manager.input_kwargs(
@@ -1034,7 +1046,7 @@ class Multiline(InputElement):
         tag = f"link_{id(text)}"
         self._text.configure(state="normal")
         self._text.tag_configure(
-            tag, foreground=text_color, underline=1 if underline else 0
+            tag, foreground=text_color, underline=bool(underline)
         )
         start = self._text.index("end-1c")
         self._text.insert("end", str(text), tag)

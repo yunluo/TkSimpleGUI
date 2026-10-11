@@ -10,15 +10,32 @@ methods instead of public attributes.
 Every element also carries the shared layout hints (``pad``, ``expand_x``,
 ``expand_y``, ``justification``), an optional ``right_click_menu`` and free
 form ``metadata``, handled by the base class itself.
+
+Typing note: ``_widget``/``_window`` are ``None`` until :meth:`_build` runs
+(finalization), but every accessor that needs them is only reachable through
+a finalized element, so they are annotated as non-optional to keep the
+thousands of downstream call sites narrow.
 """
 
 from abc import ABCMeta, abstractmethod
+from typing import Any, Callable, Optional, Tuple, Union
 
 import tkinter as tk
 
 from .. import constants as C
 from .. import _theming as theme_mod
 from .. import settings as settings_mod
+
+# A user-visible element key (str or any hashable); None means "no key".
+ElementKey = Optional[Any]
+# Colors are Tk color strings ("#rrggbb", "red", ...).
+Color = str
+# Fonts are (family, size[, modifiers...]) tuples or tk font descriptions.
+FontSpec = Union[Tuple[str, int], Tuple[str, int, str], str]
+# Layout cells hold a single element or nested rows (validated at build time).
+PadSpec = Union[int, float, Tuple[int, int], Tuple[Tuple[int, int], Tuple[int, int]]]
+Justification = Optional[str]
+MenuDefinition = "list"
 
 
 
@@ -30,7 +47,7 @@ class ElementBaseMeta(ABCMeta):
     own additions.
     """
 
-    def __new__(mcs, name, bases, namespace):
+    def __new__(mcs, name: str, bases: tuple, namespace: dict):
         declared = namespace.get("__slots__", ())
         inherited = []
         for base in bases:
@@ -61,6 +78,24 @@ class Element(object, metaclass=ElementBaseMeta):
         "_tooltip_binding",
         "_popup_menu",
     )
+
+    # Typed views of the slots. Values are assigned in __init__/_build; the
+    # class-level annotations below let type checkers see them as non-optional
+    # inside method bodies (runtime stays __slots__-based).
+    _key: ElementKey
+    _window: "Any"  # Window; Any breaks the window→elements import cycle
+    _widget: Any  # tk widget once _build has run
+    _visible: bool
+    _tooltip: Optional[str]
+    _size: Tuple[Optional[int], Optional[int]]
+    _pad: Optional[PadSpec]
+    _expand_x: bool
+    _expand_y: bool
+    _justification: Justification
+    _right_click_menu: Optional[list]
+    _metadata: Any
+    _tooltip_binding: Optional["Tooltip"]
+    _popup_menu: Optional[tk.Menu]
 
     def __init__(
         self,
@@ -248,12 +283,16 @@ class Element(object, metaclass=ElementBaseMeta):
         return font if font is not None else settings_mod.settings.font
 
     # --- user API ---------------------------------------------------------------
-    def get(self):
+    def get(self) -> Any:
         """Return the element's current value (type depends on element)."""
         return None
 
-    def update(self, **kwargs):
-        """Change the element's runtime state (element specific)."""
+    def update(self, *args: Any, **kwargs: Any) -> "Element":
+        """Change the element's runtime state (element specific).
+
+        Subclasses take over with their own named parameters; the base
+        accepts anything so overrides stay Liskov-compatible.
+        """
         raise NotImplementedError(
             f"{self.__class__.__name__} does not support update()"
         )
@@ -264,12 +303,14 @@ class Element(object, metaclass=ElementBaseMeta):
         override this to point at the interactive inner widget)."""
         return self._widget
 
-    def bind(self, event_pattern, callback=None, key=None):
+    def bind(self, event_pattern=None, callback=None, key=None, **kwargs):
         """Bind a tk event pattern (``"<Double-1>"``, ``"<Motion>"``…).
 
         ``callback(element, event)`` runs on the event, or ``key`` (or the
         element's own key when both are omitted) is posted into the window
-        queue. Returns self.
+        queue. Subclasses may reinterpret the first parameter (Table binds
+        data records instead); anything not understood should fall back to
+        ``super().bind``. Returns self.
         """
         widget = self._bind_target
         if widget is None:
@@ -417,11 +458,11 @@ class InputElement(Element):
         if self._disabled:
             widget.configure(state="disabled")
 
-    def get(self):
+    def get(self) -> Any:
         """Return the element's current value."""
         raise NotImplementedError
 
-    def update(self, value=None, **kwargs):
+    def update(self, *args: Any, **kwargs: Any) -> "Element":
         raise NotImplementedError
 
 

@@ -3,6 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .base import ContainerElement, Element, _validate_layout
 from .widgets import Input, Text
@@ -433,7 +434,7 @@ class Splitter(ContainerElement):
             if str(self._orientation).lower() in ("h", "horizontal")
             else "vertical"
         )
-        kwargs = {"sashwidth": int(self._handle_size or 8)}
+        kwargs: Dict[str, Any] = {"sashwidth": int(self._handle_size or 8)}
         bg = self._background_color or theme_mod.theme_manager.background_color
         if bg is not None:
             kwargs["background"] = bg
@@ -472,6 +473,10 @@ class ScrollableColumn(ContainerElement):
         "_inner_frame",
     )
 
+    # created together in _create_widget
+    _canvas: tk.Canvas
+    _inner_frame: tk.Frame
+
     def __init__(
         self,
         layout,
@@ -503,8 +508,8 @@ class ScrollableColumn(ContainerElement):
         self._background_color = background_color
         self._scroll_y = bool(scroll_y)
         self._scroll_x = bool(scroll_x)
-        self._canvas = None
-        self._inner_frame = None
+        self._canvas = None  # ty: ignore[invalid-assignment]
+        self._inner_frame = None  # ty: ignore[invalid-assignment]
 
     def _create_widget(self, master):
         kwargs = {}
