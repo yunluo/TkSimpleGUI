@@ -30,6 +30,10 @@ class Button(Element):
         "_file_types",
         "_disabled",
         "_font",
+        "_image_filename",
+        "_image_data",
+        "_compound",
+        "_photo",
     )
 
     def __init__(
@@ -41,6 +45,9 @@ class Button(Element):
         size=(None, None),
         target_key=None,
         file_types=None,
+        image_filename=None,
+        image_data=None,
+        compound="left",
         font=None,
         disabled=False,
         tooltip=None,
@@ -69,8 +76,12 @@ class Button(Element):
         self._button_color = button_color
         self._target_key = target_key
         self._file_types = tuple(file_types) if file_types is not None else C.FILE_TYPES_ALL_FILES
+        self._image_filename = image_filename
+        self._image_data = image_data
+        self._compound = compound
         self._disabled = bool(disabled)
         self._font = font
+        self._photo = None
 
     @classmethod
     def browse_file(cls, button_text="Browse", target_key=None, file_types=None, **kwargs):
@@ -160,6 +171,17 @@ class Button(Element):
             master, "TButton", **style_options
         )
         button = ttk.Button(master, text=self._button_text, **kwargs)
+        if self._image_filename is not None or self._image_data is not None:
+            try:
+                if self._image_data is not None:
+                    self._photo = tk.PhotoImage(data=self._image_data, master=master)
+                else:
+                    self._photo = tk.PhotoImage(file=self._image_filename, master=master)
+                button.configure(image=self._photo)
+                if self._compound is not None:
+                    button.configure(compound=self._compound)
+            except tk.TclError:
+                self._photo = None
         if self._disabled:
             button.configure(state="disabled")
         return button

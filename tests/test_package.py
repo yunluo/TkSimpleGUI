@@ -394,6 +394,126 @@ class TestWindowManagement(unittest.TestCase):
         window.close()
 
 
+class TestTkIntegration(unittest.TestCase):
+    """Deep tk/ttk API exposure: logo, graph handles, sorting, clipboard."""
+
+    def test_default_logo_decodes(self):
+        import tkinter as tk
+
+        root = tk.Toplevel()
+        root.withdraw()
+        big = tk.PhotoImage(data=sg.DEFAULT_BASE64_ICON, master=root)
+        small = tk.PhotoImage(data=sg.DEFAULT_BASE64_ICON_SMALL, master=root)
+        self.assertEqual((big.width(), big.height()), (64, 64))
+        self.assertEqual((small.width(), small.height()), (32, 32))
+        root.destroy()
+
+    def test_graph_figure_api(self):
+        graph = sg.Graph(
+            (100, 100), (0, 0), (10, 10), key="-G-", enable_events=True
+        )
+        window = sg.Window("t", [[graph]], finalize=True)
+        rect = graph.draw_rectangle((1, 9), (3, 7), fill_color="red")
+        oval = graph.draw_oval((4, 9), (6, 7))
+        arc = graph.draw_arc((7, 9), (9, 7), start_angle=0, extent=180, style="pieslice")
+        poly = graph.draw_polygon([(0, 5), (2, 5), (1, 3)])
+        for figure in (rect, oval, arc, poly):
+            self.assertTrue(figure)
+        # click in the middle of the rectangle (graph coords (2, 8))
+        self.assertIn(rect, graph.get_figures_at_location((2, 8)))
+        # move the rectangle away, it should no longer be found there
+        graph.move_figure(rect, 5, 0)
+        self.assertNotIn(rect, graph.get_figures_at_location((2, 8)))
+        graph.relocate_figure(rect, (1, 8))
+        self.assertIn(rect, graph.get_figures_at_location((2, 8)))
+        graph.bring_figure_to_front(rect)
+        graph.send_figure_to_back(rect)
+        graph.delete_figure(rect)
+        self.assertNotIn(rect, graph.get_figures_at_location((2, 8)))
+        window.close()
+
+    def test_graph_draw_image(self):
+        graph = sg.Graph((50, 50), (0, 0), (50, 50))
+        window = sg.Window("t", [[graph]], finalize=True)
+        figure = graph.draw_image((5, 45), data_base64=sg.BLANK_BASE64)
+        self.assertTrue(figure)
+        self.assertEqual(len(graph._images), 1)  # photo kept alive
+        graph.erase()
+        self.assertEqual(len(graph._images), 0)
+        window.close()
+
+    def test_table_sorting(self):
+        table = sg.Table(
+            [["banana", 2], ["apple", 3], ["cherry", 1]],
+            headings=["Name", "Qty"],
+            key="-T-",
+        )
+        window = sg.Window("t", [[table]], finalize=True)
+        tree = table.widget
+        table.sort_by(0)  # name ascending
+        rows = [tree.item(item, "values")[0] for item in tree.get_children()]
+        self.assertEqual(rows, ["apple", "banana", "cherry"])
+        table.sort_by(0)  # click again: descending
+        rows = [tree.item(item, "values")[0] for item in tree.get_children()]
+        self.assertEqual(rows, ["cherry", "banana", "apple"])
+        table.sort_by(1, ascending=True)  # numeric column
+        rows = [tree.item(item, "values")[1] for item in tree.get_children()]
+        self.assertEqual(rows, ["1", "2", "3"])
+        self.assertEqual(table.sort_column, 1)
+        self.assertTrue(table.sort_ascending)
+        self.assertEqual(table.values[0], ["cherry", 1])  # values kept in sync
+        window.close()
+
+    def test_multiline_undo_and_colored_print(self):
+        multiline = sg.Multiline("", key="-ML-")
+        window = sg.Window("t", [[multiline]], finalize=True)
+        multiline.print("line-one")
+        multiline.print("bad", text_color="#cc0000")
+        self.assertIn("line-one", multiline.get())
+        self.assertIn("bad", multiline.get())
+        multiline.widget.insert("end", "extra")
+        multiline.undo()
+        self.assertNotIn("extra", multiline.get())
+        multiline.redo()
+        self.assertIn("extra", multiline.get())
+        multiline.clear()
+        self.assertEqual(multiline.get(), "")
+        window.close()
+
+    def test_multiline_update_keeps_editable(self):
+        multiline = sg.Multiline("", key="-ML-")
+        window = sg.Window("t", [[multiline]], finalize=True)
+        multiline.update("fresh text")
+        self.assertEqual(str(multiline.widget.cget("state")), "normal")
+        window.close()
+
+    def test_button_with_image(self):
+        button = sg.Button("Go", key="-B-", image_data=sg.BLANK_BASE64)
+        window = sg.Window("t", [[button]], finalize=True)
+        self.assertTrue(button.widget.cget("image"))
+        self.assertEqual(str(button.widget.cget("compound")), "left")
+        window.close()
+
+    def test_clipboard(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window.clipboard_set("py-simple")
+        self.assertEqual(window.clipboard_get(), "py-simple")
+        window.clipboard_append("-gui")
+        self.assertEqual(window.clipboard_get(), "py-simple-gui")
+        window.clipboard_clear()
+        window.close()
+
+    def test_set_min_size(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window.set_min_size((200, 100))
+        self.assertEqual(window.tk_root.minsize(), (200, 100))
+        window.close()
+
+    def test_set_dpi_awareness(self):
+        result = sg.set_dpi_awareness()
+        self.assertIsInstance(result, bool)
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()

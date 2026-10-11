@@ -139,9 +139,18 @@ class Canvas(Element):
 
 
 class Graph(Canvas):
-    """Canvas with a user coordinate system and shape drawing."""
+    """Canvas with a user coordinate system and shape drawing.
 
-    __slots__ = ("_bottom_left", "_top_right", "_x_scale", "_y_scale")
+    Every ``draw_*`` method returns the canvas figure id. Ids can be used
+    with :meth:`delete_figure`, :meth:`move_figure`, :meth:`relocate_figure`,
+    :meth:`bring_figure_to_front`, :meth:`send_figure_to_back` and
+    :meth:`get_figures_at_location`. With ``enable_events`` a click on the
+    canvas posts the graph's key; use ``get_figures_at_location`` inside the
+    event loop to find what was clicked. Direct Tk item configuration stays
+    available through ``graph.widget.itemconfigure(id, ...)``.
+    """
+
+    __slots__ = ("_bottom_left", "_top_right", "_x_scale", "_y_scale", "_images")
 
     def __init__(
         self,
@@ -176,6 +185,7 @@ class Graph(Canvas):
         self._top_right = graph_top_right
         self._x_scale = 1.0
         self._y_scale = 1.0
+        self._images = []
 
     def _post_create(self):
         super(Graph, self)._post_create()
@@ -227,6 +237,49 @@ class Graph(Canvas):
             x1, y1, x2, y2, fill=fill_color, outline=line_color, width=line_width
         )
 
+    def draw_oval(self, top_left, bottom_right, fill_color=None, line_color="black", line_width=1):
+        """Draw an ellipse bounded by the two corners; returns the item id."""
+        x1, y1 = self._to_canvas(top_left)
+        x2, y2 = self._to_canvas(bottom_right)
+        return self._widget.create_oval(
+            x1, y1, x2, y2, fill=fill_color, outline=line_color, width=line_width
+        )
+
+    def draw_arc(self, top_left, bottom_right, start_angle=0, extent=90, style="arc", fill_color=None, line_color="black", line_width=1):
+        """Draw an arc/pieslice/chord; ``style`` in ("arc", "chord", "pieslice")."""
+        x1, y1 = self._to_canvas(top_left)
+        x2, y2 = self._to_canvas(bottom_right)
+        return self._widget.create_arc(
+            x1, y1, x2, y2,
+            start=start_angle, extent=extent, style=str(style).lower(),
+            fill=fill_color, outline=line_color, width=line_width,
+        )
+
+    def draw_polygon(self, points, fill_color=None, line_color="black", line_width=1):
+        """Draw a closed polygon from a list of (x, y) points; returns the id."""
+        canvas_points = []
+        for point in points:
+            canvas_points.extend(self._to_canvas(point))
+        return self._widget.create_polygon(
+            *canvas_points,
+            fill=fill_color, outline=line_color, width=line_width
+        )
+
+    def draw_image(self, location, filename=None, data_base64=None):
+        """Draw a PNG/GIF with its top-left corner at ``location``.
+
+        Returns the canvas item id. The photo is retained by the graph.
+        """
+        import base64
+
+        if data_base64 is not None:
+            photo = tk.PhotoImage(data=base64.b64decode(data_base64), master=self._widget)
+        else:
+            photo = tk.PhotoImage(file=filename, master=self._widget)
+        self._images.append(photo)
+        x, y = self._to_canvas(location)
+        return self._widget.create_image(x, y, image=photo, anchor="nw")
+
     def draw_text(self, text, location, color="black", font=None, angle=0):
         """Draw text; returns the canvas item id."""
         x, y = self._to_canvas(location)
@@ -237,7 +290,46 @@ class Graph(Canvas):
     def erase(self):
         """Remove every drawn item."""
         self._widget.delete("all")
+        self._images = []
         return self
+
+    # --- figure handles ---------------------------------------------------------
+    def delete_figure(self, figure_id):
+        """Delete one figure by its canvas id."""
+        self._widget.delete(figure_id)
+        return self
+
+    def move_figure(self, figure_id, x_direction, y_direction):
+        """Move one figure by an offset in graph coordinates."""
+        dx = x_direction * self._x_scale
+        dy = -y_direction * self._y_scale
+        self._widget.move(figure_id, dx, dy)
+        return self
+
+    def relocate_figure(self, figure_id, point):
+        """Move a figure so its top-left reference point sits at ``point``."""
+        coords = self._widget.coords(figure_id)
+        if not coords:
+            return self
+        target_x, target_y = self._to_canvas(point)
+        self._widget.move(
+            figure_id, target_x - coords[0], target_y - coords[1]
+        )
+        return self
+
+    def bring_figure_to_front(self, figure_id):
+        self._widget.tag_raise(figure_id)
+        return self
+
+    def send_figure_to_back(self, figure_id):
+        self._widget.tag_lower(figure_id)
+        return self
+
+    def get_figures_at_location(self, point):
+        """Ids of the figures overlapping ``point`` (topmost first)."""
+        x, y = self._to_canvas(point)
+        overlapping = self._widget.find_overlapping(x - 1, y - 1, x + 1, y + 1)
+        return list(reversed(overlapping))
 
     def move(self, x_direction, y_direction):
         """Move all drawn items (in graph coordinates)."""

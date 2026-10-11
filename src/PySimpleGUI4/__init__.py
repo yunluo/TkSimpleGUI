@@ -48,6 +48,7 @@ from .constants import (
     BROWSE_FILES_DELIMITER,
     FILE_TYPES_ALL_FILES,
     DEFAULT_BASE64_ICON,
+    DEFAULT_BASE64_ICON_SMALL,
     DEFAULT_WINDOW_ICON,
     BLANK_BASE64,
 )
@@ -64,6 +65,7 @@ from .utils import (
     running_mac,
     running_trinket,
     running_replit,
+    set_dpi_awareness,
 )
 
 # --- settings -------------------------------------------------------------------
@@ -191,10 +193,11 @@ __all__ = [
     "RELIEF_RAISED", "RELIEF_SUNKEN", "RELIEF_FLAT", "RELIEF_RIDGE",
     "RELIEF_GROOVE", "RELIEF_SOLID",
     "BROWSE_FILES_DELIMITER", "FILE_TYPES_ALL_FILES",
-    "DEFAULT_BASE64_ICON", "DEFAULT_WINDOW_ICON", "BLANK_BASE64",
+    "DEFAULT_BASE64_ICON", "DEFAULT_BASE64_ICON_SMALL", "DEFAULT_WINDOW_ICON",
+    "BLANK_BASE64",
     "rgb", "Timer", "timer_start", "timer_stop", "formatted_datetime_now",
     "running_windows", "running_linux", "running_mac", "running_trinket",
-    "running_replit",
+    "running_replit", "set_dpi_awareness",
     "set_options", "get_options",
     "theme", "theme_manager", "list_of_look_and_feel_values",
     "theme_background_color", "theme_text_color", "theme_button_color",

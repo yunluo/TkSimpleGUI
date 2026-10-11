@@ -234,6 +234,10 @@ class Window(object):
             root.configure(**window_kwargs)
         if self._icon is not None:
             self._apply_icon(self._icon)
+        else:
+            self._apply_icon(
+                (C.DEFAULT_BASE64_ICON, C.DEFAULT_BASE64_ICON_SMALL)
+            )
         width, height = self._size
         if width is not None and height is not None:
             root.geometry("{}x{}".format(int(width), int(height)))
@@ -262,8 +266,14 @@ class Window(object):
             root.bind("<Key>", self._on_keyboard_event)
 
     def _apply_icon(self, icon):
+        """Set the icon from base64 data (one item or a tuple of sizes)."""
         try:
-            self._tk_root.iconphoto(True, tk.PhotoImage(data=icon, master=self._tk_root))
+            if isinstance(icon, (bytes, str)):
+                icon = (icon,)
+            photos = [
+                tk.PhotoImage(data=data, master=self._tk_root) for data in icon
+            ]
+            self._tk_root.iconphoto(True, *photos)
         except tk.TclError:
             pass
 
@@ -509,6 +519,12 @@ class Window(object):
             self._tk_root.geometry("{}x{}".format(int(size[0]), int(size[1])))
         return self
 
+    def set_min_size(self, size):
+        """Set the smallest allowed window size ``(width, height)``."""
+        if self._root_alive() and size is not None:
+            self._tk_root.minsize(int(size[0]), int(size[1]))
+        return self
+
     def current_location(self):
         """The window's ``(x, y)`` position on the screen."""
         if not self._root_alive():
@@ -594,10 +610,45 @@ class Window(object):
         return self
 
     def set_icon(self, icon):
-        """Set the window icon from base64 image data."""
+        """Set the window icon from base64 image data.
+
+        Pass a single base64 payload or a tuple (small, large); ``None``
+        restores the PySimpleGUI4 default badge.
+        """
         self._icon = icon
-        if self._root_alive() and icon is not None:
+        if self._root_alive():
+            if icon is None:
+                icon = (C.DEFAULT_BASE64_ICON, C.DEFAULT_BASE64_ICON_SMALL)
             self._apply_icon(icon)
+        return self
+
+    # --- clipboard / desktop integration -------------------------------------------------
+    def clipboard_set(self, text):
+        """Replace the system clipboard contents with ``text``."""
+        if self._root_alive():
+            self._tk_root.clipboard_clear()
+            self._tk_root.clipboard_append(str(text))
+        return self
+
+    def clipboard_append(self, text):
+        """Append ``text`` to the system clipboard."""
+        if self._root_alive():
+            self._tk_root.clipboard_append(str(text))
+        return self
+
+    def clipboard_get(self):
+        """Return the current system clipboard contents."""
+        if not self._root_alive():
+            return ""
+        try:
+            return self._tk_root.clipboard_get()
+        except tk.TclError:
+            return ""
+
+    def clipboard_clear(self):
+        """Clear the system clipboard."""
+        if self._root_alive():
+            self._tk_root.clipboard_clear()
         return self
 
     # --- lifecycle -----------------------------------------------------------------------

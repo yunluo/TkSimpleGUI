@@ -27,7 +27,12 @@ _SELECT_MODE_MAP = {
 
 
 class Table(Element):
-    """Rows and columns shown with a ttk.Treeview in headings mode."""
+    """Rows and columns shown with a ttk.Treeview in headings mode.
+
+    Clicking a heading sorts the rows by that column (click again to flip
+    the direction); the same behaviour is available programmatically through
+    :meth:`sort_by`.
+    """
 
     __slots__ = (
         "_values",
@@ -37,6 +42,8 @@ class Table(Element):
         "_num_rows",
         "_col_widths",
         "_auto_size_columns",
+        "_sort_column",
+        "_sort_ascending",
     )
 
     def __init__(
@@ -83,6 +90,8 @@ class Table(Element):
         else:
             self._col_widths = None
         self._auto_size_columns = auto_size_columns
+        self._sort_column = None
+        self._sort_ascending = True
 
     def _create_widget(self, master):
         kwargs = {}
@@ -98,7 +107,11 @@ class Table(Element):
         )
         for index, heading in enumerate(self._headings):
             column_id = "col{}".format(index)
-            tree.heading(column_id, text=str(heading))
+            tree.heading(
+                column_id,
+                text=str(heading),
+                command=lambda idx=index: self._on_heading_click(idx),
+            )
             width = None
             if self._col_widths is not None and index < len(self._col_widths):
                 width = self._col_widths[index]
@@ -109,6 +122,48 @@ class Table(Element):
         for row in self._values:
             tree.insert("", "end", values=[str(cell) for cell in row])
         return tree
+
+    # --- sorting -------------------------------------------------------------------
+    def _on_heading_click(self, column_index):
+        self.sort_by(column_index)
+
+    def sort_by(self, column_index, ascending=None):
+        """Sort the rows by ``column_index`` (toggles direction by default).
+
+        Rows compare numerically when every cell in the column parses as a
+        number, otherwise lexicographically. ``values`` stays in sync.
+        """
+        if not 0 <= column_index < max(1, len(self._headings)):
+            raise IndexError("column index out of range: {!r}".format(column_index))
+        if ascending is None:
+            ascending = not (
+                self._sort_column == column_index and self._sort_ascending
+            )
+        self._sort_column = column_index
+        self._sort_ascending = bool(ascending)
+
+        def sort_key(row):
+            value = row[column_index] if column_index < len(row) else ""
+            try:
+                return (0, float(value), "")
+            except (TypeError, ValueError):
+                return (1, 0.0, str(value))
+
+        self._values = sorted(self._values, key=sort_key, reverse=not ascending)
+        if self._widget is not None:
+            self._widget.delete(*self._widget.get_children())
+            for row in self._values:
+                self._widget.insert("", "end", values=[str(cell) for cell in row])
+        return self
+
+    @property
+    def sort_column(self):
+        """The column currently sorted by (None before the first sort)."""
+        return self._sort_column
+
+    @property
+    def sort_ascending(self):
+        return self._sort_ascending
 
     def _bind_events(self):
         if self._enable_events:

@@ -875,6 +875,7 @@ class Multiline(InputElement):
             kwargs["height"] = height
         if self._font is not None:
             kwargs["font"] = self._font
+        kwargs["undo"] = True  # native tk.Text undo/redo stack
         text = tk.Text(master, **kwargs)
         text.insert("1.0", self._default_text)
         self._apply_disabled(text)
@@ -894,14 +895,54 @@ class Multiline(InputElement):
         """Full contents (without the trailing newline)."""
         return self._widget.get("1.0", "end-1c")
 
+    def _end_state(self):
+        """State a freshly written widget should be left in."""
+        return "disabled" if self._disabled else "normal"
+
     def print(self, *args, **kwargs):
-        """Append text (``print`` style)."""
+        """Append text (``print`` style); ``text_color`` colors the line.
+
+        Colors use a native tk.Text tag, so mixed-color output works::
+
+            multiline.print("ok", text_color="#00aa00")
+            multiline.print("failed", text_color="#cc0000")
+        """
         sep = kwargs.get("sep", " ")
         end = kwargs.get("end", "\n")
+        text_color = kwargs.get("text_color")
         self._widget.configure(state="normal")
-        self._widget.insert("end", sep.join(str(a) for a in args) + end)
+        text = sep.join(str(a) for a in args) + end
+        if text_color is not None:
+            tag = "print_{}".format(str(text_color).lstrip("#"))
+            self._widget.tag_configure(tag, foreground=text_color)
+            self._widget.insert("end", text, tag)
+        else:
+            self._widget.insert("end", text)
         self._widget.see("end")
-        self._widget.configure(state="disabled")
+        self._widget.configure(state=self._end_state())
+        return self
+
+    def clear(self):
+        """Remove all text."""
+        self._widget.configure(state="normal")
+        self._widget.delete("1.0", "end")
+        self._widget.configure(state=self._end_state())
+        return self
+
+    def undo(self):
+        """Undo the last edit (native tk.Text undo stack)."""
+        try:
+            self._widget.edit_undo()
+        except tk.TclError:
+            pass
+        return self
+
+    def redo(self):
+        """Re-apply the last undone edit (native tk.Text undo stack)."""
+        try:
+            self._widget.edit_redo()
+        except tk.TclError:
+            pass
         return self
 
     def update(self, value=None, append=False, disabled=None, visible=None):
@@ -913,7 +954,7 @@ class Multiline(InputElement):
             else:
                 self._widget.delete("1.0", "end")
                 self._widget.insert("1.0", str(value))
-            self._widget.configure(state="disabled")
+            self._widget.configure(state=self._end_state())
         if disabled is not None:
             self._disabled = bool(disabled)
             self._widget.configure(state="disabled" if disabled else "normal")

@@ -90,6 +90,35 @@ def running_windows():
     return sys.platform.startswith("win")
 
 
+def set_dpi_awareness():
+    """Opt-in Windows DPI awareness for crisp rendering on high-DPI screens.
+
+    Call once before creating the first window (a process-wide setting).
+    Tries per-monitor awareness, then system awareness, then the legacy
+    ``SetProcessDPIAware``. No-op on other platforms; returns True when a
+    level was successfully set.
+    """
+    if not sys.platform.startswith("win"):
+        return False
+    import ctypes
+
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # per monitor
+        return True
+    except Exception:
+        pass
+    try:
+        ctypes.windll.shcore.SetProcessDpiAwareness(1)  # system
+        return True
+    except Exception:
+        pass
+    try:
+        ctypes.windll.user32.SetProcessDPIAware()
+        return True
+    except Exception:
+        return False
+
+
 def running_linux():
     """True when running on Linux."""
     return sys.platform.startswith("linux")
