@@ -126,6 +126,50 @@ class TestElementConstruction(unittest.TestCase):
         self.assertIs(sg.Col, sg.Column)
         self.assertIs(sg.ProgBar, sg.ProgressBar)
 
+    def test_t_prefixed_aliases(self):
+        """Delphi VCL style T<Name> aliases point at the same classes."""
+        self.assertIs(sg.TLabel, sg.Text)
+        self.assertIs(sg.TText, sg.Text)
+        self.assertIs(sg.TEdit, sg.Input)
+        self.assertIs(sg.TComboBox, sg.Combo)
+        self.assertIs(sg.TListBox, sg.Listbox)
+        self.assertIs(sg.TSpinbox, sg.Spin)
+        self.assertIs(sg.TCheckbox, sg.Checkbox)
+        self.assertIs(sg.TCheckListBox, sg.CheckList)
+        self.assertIs(sg.TTrackBar, sg.Slider)
+        self.assertIs(sg.TMemo, sg.Multiline)
+        self.assertIs(sg.TButton, sg.Button)
+        self.assertIs(sg.TGroupBox, sg.Frame)
+        self.assertIs(sg.TPanel, sg.Column)
+        self.assertIs(sg.TSplitter, sg.Splitter)
+        self.assertIs(sg.TScrollBox, sg.ScrollableColumn)
+        self.assertIs(sg.TToolBar, sg.Toolbar)
+        self.assertIs(sg.TLabeledEdit, sg.LabeledEdit)
+        self.assertIs(sg.TValEdit, sg.KeyValueEditor)
+        self.assertIs(sg.TPageControl, sg.TabGroup)
+        self.assertIs(sg.TMainMenu, sg.Menu)
+        self.assertIs(sg.TStringGrid, sg.Table)
+        self.assertIs(sg.TTreeView, sg.Tree)
+        self.assertIs(sg.TCalendar, sg.Calendar)
+        self.assertIs(sg.TShape, sg.Shape)
+        self.assertIs(sg.TImage, sg.Image)
+        self.assertIs(sg.TRoundButton, sg.RoundButton)
+        self.assertIs(sg.TImageButton, sg.ImageButton)
+        self.assertIs(sg.TTextProgressBar, sg.TextProgressBar)
+        self.assertIs(sg.TWindow if hasattr(sg, "TWindow") else sg.Window, sg.Window)
+
+    def test_t_aliases_construct(self):
+        """T* aliases build working elements."""
+        layout = [
+            [sg.TLabel("name"), sg.TEdit("world", key="-E-")],
+            [sg.TComboBox(["a", "b"], key="-C-"), sg.TButton("OK", key="-B-")],
+            [sg.TMemo("text", key="-M-")],
+        ]
+        window = sg.Window("t", layout, finalize=True)
+        self.assertEqual(window["-E-"].get(), "world")
+        self.assertEqual(window["-B-"].button_text, "OK")
+        window.close()
+
     def test_slots_encapsulation(self):
         self.assertFalse(hasattr(sg.Text("x"), "__dict__"))
         self.assertFalse(hasattr(sg.Input("x"), "__dict__"))

@@ -224,6 +224,77 @@ RGB = rgb
 SetOptions = set_options
 PopUp = popup
 
+# --- T-prefixed aliases (Delphi VCL naming style) -----------------------------------------
+# Every widget is also importable as T<Name> (TText, TInput, TButton, ...),
+# mirroring Delphi's TLabel/TEdit/TButton convention. Both spellings refer
+# to the same class; existing sg.Text style code keeps working.
+TLabel = Text
+TText = Text
+TStatic = Text
+TEdit = Input
+TInput = Input
+TInputText = InputText
+TCombo = Combo
+TComboBox = Combo
+TDropDown = Combo
+TOptionMenu = OptionMenu
+TListbox = Listbox
+TListBox = Listbox
+TSpin = Spin
+TSpinbox = Spin
+TCheckbox = Checkbox
+TCheckList = CheckList
+TCheckListBox = CheckList
+TRadio = Radio
+TSlider = Slider
+TTrackBar = Slider
+TMultiline = Multiline
+TMemo = Multiline
+TOutput = Output
+TProgressBar = ProgressBar
+TButton = Button
+TSubmit = Submit
+TCloseButton = CloseButton
+TImage = Image
+TCanvas = Canvas
+TGraph = Graph
+TShape = Shape
+TFrame = Frame
+TGroupBox = Frame
+TColumn = Column
+TPanel = Column
+TSplitter = Splitter
+TScrollBox = ScrollableColumn
+TScrollableColumn = ScrollableColumn
+TToolbar = Toolbar
+TToolBar = Toolbar
+TLabeledEdit = LabeledEdit
+TKeyValueEditor = KeyValueEditor
+TValEdit = KeyValueEditor
+TFlowPanel = FlowPanel
+TCalendar = Calendar
+TTab = Tab
+TTabSheet = Tab
+TTabGroup = TabGroup
+TPageControl = TabGroup
+TMenu = Menu
+TMainMenu = Menu
+TTable = Table
+TStringGrid = Table
+TTree = Tree
+TTreeView = Tree
+TStatusBar = StatusBar
+TVerticalSeparator = VerticalSeparator
+THorizontalSeparator = HorizontalSeparator
+TSeparator = HorizontalSeparator
+TSizegrip = Sizegrip
+TMenubutton = Menubutton
+TMenuButton = Menubutton
+TScrollbar = Scrollbar
+TRoundButton = RoundButton
+TImageButton = ImageButton
+TTextProgressBar = TextProgressBar
+
 __all__ = [
     "__version__", "version", "__author__", "__email__", "__license__", "port",
     "WIN_CLOSED", "WINDOW_CLOSED", "TIMEOUT_KEY", "EVENT_TIMEOUT", "TIMER_KEY",
@@ -274,6 +345,20 @@ __all__ = [
     "I", "T", "B", "Btn", "DD", "Drop", "Dropdown", "LB", "CB", "Check",
     "Rad", "Sp", "ML", "ProgBar", "Progress", "Col", "SBar", "VS", "HS",
     "FlexForm", "RGB", "SetOptions", "PopUp",
+    "TLabel", "TText", "TStatic", "TEdit", "TInput", "TInputText",
+    "TCombo", "TComboBox", "TDropDown", "TOptionMenu", "TListbox", "TListBox",
+    "TSpin", "TSpinbox", "TCheckbox", "TCheckList", "TCheckListBox",
+    "TRadio", "TSlider", "TTrackBar", "TMultiline", "TMemo", "TOutput",
+    "TProgressBar", "TButton", "TSubmit", "TCloseButton",
+    "TImage", "TCanvas", "TGraph", "TShape",
+    "TFrame", "TGroupBox", "TColumn", "TPanel", "TSplitter", "TScrollBox",
+    "TScrollableColumn", "TToolbar", "TToolBar", "TLabeledEdit",
+    "TKeyValueEditor", "TValEdit", "TFlowPanel", "TCalendar",
+    "TTab", "TTabSheet", "TTabGroup", "TPageControl", "TMenu", "TMainMenu",
+    "TTable", "TStringGrid", "TTree", "TTreeView",
+    "TStatusBar", "TVerticalSeparator", "THorizontalSeparator", "TSeparator",
+    "TSizegrip", "TMenubutton", "TMenuButton", "TScrollbar",
+    "TRoundButton", "TImageButton", "TTextProgressBar",
 ]
 
 
