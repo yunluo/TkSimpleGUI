@@ -1,35 +1,56 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
+requires = ["setuptools>=45", "wheel"]
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "PySimpleGUI4"
-dynamic = ["version"]
-description = "The free-forever and simple Python GUI framework"
+version = "4.80.7"
+description = "Python GUI Framework - PySimpleGUI4"
+license = {text = "GPL-3.0-or-later"}
+authors = [{name = "yunluo", email = "sp91@qq.com"}]
 readme = "README.md"
-license = "GPL-3.0-or-later"
-authors = [
-    { name = "yunluo", email = "sp91@qq.com" }
-]
-keywords = ["PySimpleGui", "GUI", "UI", "tkinter"]
-requires-python = ">=3"
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
-    "Intended Audience :: Developers",
     "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
     "Operating System :: OS Independent",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.4",
+    "Programming Language :: Python :: 3.5",
+    "Programming Language :: Python :: 3.6",
     "Programming Language :: Python :: 3.7",
     "Programming Language :: Python :: 3.8",
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
     "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
 ]
+requires-python = ">=3.4"
 
-urls = { Source = "https://github.com/yunluo/PySimpleGUI4" }
+[project.urls]
+Homepage = "https://www.pysimplegui.org"
+Repository = "https://github.com/PySimpleGUI/PySimpleGUI"
 
-[tool.hatch.version]
-path = "PySimpleGUI4.py"
-pattern = "__version__ = [\"'](?P<version>[^\"']+)[\"']"
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+PySimpleGUI4 = ["*.pyi"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+
+[tool.coverage.run]
+source = ["PySimpleGUI4"]
+omit = ["tests/*", "*__pycache__*"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = [
+    "pragma: no cover",
+    "def __repr__",
+    "raise NotImplementedError",
+]
+show_missing = true
+fail_under = 90
