@@ -4,6 +4,8 @@
 import ast
 import os
 import sys
+import time
+import tkinter as tk
 import unittest
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
@@ -512,6 +514,150 @@ class TestTkIntegration(unittest.TestCase):
     def test_set_dpi_awareness(self):
         result = sg.set_dpi_awareness()
         self.assertIsInstance(result, bool)
+
+
+class TestFirstBatch(unittest.TestCase):
+    """第一批：校验/日历/分栏/滚动容器/窗体右键/定时器/查找替换。"""
+
+    def test_input_validators(self):
+        self.assertTrue(sg.validate_integer("123"))
+        self.assertTrue(sg.validate_integer(""))
+        self.assertTrue(sg.validate_integer("-"))
+        self.assertFalse(sg.validate_integer("12a"))
+        self.assertTrue(sg.validate_float("3.14"))
+        self.assertTrue(sg.validate_float("-0.5"))
+        self.assertFalse(sg.validate_float("1.2.3"))
+        self.assertTrue(sg.validate_regex(r"\d{1,3}")("42"))
+        self.assertFalse(sg.validate_regex(r"\d{1,3}")("1234"))
+        self.assertFalse(sg.validate_regex(r"\d+")("abc"))
+
+    def test_input_validation_wiring(self):
+        window = sg.Window(
+            "t",
+            [[sg.Input("", key="-IN-", validate="key", validate_command=sg.validate_integer)]],
+            finalize=True,
+        )
+        widget = window["-IN-"].widget
+        self.assertEqual(str(widget.cget("validate")), "key")
+        self.assertTrue(widget.cget("validatecommand"))
+        with self.assertRaises(TypeError):
+            sg.Input(validate="key", validate_command="not-callable")
+        window.close()
+
+    def test_calendar_element(self):
+        import datetime
+
+        calendar_element = sg.Calendar(
+            default_date=datetime.date(2026, 10, 11), key="-CAL-"
+        )
+        window = sg.Window("t", [[calendar_element]], finalize=True)
+        self.assertEqual(calendar_element.get(), "2026-10-11")
+        self.assertEqual(calendar_element.date, datetime.date(2026, 10, 11))
+        # 6 week rows of day buttons were rendered
+        self.assertGreater(len(calendar_element._day_area.winfo_children()), 26)
+        calendar_element._shift(1)
+        self.assertIn("November", calendar_element._header.cget("text"))
+        calendar_element._shift(-2)
+        self.assertIn("September", calendar_element._header.cget("text"))
+        calendar_element.update(datetime.date(2026, 1, 2))
+        self.assertEqual(calendar_element.get(), "2026-01-02")
+        window.close()
+
+    def test_calendar_accepts_tuple_default(self):
+        calendar_element = sg.Calendar(default_date=(2026, 2, 14), dateformat="%d.%m.%Y")
+        self.assertEqual(calendar_element.get(), "14.02.2026")
+
+    def test_splitter(self):
+        splitter = sg.Splitter(
+            [[[sg.Text("L", key="-L-")], [sg.Input(key="-LIN-")]],
+             [[sg.Text("R", key="-R-")], [sg.Input(key="-RIN-")]]],
+            orientation="h",
+            key="-SP-",
+        )
+        window = sg.Window("t", [[splitter]], finalize=True)
+        self.assertIsInstance(splitter.widget, tk.PanedWindow)
+        self.assertIsNotNone(window["-LIN-"].widget)
+        self.assertIsNotNone(window["-RIN-"].widget)
+        self.assertEqual(len(splitter.widget.panes()), 2)
+        with self.assertRaises(TypeError):
+            sg.Splitter([[[sg.Text("only")]]])
+        window.close()
+
+    def test_scrollable_column(self):
+        rows = [[sg.Text("row {}".format(i))] for i in range(30)]
+        scroll = sg.ScrollableColumn(rows, size=(200, 100), key="-SC-")
+        window = sg.Window("t", [[scroll]], finalize=True)
+        window.refresh()
+        self.assertIsNotNone(scroll._canvas)
+        region = scroll._canvas.cget("scrollregion")
+        self.assertTrue(str(region))  # content bbox was registered
+        self.assertIsNotNone(scroll._inner_frame.winfo_children())
+        window.close()
+
+    def test_window_right_click_menu(self):
+        window = sg.Window(
+            "t",
+            [[sg.Text("x")]],
+            finalize=True,
+            right_click_menu=["&Win", ["About", "Exit"]],
+        )
+        self.assertIsNotNone(window._popup_menu)
+        submenu = window._popup_menu.nametowidget(
+            window._popup_menu.entrycget(0, "menu")
+        )
+        self.assertEqual(submenu.entrycget(0, "label"), "About")
+        window.close()
+
+    def test_every_timer(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        calls = []
+        handle = window.every(30, lambda: calls.append(1))
+        self.assertTrue(handle.active)
+        deadline = time.time() + 2.0
+        while len(calls) < 3 and time.time() < deadline:
+            window.read(timeout=20)
+        self.assertGreaterEqual(len(calls), 3)
+        handle.cancel()
+        self.assertFalse(handle.active)
+        count_before = len(calls)
+        deadline = time.time() + 0.5
+        while time.time() < deadline:
+            window.read(timeout=20)
+        self.assertEqual(len(calls), count_before)
+        window.close()
+
+    def test_after_timer(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        calls = []
+        window.after(50, lambda: calls.append(1))
+        deadline = time.time() + 2.0
+        while not calls and time.time() < deadline:
+            window.read(timeout=20)
+        self.assertEqual(len(calls), 1)
+        window.close()
+
+    def test_text_find_and_replace_helpers(self):
+        from PySimpleGUI4.popup import _text_find, _text_replace_all
+
+        multiline = sg.Multiline("alpha beta ALPHA end", key="-ML-")
+        window = sg.Window("t", [[multiline]], finalize=True)
+        widget = multiline.widget
+        pos = _text_find(widget, "beta")
+        self.assertEqual(pos, "1.6")
+        pos = _text_find(widget, "BETA", case_sensitive=True)
+        self.assertIsNone(pos)
+        pos = _text_find(widget, "ALPHA", case_sensitive=True)
+        self.assertEqual(pos, "1.11")
+        # case insensitive search hits the earliest match ("beta" at col 6)
+        pos = _text_find(widget, "BETA")
+        self.assertEqual(pos, "1.6")
+        self.assertIsNone(_text_find(widget, ""))
+        count = _text_replace_all(widget, "alpha", "delta")
+        self.assertEqual(count, 2)  # case insensitive: "alpha" AND "ALPHA"
+        self.assertEqual(multiline.get(), "delta beta delta end")
+        count = _text_replace_all(widget, "", "x")
+        self.assertEqual(count, 0)
+        window.close()
 
 
 class TestEventManager(unittest.TestCase):

@@ -16,10 +16,14 @@ from .widgets import (
     Slider,
     Spin,
     Text,
+    validate_float,
+    validate_integer,
+    validate_regex,
 )
 from .buttons import Button, CloseButton, Submit
 from .media import Canvas, Graph, Image
-from .containers import Column, Frame, Menu, Tab, TabGroup
+from .containers import Column, Frame, Menu, ScrollableColumn, Splitter, Tab, TabGroup
+from .calendar import Calendar
 from .data import Table, Tree
 from .misc import HorizontalSeparator, Sizegrip, StatusBar, VerticalSeparator
 
@@ -48,6 +52,9 @@ __all__ = [
     "Graph",
     "Frame",
     "Column",
+    "Splitter",
+    "ScrollableColumn",
+    "Calendar",
     "Tab",
     "TabGroup",
     "Menu",
@@ -57,4 +64,7 @@ __all__ = [
     "VerticalSeparator",
     "HorizontalSeparator",
     "Sizegrip",
+    "validate_integer",
+    "validate_float",
+    "validate_regex",
 ]

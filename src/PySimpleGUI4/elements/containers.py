@@ -312,3 +312,211 @@ class Menu(Element):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
+
+
+class Splitter(ContainerElement):
+    """Paned container: draggable splitters between nested layouts.
+
+    ``layouts`` is a list of layouts (each a normal list of rows); every
+    layout becomes one pane. ``orientation`` "h" stacks panes side by side,
+    "v" on top of each other. Delphi's TSplitter / Qt's QSplitter equivalent::
+
+        sg.Splitter([[sg.Text("left")], [sg.Input()]], [[sg.Text("right")]])
+    """
+
+    __slots__ = (
+        "_layouts",
+        "_orientation",
+        "_handle_size",
+        "_background_color",
+        "_pane_frames",
+    )
+
+    def __init__(
+        self,
+        layouts,
+        orientation="h",
+        handle_size=8,
+        key=None,
+        background_color=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(Splitter, self).__init__(
+            layout=None,
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        if not isinstance(layouts, (list, tuple)) or len(layouts) < 2:
+            raise TypeError("Splitter needs a list of at least two layouts")
+        self._layouts = [_validate_layout(layout) for layout in layouts]
+        self._orientation = orientation
+        self._handle_size = handle_size
+        self._background_color = background_color
+        self._pane_frames = []
+
+    def _create_widget(self, master):
+        orient = (
+            "horizontal"
+            if str(self._orientation).lower() in ("h", "horizontal")
+            else "vertical"
+        )
+        kwargs = {"sashwidth": int(self._handle_size or 8), "sashrelief": "flat"}
+        bg = self._background_color or theme_mod.theme_manager.background_color
+        if bg is not None:
+            kwargs["background"] = bg
+        paned = tk.PanedWindow(master, orient=orient, **kwargs)
+        for layout in self._layouts:
+            self._pane_frames.append(tk.Frame(paned))
+        return paned
+
+    def _post_create(self):
+        super(Splitter, self)._post_create()
+        for frame, layout in zip(self._pane_frames, self._layouts):
+            self._widget.add(frame, minsize=20, stretch="always", padx=1, pady=1)
+            if layout:
+                self._window._build_layout(layout, frame)
+
+    def update(self, visible=None):
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+
+class ScrollableColumn(ContainerElement):
+    """A vertically (and optionally horizontally) scrollable container.
+
+    Delphi's TScrollBox equivalent: nested layout content larger than the
+    element scrolls with the mouse wheel or scrollbars::
+
+        sg.ScrollableColumn(long_layout, size=(300, 200))
+    """
+
+    __slots__ = (
+        "_background_color",
+        "_scroll_y",
+        "_scroll_x",
+        "_canvas",
+        "_inner_frame",
+    )
+
+    def __init__(
+        self,
+        layout,
+        key=None,
+        size=(300, 200),
+        background_color=None,
+        scroll_y=True,
+        scroll_x=False,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(ScrollableColumn, self).__init__(
+            layout=layout,
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._background_color = background_color
+        self._scroll_y = bool(scroll_y)
+        self._scroll_x = bool(scroll_x)
+        self._canvas = None
+        self._inner_frame = None
+
+    def _create_widget(self, master):
+        kwargs = {}
+        bg = self._background_color or theme_mod.theme_manager.background_color
+        if bg is not None:
+            kwargs["background"] = bg
+        outer = tk.Frame(master)
+        canvas = tk.Canvas(
+            outer,
+            width=_width_of(self._size),
+            height=_height_of(self._size),
+            highlightthickness=0,
+            **kwargs
+        )
+        self._canvas = canvas
+        canvas.grid(row=0, column=0, sticky="nsew")
+        outer.rowconfigure(0, weight=1)
+        outer.columnconfigure(0, weight=1)
+        if self._scroll_y:
+            vbar = tk.Scrollbar(outer, orient="vertical", command=canvas.yview)
+            canvas.configure(yscrollcommand=vbar.set)
+            vbar.grid(row=0, column=1, sticky="ns")
+        if self._scroll_x:
+            hbar = tk.Scrollbar(outer, orient="horizontal", command=canvas.xview)
+            canvas.configure(xscrollcommand=hbar.set)
+            hbar.grid(row=1, column=0, sticky="ew")
+        self._inner_frame = tk.Frame(canvas, **kwargs)
+        canvas.create_window((0, 0), window=self._inner_frame, anchor="nw")
+        canvas.bind(
+            "<Configure>",
+            lambda _e: canvas.configure(scrollregion=canvas.bbox("all")),
+        )
+        canvas.bind("<Enter>", self._bind_wheel)
+        canvas.bind("<Leave>", self._unbind_wheel)
+        return outer
+
+    def _post_create(self):
+        super(ScrollableColumn, self)._post_create()
+        if self._layout:
+            self._window._build_layout(self._layout, self._inner_frame)
+
+    # --- mouse wheel -----------------------------------------------------------
+    def _bind_wheel(self, _event):
+        self._canvas.bind_all("<MouseWheel>", self._on_wheel)
+        self._canvas.bind_all("<Button-4>", self._on_wheel)
+        self._canvas.bind_all("<Button-5>", self._on_wheel)
+
+    def _unbind_wheel(self, _event):
+        self._canvas.unbind_all("<MouseWheel>")
+        self._canvas.unbind_all("<Button-4>")
+        self._canvas.unbind_all("<Button-5>")
+
+    def _on_wheel(self, event):
+        if getattr(event, "num", None) == 4:
+            delta = -1
+        elif getattr(event, "num", None) == 5:
+            delta = 1
+        else:
+            delta = -int(event.delta) // 120
+        if self._scroll_y and delta:
+            self._canvas.yview_scroll(delta, "units")
+        elif self._scroll_x and not self._scroll_y:
+            self._canvas.xview_scroll(delta, "units")
+
+    def update(self, visible=None):
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+
+def _width_of(size):
+    return size[0] if size and size[0] else 300
+
+
+def _height_of(size):
+    return size[1] if size and size[1] else 200

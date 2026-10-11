@@ -10,7 +10,9 @@ import time
 from . import constants as C
 from . import settings as settings_mod
 from .elements.buttons import Button
-from .elements.widgets import Input, Multiline, Text
+from .elements.calendar import Calendar
+from .elements.containers import Column
+from .elements.widgets import Checkbox, Input, Listbox, Multiline, Spin, Text
 from .window.window import Window
 
 try:
@@ -225,62 +227,212 @@ def popup_get_folder(message="", title=""):
     return result if result else None
 
 
-def popup_get_date(message="Choose a date", title=""):
-    """Native calendar chooser; returns (year, month, day) or None."""
-    import calendar
-    import tkinter as tk
-    from tkinter import ttk
+def popup_get_date(message="Choose a date", title="", default_date=None, dateformat="%Y-%m-%d"):
+    """Calendar chooser; returns a :class:`datetime.date` or None.
 
-    now = time.localtime()
-    year, month = now.tm_year, now.tm_mon
-    result = {"date": None}
+    ``default_date`` accepts a date or a ``(year, month, day)`` tuple
+    (defaults to today).
+    """
+    import datetime as _dt
 
-    def _draw():
-        cal_frame.configure(text="{} {}".format(calendar.month_name[month], year))
-        for child in grid_frame.winfo_children():
-            child.destroy()
-        days = calendar.monthcalendar(year, month)
-        for col, day_name in enumerate(("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")):
-            ttk.Label(grid_frame, text=day_name).grid(row=0, column=col)
-        for row_index, week in enumerate(days, start=1):
-            for col_index, day in enumerate(week):
-                if day == 0:
-                    continue
-                button = ttk.Button(
-                    grid_frame,
-                    text=str(day),
-                    width=3,
-                    command=lambda d=day: _pick(year, month, d),
-                )
-                button.grid(row=row_index, column=col_index)
-
-    def _pick(y, m, d):
-        result["date"] = (y, m, d)
-        window.close()
-
-    def _shift(delta):
-        nonlocal month, year
-        month += delta
-        if month > 12:
-            month, year = 1, year + 1
-        elif month < 1:
-            month, year = 12, year - 1
-        _draw()
-
+    if default_date is None:
+        default_date = _dt.date.today()
+    elif isinstance(default_date, tuple):
+        default_date = _dt.date(*default_date)
     rows = [
         [Text(message)],
-        [Button("<", key="<"), Button(">", key=">")],
+        [Calendar(default_date=default_date, dateformat=dateformat, key="-CAL-")],
+        [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True)
-    grid_frame = tk.Frame(window.tk_root)
-    grid_frame.grid(row=2, column=0, columnspan=2)
-    cal_frame = tk.LabelFrame(window.tk_root, text="")
-    # simpler: draw the day grid directly into grid_frame
-    window["<"].widget.configure(command=lambda: _shift(-1))
-    window[">"].widget.configure(command=lambda: _shift(1))
-    _draw()
-    window.read(close=True)
-    return result["date"]
+    while True:
+        event, _values = window.read()
+        if event in (C.WIN_CLOSED, "Cancel"):
+            window.close()
+            return None
+        if event == "OK":
+            chosen = window["-CAL-"].date
+            window.close()
+            return chosen
+
+
+# --- find / replace helpers (tk.Text search API) --------------------------------
+def _text_find(widget, needle, start="1.0", case_sensitive=False):
+    """First "line.col" index of ``needle`` in a tk.Text, or None."""
+    needle = str(needle)
+    if not needle:
+        return None
+    pos = widget.search(needle, start, stopindex="end", nocase=not case_sensitive)
+    return pos or None
+
+
+def _text_replace_all(widget, needle, replacement, case_sensitive=False):
+    """Replace every occurrence in a tk.Text; returns the replacement count.
+
+    The search resumes after each inserted replacement so replacements that
+    contain the needle cannot loop forever.
+    """
+    needle = str(needle)
+    replacement = str(replacement)
+    if not needle:
+        return 0
+    count = 0
+    start = "1.0"
+    step = len(replacement) or 1
+    while True:
+        pos = widget.search(needle, start, stopindex="end", nocase=not case_sensitive)
+        if not pos:
+            break
+        widget.delete(pos, "{}+{}c".format(pos, len(needle)))
+        widget.insert(pos, replacement)
+        count += 1
+        start = "{}+{}c".format(pos, step)
+    return count
+
+
+def popup_find(multiline, title="Find Text", case_sensitive=False):
+    """Find text in a :class:`~PySimpleGUI4.elements.widgets.Multiline`.
+
+    The first match from the top is selected and scrolled into view.
+    Returns the match's ``"line.col"`` index, or None when not found /
+    cancelled.
+    """
+    rows = [
+        [Text("Find what:")],
+        [Input("", key="-IN-", size=(40, 1))],
+        [Button("Find", key="Find"), Button("Cancel", key="Cancel")],
+    ]
+    window = Window(title, rows, finalize=True)
+    window["-IN-"].widget.focus_set()
+    event, values = window.read(close=True)
+    if event != "Find":
+        return None
+    widget = multiline.widget
+    needle = values.get("-IN-", "")
+    pos = _text_find(widget, needle, case_sensitive=case_sensitive)
+    if pos:
+        widget.tag_remove("sel", "1.0", "end")
+        widget.tag_add("sel", pos, "{}+{}c".format(pos, len(needle)))
+        widget.mark_set("insert", pos)
+        widget.see(pos)
+        widget.focus_set()
+    return pos
+
+
+def popup_replace(multiline, title="Replace", case_sensitive=False):
+    """Replace-all dialog for a Multiline element.
+
+    Returns the number of replacements, or None when cancelled. The search
+    resumes after each inserted replacement, so replacing ``a`` with ``aa``
+    terminates.
+    """
+    rows = [
+        [Text("Find what:"), Input("", key="-IN-", size=(30, 1))],
+        [Text("Replace with:"), Input("", key="-REP-", size=(30, 1))],
+        [Button("Replace All", key="RA"), Button("Cancel", key="Cancel")],
+    ]
+    window = Window(title, rows, finalize=True)
+    window["-IN-"].widget.focus_set()
+    event, values = window.read(close=True)
+    if event != "RA":
+        return None
+    widget = multiline.widget
+    was_disabled = str(widget.cget("state")) == "disabled"
+    widget.configure(state="normal")
+    count = _text_replace_all(
+        widget,
+        values.get("-IN-", ""),
+        values.get("-REP-", ""),
+        case_sensitive=case_sensitive,
+    )
+    widget.configure(state="disabled" if was_disabled else "normal")
+    return count
+
+
+def popup_get_font(
+    message="Pick a font",
+    title="",
+    default_font=("Helvetica", 12),
+    include_bold_italic=False,
+):
+    """Font chooser (Delphi TFontDialog equivalent).
+
+    Returns ``(family, size)`` — or ``(family, size, bold, italic)`` when
+    ``include_bold_italic`` is True — or None on cancel.
+    """
+    import tkinter.font as tkfont
+
+    family, size = default_font[0], int(default_font[1])
+    bold = len(default_font) > 2 and "bold" in default_font[2:]
+    italic = len(default_font) > 2 and "italic" in default_font[2:]
+
+    picker_column = [Listbox([], key="-FONTS-", size=(26, 10), enable_events=True)]
+    option_rows = [
+        [Text("Size")],
+        [Spin([str(n) for n in range(1, 101)], initial_value=str(size), key="-SIZE-")],
+    ]
+    if include_bold_italic:
+        option_rows.append([Checkbox("Bold", key="-BOLD-", default=bold)])
+        option_rows.append([Checkbox("Italic", key="-ITALIC-", default=italic)])
+    option_rows.append(
+        [Multiline("AaBbYyZz 123", key="-PREVIEW-", size=(20, 3), font=(family, size))]
+    )
+    rows = [
+        [Text(message)],
+        [Column(picker_column), Column(option_rows)],
+        [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
+    ]
+    window = Window(title, rows, finalize=True)
+    families = sorted(tkfont.families(root=window.tk_root))
+    listbox = window["-FONTS-"]
+    listbox.update(values=families)
+    if family in families:
+        listbox.update(set_to_index=families.index(family))
+
+    def _current_font():
+        chosen = listbox.get()
+        picked_family = chosen[0] if chosen else family
+        try:
+            picked_size = int(window["-SIZE-"].get())
+        except (TypeError, ValueError):
+            picked_size = size
+        picked_bold = bool(window["-BOLD-"].get()) if include_bold_italic else bold
+        picked_italic = (
+            bool(window["-ITALIC-"].get()) if include_bold_italic else italic
+        )
+        flags = []
+        if picked_bold:
+            flags.append("bold")
+        if picked_italic:
+            flags.append("italic")
+        return picked_family, picked_size, tuple(flags)
+
+    def _refresh_preview(_window=None, _event=None, _values=None):
+        picked = _current_font()
+        window["-PREVIEW-"].widget.configure(font=(picked[0], picked[1]) + picked[2])
+
+    window["-SIZE-"].widget.configure(command=_refresh_preview)
+    if include_bold_italic:
+        window["-BOLD-"].widget.configure(command=_refresh_preview)
+        window["-ITALIC-"].widget.configure(command=_refresh_preview)
+
+    result = None
+    while True:
+        event, _values = window.read()
+        if event in (C.WIN_CLOSED, "Cancel"):
+            break
+        if event in ("-FONTS-", "-SIZE-", "-BOLD-", "-ITALIC-"):
+            _refresh_preview()
+            continue
+        if event == "OK":
+            picked = _current_font()
+            if include_bold_italic:
+                result = (picked[0], picked[1], picked[2])
+            else:
+                result = (picked[0], picked[1])
+            break
+    window.close()
+    return result
 
 
 MsgBox = popup

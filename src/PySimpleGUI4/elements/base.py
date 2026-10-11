@@ -214,49 +214,10 @@ class Element(object, metaclass=ElementBaseMeta):
 
     # --- right click menu ---------------------------------------------------------
     def _attach_right_click_menu(self):
-        definition = self._right_click_menu
-        if definition and isinstance(definition[0], (list, tuple)):
-            cascades = definition
-        else:
-            cascades = [definition]
-        menu = tk.Menu(self._widget, tearoff=False)
-        for entry in cascades:
-            if not isinstance(entry, (list, tuple)) or len(entry) < 2:
-                raise ValueError(
-                    "right_click_menu entries must be (title, items) pairs: {!r}".format(
-                        entry
-                    )
-                )
-            title = str(entry[0]).replace(C.MENU_SHORTCUT_CHARACTER, "")
-            submenu = tk.Menu(menu, tearoff=False)
-            self._fill_popup_items(submenu, entry[1])
-            menu.add_cascade(label=title, menu=submenu)
-        self._popup_menu = menu
+        self._popup_menu = build_popup_menu(
+            self, self._widget, self._right_click_menu
+        )
         self._widget.bind("<Button-3>", self._show_popup_menu)
-
-    def _fill_popup_items(self, menu, items):
-        for item in items:
-            if isinstance(item, (list, tuple)):
-                if len(item) == 2 and isinstance(item[1], (list, tuple)):
-                    title = str(item[0]).replace(C.MENU_SHORTCUT_CHARACTER, "")
-                    submenu = tk.Menu(menu, tearoff=False)
-                    self._fill_popup_items(submenu, item[1])
-                    menu.add_cascade(label=title, menu=submenu)
-                else:
-                    self._fill_popup_items(menu, item)
-                continue
-            if item == C.MENU_SEPARATOR_LINE:
-                menu.add_separator()
-                continue
-            label = str(item).replace(C.MENU_SHORTCUT_CHARACTER, "")
-            disabled = label.startswith(C.MENU_DISABLED_CHARACTER)
-            if disabled:
-                label = label[len(C.MENU_DISABLED_CHARACTER):]
-            menu.add_command(
-                label=label,
-                state="disabled" if disabled else "normal",
-                command=lambda text=label: self._post_event(text),
-            )
 
     def _show_popup_menu(self, event):
         if self._popup_menu is not None:
@@ -469,6 +430,59 @@ class ContainerElement(Element):
         super(ContainerElement, self)._post_create()
         if self._layout:
             self._window._build_layout(self._layout, self._widget)
+
+
+def build_popup_menu(owner, master, definition):
+    """Build a ``tk.Menu`` from a PySimpleGUI menu definition.
+
+    Selecting an item posts its (shortcut-stripped) label as an event on
+    ``owner`` (any object with a ``_post_event(key)`` method, typically an
+    element or a window). The definition is either one ``[title, [items]]``
+    pair or a list of such pairs; nested ``[title, [items]]`` lists create
+    submenus, ``"---"`` separators, a leading ``"!"`` disables the item.
+    """
+    if definition and isinstance(definition[0], (list, tuple)):
+        cascades = definition
+    else:
+        cascades = [definition]
+    menu = tk.Menu(master, tearoff=False)
+    for entry in cascades:
+        if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+            raise ValueError(
+                "menu definition entries must be (title, items) pairs: {!r}".format(
+                    entry
+                )
+            )
+        title = str(entry[0]).replace(C.MENU_SHORTCUT_CHARACTER, "")
+        submenu = tk.Menu(menu, tearoff=False)
+        _fill_popup_items(owner, submenu, entry[1])
+        menu.add_cascade(label=title, menu=submenu)
+    return menu
+
+
+def _fill_popup_items(owner, menu, items):
+    for item in items:
+        if isinstance(item, (list, tuple)):
+            if len(item) == 2 and isinstance(item[1], (list, tuple)):
+                title = str(item[0]).replace(C.MENU_SHORTCUT_CHARACTER, "")
+                submenu = tk.Menu(menu, tearoff=False)
+                _fill_popup_items(owner, submenu, item[1])
+                menu.add_cascade(label=title, menu=submenu)
+            else:
+                _fill_popup_items(owner, menu, item)
+            continue
+        if item == C.MENU_SEPARATOR_LINE:
+            menu.add_separator()
+            continue
+        label = str(item).replace(C.MENU_SHORTCUT_CHARACTER, "")
+        disabled = label.startswith(C.MENU_DISABLED_CHARACTER)
+        if disabled:
+            label = label[len(C.MENU_DISABLED_CHARACTER):]
+        menu.add_command(
+            label=label,
+            state="disabled" if disabled else "normal",
+            command=lambda text=label: owner._post_event(text),
+        )
 
 
 def _validate_layout(layout):

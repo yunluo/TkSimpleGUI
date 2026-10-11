@@ -10,7 +10,7 @@ from tkinter import ttk
 from .. import constants as C
 from .. import _theming as theme_mod
 from .. import settings as settings_mod
-from ..elements.base import ContainerElement, Element
+from ..elements.base import ContainerElement, Element, build_popup_menu
 from ..elements.containers import Menu
 
 try:
@@ -54,6 +54,8 @@ class Window(object):
         "_resizable",
         "_disable_close",
         "_element_justification",
+        "_right_click_menu",
+        "_popup_menu",
         "_radio_groups",
         "_ttk_style",
         "_drag_offset",
@@ -79,6 +81,7 @@ class Window(object):
         resizable=None,
         disable_close=False,
         element_justification=None,
+        right_click_menu=None,
     ):
         self._title = title
         self._layout = _validate_layout(layout)
@@ -102,6 +105,8 @@ class Window(object):
         self._resizable = resizable
         self._disable_close = bool(disable_close)
         self._element_justification = element_justification
+        self._right_click_menu = right_click_menu
+        self._popup_menu = None
         self._radio_groups = {}
         self._ttk_style = None
         self._drag_offset = None
@@ -258,12 +263,25 @@ class Window(object):
             root.bind("<ButtonPress-1>", self._start_move)
             root.bind("<ButtonRelease-1>", self._stop_move)
             root.bind("<B1-Motion>", self._on_motion)
+        if self._right_click_menu is not None:
+            self._popup_menu = build_popup_menu(
+                self, root, self._right_click_menu
+            )
+            root.bind("<Button-3>", self._show_popup_menu)
         if self._disable_close:
             root.protocol("WM_DELETE_WINDOW", lambda: None)
         else:
             root.protocol("WM_DELETE_WINDOW", lambda: self._post_event(C.WIN_CLOSED))
         if self._return_keyboard_events:
             root.bind("<Key>", self._on_keyboard_event)
+
+    def _show_popup_menu(self, event):
+        if self._popup_menu is not None:
+            try:
+                self._popup_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                self._popup_menu.grab_release()
+        return "break"
 
     def _apply_icon(self, icon):
         """Set the icon from base64 data (one item or a tuple of sizes)."""
@@ -386,6 +404,52 @@ class Window(object):
         thread.daemon = True
         thread.start()
         return thread
+
+    # --- timers (Delphi TTimer equivalent) --------------------------------------------
+    def after(self, interval_ms, callback):
+        """Run ``callback`` once after ``interval_ms`` on the tk event loop.
+
+        Returns a :class:`_TimerHandle` — call ``.cancel()`` to abort. The
+        callback only fires while the window pumps events (``read``/``refresh``).
+        """
+        handle = _TimerHandle(self)
+        handle._id = self._tk_root.after(
+            int(interval_ms),
+            lambda: self._run_timer(handle, callback, repeat_ms=None),
+        )
+        return handle
+
+    def every(self, interval_ms, callback):
+        """Call ``callback`` every ``interval_ms`` until cancelled or closed.
+
+        Returns a :class:`_TimerHandle` — call ``.cancel()`` to stop.
+        """
+        handle = _TimerHandle(self)
+        handle._id = self._tk_root.after(
+            int(interval_ms),
+            lambda: self._run_timer(handle, callback, repeat_ms=int(interval_ms)),
+        )
+        return handle
+
+    def _run_timer(self, handle, callback, repeat_ms):
+        if handle._cancelled or self._closed or not self._root_alive():
+            handle._id = None
+            return
+        try:
+            callback()
+        finally:
+            if (
+                not handle._cancelled
+                and repeat_ms is not None
+                and not self._closed
+                and self._root_alive()
+            ):
+                handle._id = self._tk_root.after(
+                    repeat_ms,
+                    lambda: self._run_timer(handle, callback, repeat_ms),
+                )
+            else:
+                handle._id = None
 
     # --- reading -----------------------------------------------------------------------
     def read(self, timeout=None, close=False, timeout_key=C.TIMEOUT_KEY):
@@ -692,6 +756,32 @@ class Window(object):
         return "<Window {!r} finalized={} closed={}>".format(
             self._title, self._finalized, self._closed
         )
+
+
+class _TimerHandle(object):
+    """Cancellable handle returned by :meth:`Window.after` / :meth:`Window.every`."""
+
+    __slots__ = ("_window", "_id", "_cancelled")
+
+    def __init__(self, window):
+        self._window = window
+        self._id = None
+        self._cancelled = False
+
+    def cancel(self):
+        """Stop the timer (safe to call more than once)."""
+        self._cancelled = True
+        if self._id is not None and self._window._root_alive():
+            try:
+                self._window._tk_root.after_cancel(self._id)
+            except tk.TclError:
+                pass
+            self._id = None
+        return self
+
+    @property
+    def active(self):
+        return not self._cancelled and self._id is not None
 
 
 def _validate_layout(layout):

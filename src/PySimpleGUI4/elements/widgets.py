@@ -42,6 +42,49 @@ def _char_height(size):
     return None if height is None else int(height)
 
 
+# --- built-in input validators (validate_command callables) -------------------
+def validate_integer(text):
+    """Validator: allow only integers (empty text allowed while editing)."""
+    if text == "" or text == "-":
+        return True
+    try:
+        int(text)
+        return True
+    except ValueError:
+        return False
+
+
+def validate_float(text):
+    """Validator: allow only floats (empty text allowed while editing)."""
+    if text in ("", "-", ".", "-."):
+        return True
+    try:
+        float(text)
+        return True
+    except ValueError:
+        return False
+
+
+def validate_regex(pattern, flags=0):
+    """Validator factory: allow only text fully matching ``pattern``.
+
+    Returns a ``validate_command`` callable; empty text always passes so
+    deleting stays possible::
+
+        Input(validate="key", validate_command=validate_regex(r"\\d{1,3}"))
+    """
+    import re
+
+    compiled = re.compile(pattern, flags)
+
+    def validator(text):
+        if text == "":
+            return True
+        return compiled.fullmatch(text) is not None
+
+    return validator
+
+
 class Text(Element):
     """A static label."""
 
@@ -136,6 +179,9 @@ class Input(InputElement):
         "_text_color",
         "_background_color",
         "_font",
+        "_validate",
+        "_validate_command",
+        "_invalid_command",
     )
 
     def __init__(
@@ -149,6 +195,9 @@ class Input(InputElement):
         background_color=None,
         font=None,
         disabled=False,
+        validate=None,
+        validate_command=None,
+        invalid_command=None,
         tooltip=None,
         visible=True,
         pad=None,
@@ -176,6 +225,14 @@ class Input(InputElement):
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
+        self._validate = validate
+        self._validate_command = validate_command
+        self._invalid_command = invalid_command
+        if validate is not None and validate_command is not None:
+            if not callable(validate_command):
+                raise TypeError("validate_command must be a callable(text) -> bool")
+            if invalid_command is not None and not callable(invalid_command):
+                raise TypeError("invalid_command must be a callable(text)")
 
     def _create_widget(self, master):
         self._textvariable = tk.StringVar(value=self._default_text)
@@ -192,6 +249,20 @@ class Input(InputElement):
             kwargs["width"] = width
         if self._password_char:
             kwargs["show"] = self._password_char
+        if self._validate is not None and self._validate_command is not None:
+            # native tk.Entry validation; "%P" passes the text after the edit
+            validator = self._validate_command
+            kwargs["validate"] = self._validate
+            kwargs["validatecommand"] = (
+                master.register(lambda new_text: bool(validator(new_text))),
+                "%P",
+            )
+            if self._invalid_command is not None:
+                invalid = self._invalid_command
+                kwargs["invalidcommand"] = (
+                    master.register(lambda new_text: invalid(new_text)),
+                    "%P",
+                )
         entry = ttk.Entry(master, textvariable=self._textvariable, **kwargs)
         self._apply_disabled(entry)
         return entry

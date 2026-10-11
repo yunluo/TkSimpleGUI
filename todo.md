@@ -1,0 +1,58 @@
+# PySimpleGUI4 路线图 / TODO
+
+> 对标基准：Qt（架构与 API 完整性）、Delphi VCL（控件面板覆盖度）。
+> 底线不变：Python 3.4、零第三方依赖、Tkinter/ttk 原生实现、OO 封装。
+> 完成项打勾并注明 commit；每批完成后跑 `python -m unittest tests.test_package` + `python _split/oo_smoke.py`。
+
+## ✅ 已完成
+
+- [x] 全新 OO 重写（5c0f61d）：Element ABC/模板方法、ThemeManager 单例、原生默认外观、160 主题
+- [x] P0 能力补齐（c6e4431）：metadata / pad / expand_x / expand_y / justification / right_click_menu / disabled 构造参数；颜色字体参数全覆盖 + ttk 派生样式；Window 运行时 API（maximize/minimize/normal/restore/alpha/size/move_to_center/hide/set_icon…）；perform_long_operation；右键菜单
+- [x] tk/ttk 深挖 + 默认 logo（8beed18）：Graph 图元句柄（oval/arc/polygon/image + delete/move/relocate/bring/send/get_figures_at_location）、Table 表头排序、Multiline 原生 undo/redo/彩色 print/clear、Button 图片+compound、剪贴板、set_min_size、set_dpi_awareness、P4 字标双尺寸 iconphoto（生成器 `_split/gen_logo.py`）
+
+## 🥇 第一批：高性价比、纯 Tk 原生（Delphi Tier 1）✅ 全部完成
+
+- [x] **Entry 输入校验**（对标 TMaskEdit）— `Input(validate="key", validate_command=...)` 暴露 tk.Entry 原生校验，内置 `validate_integer`/`validate_float`/`validate_regex`（fullmatch 语义）
+- [x] **Calendar 元素**（对标 TMonthCalendar/TDateTimePicker）— `elements/calendar.py`，月视图+翻页+选中高亮+事件，`get()` 按 `dateformat` 返回；popup_get_date 已改为基于它
+- [x] **Splitter 元素**（对标 TSplitter）— `tk.PanedWindow` 多窗格容器，`layouts=[...]`、`orientation`、`handle_size`（sashwidth）
+- [x] **ScrollableColumn**（对标 TScrollBox）— Canvas+scrollregion+滚轮（Windows/Linux 双协议）+ 可选纵横滚动条
+- [x] **窗体级右键菜单** — `Window(right_click_menu=...)`，与元素级共用 `build_popup_menu`
+- [x] **popup_get_font**（对标 TFontDialog）— 字体列表+字号 Spin+Bold/Italic+实时预览
+- [x] **Timer helper**（对标 TTimer）— `window.after(ms, cb)` 单次 / `window.every(ms, cb)` 循环，返回可 cancel 的 `_TimerHandle`
+- [x] **popup_find / popup_replace**（对标 TFindDialog/TReplaceDialog）— 基于 tk.Text search；`_text_find`/`_text_replace_all` 可独立调用
+
+## 🥈 第二批：控件补全（Delphi Tier 1 尾 + Tier 2）
+
+- [ ] **CheckList 元素**（对标 TCheckListBox）— 勾选列表容器，`values`/`checked` 双向
+- [ ] **Toolbar 元素**（对标 TToolBar）— 统一高度按钮排 + 分隔符 + 下拉按钮
+- [ ] **Button toggle**（对标 TSpeedButton）— `toggle=True` 按下保持 + `group_id` 互斥分组
+- [ ] **LabeledEdit 便利封装**（对标 TLabeledEdit）— 标签+输入一体元素
+- [ ] **KeyValueEditor**（对标 TValEdit）— 键值对编辑表格（设置页常用）
+- [ ] **FlowPanel**（对标 TFlowPanel）— 自动换行的流式容器
+- [ ] **Tree/Table 行图标**（对标 TImageList 的轻量替代）— ttk.Treeview 每项 `image=` 支持
+- [ ] **Table 单元格编辑**（对标 TStringGrid）— 双击进入编辑、`enable_events` 回传改动
+- [ ] **Shape 元素**（对标 TShape/TBevel）— 常用矩形/圆角/线条便利封装（Graph 之上）
+
+## 🥉 第三批：架构件与基础设施（需单独设计）
+
+- [ ] **ActionList 设计**（对标 TActionList / Qt QAction）— 菜单项/右键/按钮/快捷键绑定同一动作，一个 `Action(text, key, shortcut, callback)` 多处复用；牵扯事件模型，先出设计再实现
+- [ ] **UserSettings**（对标 TIniFile/QSettings）— INI/JSON 用户配置持久化，`UserSettings()` 读写
+- [ ] **数据绑定轻量版**（对标 TDataSource 的最小替代）— `Table.bind(list_of_dicts)` 自动生成表头+刷新
+- [ ] **i18n**（对标 Qt tr()/QTranslator）— `_("text")` 占位 + 字典翻译
+- [ ] **动画 helper**（对标 QPropertyAnimation 的简化版）— 基于 `after` 的 fade/slide/progress 动画
+- [ ] **SystemTray 托盘菜单** — 补 Windows 托盘右键菜单与图标交互（当前仅气泡通知）
+- [ ] **debug window / CLI 入口**（原版 PySimpleGUI 有的配套件）
+
+## ⛔ 明确不做（超出零依赖 Tkinter 边界，不再反复评估）
+
+- 打印对话框族（TPrintDialog 等）、TMediaPlayer、TOleContainer、TAnimate
+- 数据感知控件全家（TDBGrid/TDBEdit…，用上面的轻量 bind 替代）
+- FMX 特性（TMultiView 抽屉、3D、GPU 特效）、tkdnd 拖放扩展
+- QSS 样式表、完整 Model/View MVC（保留 values-based 声明式卖点）
+
+## 附：回归基线
+
+- 测试：`python -m unittest tests.test_package`（69 个，含 P0/右键/排序/undo/logo/第一批回归）
+- 冒烟：`python _split/oo_smoke.py`（32 项）
+- 兼容扫描：ast 检查无 f-string（test_no_fstrings）、`__slots__` 无 `__dict__`
+- 每批提交后：compileall + 上述两项 + git commit（中文 + fix:/feat:/refactor: 前缀）
