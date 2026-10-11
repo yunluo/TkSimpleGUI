@@ -31,19 +31,21 @@ def main():
     import PySimpleGUI4 as sg
 
     sg.set_dpi_awareness()  # 让 winfo 坐标与屏幕物理像素对齐，截图不漂移
-    instance = demo_module.Demo()
-    window = instance.build()
+    import demo as demo_module
+
+    window = demo_module.build_main_window()
     window.tk_root.attributes("-topmost", True)  # 截图期间保持最前，避免被遮挡
     window.move_to_center()
     window.refresh()
     time.sleep(0.4)
     notebook = window["-TABS-"].widget
-    names = ["inputs", "selection", "data", "graphics", "containers", "system"]
+    names = ["inputs", "selection", "data", "graphics", "containers",
+             "fancy", "system"]
     for index, name in enumerate(names):
         notebook.select(index)
         window.refresh()
         time.sleep(0.25)
-        capture(window, os.path.join(OUT, "_demo_tab{}.png".format(index)))
+        capture(window, os.path.join(OUT, f"_demo_tab{index}.png"))
         print("captured", name, flush=True)
     window.close()
     print("ALL SHOTS DONE")
