@@ -884,6 +884,83 @@ class Window(object):
         return self
 
     # --- clipboard / desktop integration -------------------------------------------------
+    def toast(
+        self,
+        message,
+        title="",
+        duration_ms=2500,
+        background_color="#333333",
+        text_color="#ffffff",
+        font=None,
+        location=None,
+    ):
+        """Show an in-window toast notification (bottom-right by default).
+
+        A borderless Toplevel with a fade-in/out animation; it closes itself
+        after ``duration_ms`` and never steals focus. Events keep flowing
+        through :meth:`read` while the toast is visible. Returns the toast
+        :class:`tk.Toplevel` (already scheduled to self-destruct).
+        """
+        if not self._root_alive():
+            return None
+        toast = tk.Toplevel(self._tk_root)
+        toast.wm_overrideredirect(True)
+        toast.attributes("-topmost", True)
+        body = tk.Label(
+            toast,
+            text=f"{title}\n{message}" if title else str(message),
+            background=background_color,
+            foreground=text_color,
+            font=font or ("Helvetica", 10),
+            justify="left",
+            padx=14,
+            pady=10,
+        )
+        body.pack()
+        self._tk_root.update_idletasks()
+        toast.update_idletasks()
+        margin = 16
+        if location is not None:
+            x, y = int(location[0]), int(location[1])
+        else:
+            x = self._tk_root.winfo_rootx() + self._tk_root.winfo_width() \
+                - toast.winfo_reqwidth() - margin
+            y = self._tk_root.winfo_rooty() + self._tk_root.winfo_height() \
+                - toast.winfo_reqheight() - margin
+        toast.wm_geometry(f"+{x}+{y}")
+
+        steps = 8
+        interval = max(20, int(duration_ms * 0.15) // steps)
+
+        def fade(final_alpha, then=None):
+            state = {"index": 0}
+
+            def tick():
+                state["index"] += 1
+                ratio = state["index"] / float(steps)
+                alpha = final_alpha * ratio
+                try:
+                    toast.attributes("-alpha", alpha)
+                except tk.TclError:
+                    return
+                if state["index"] >= steps:
+                    if then is not None:
+                        then()
+                else:
+                    toast.after(interval, tick)
+
+            tick()
+
+        def hold_then_fade_out():
+            toast.after(int(duration_ms * 0.7), lambda: fade(0.0, then=toast.destroy))
+
+        try:
+            toast.attributes("-alpha", 0.0)
+        except tk.TclError:
+            hold_then_fade_out()  # no alpha support: just show and destroy
+            return toast
+        fade(1.0, then=hold_then_fade_out)
+        return toast
     def clipboard_set(self, text):
         """Replace the system clipboard contents with ``text``."""
         if self._root_alive():

@@ -177,10 +177,21 @@ class TabGroup(Element):
     With ``enable_events=True`` switching tabs posts the tab's title (or
     ``(key, title)`` when the group has a key). ``enable_traversal`` adds
     Ctrl+Tab keyboard navigation; individual tabs can be disabled or hidden
-    through :meth:`update`.
+    through :meth:`update`. ``enable_close=True`` renders an "×" on every
+    tab — ttk.Notebook has no native close button, so a click in the
+    trailing hit-zone of a tab is detected manually and posted as
+    ``(key, "tab_closed", title)`` (or ``("tab_closed", title)``).
     """
 
-    __slots__ = ("_tabs", "_enable_events", "_enable_traversal")
+    _CLOSE_ZONE = 18  # px at the right edge of a tab treated as the ×
+
+    __slots__ = (
+        "_tabs",
+        "_enable_events",
+        "_enable_traversal",
+        "_enable_close",
+        "_closed_titles",
+    )
 
     def __init__(
         self,
@@ -189,6 +200,7 @@ class TabGroup(Element):
         tab_location=C.Location.TOP,
         enable_events=True,
         enable_traversal=False,
+        enable_close=False,
         tooltip=None,
         visible=True,
         pad=None,
@@ -219,6 +231,8 @@ class TabGroup(Element):
         self._tabs = tabs
         self._enable_events = bool(enable_events)
         self._enable_traversal = bool(enable_traversal)
+        self._enable_close = bool(enable_close)
+        self._closed_titles: List[str] = []
 
     @property
     def tabs(self):
@@ -229,7 +243,8 @@ class TabGroup(Element):
         notebook = ttk.Notebook(master, **kwargs)
         for tab in self._tabs:
             widget = tab._build(notebook, self._window)
-            notebook.add(widget, text=tab.title)
+            label = tab.title if not self._enable_close else f"{tab.title} ×"
+            notebook.add(widget, text=label)
         if self._enable_traversal:
             notebook.enable_traversal()
         return notebook
@@ -239,6 +254,45 @@ class TabGroup(Element):
             self._widget.bind(
                 "<<NotebookTabChanged>>", self._on_tab_changed
             )
+        if self._enable_close:
+            self._widget.bind("<Button-1>", self._on_tab_click, add="+")
+
+    def _on_tab_click(self, event):
+        """Detect clicks in the trailing × hit-zone of a tab header."""
+        try:
+            index = self._widget.index(f"@{event.x},{event.y}")
+        except tk.TclError:
+            return
+        if index is None or not 0 <= index < len(self._tabs):
+            return
+        bbox = self._widget.bbox(index)
+        if not bbox:
+            return
+        tab_x, _tab_y, tab_width, _tab_height = bbox
+        if event.x >= tab_x + tab_width - self._CLOSE_ZONE:
+            title = self._tabs[index].title
+            self.close_tab(title)
+
+    def close_tab(self, title):
+        """Remove the tab titled ``title`` and post the close event."""
+        index = next(
+            (i for i, tab in enumerate(self._tabs) if tab.title == title), None
+        )
+        if index is None:
+            return self
+        self._tabs.pop(index)
+        self._closed_titles.append(title)
+        self._widget.forget(index)
+        if self._key is not None:
+            self._post_event((self._key, "tab_closed", title))
+        else:
+            self._post_event(("tab_closed", title))
+        return self
+
+    @property
+    def closed_tabs(self):
+        """Titles of the tabs closed through the × button."""
+        return list(self._closed_titles)
 
     def _on_tab_changed(self, _event):
         try:

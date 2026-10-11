@@ -38,6 +38,7 @@ from .containers import (
 )
 from .calendar import Calendar
 from .data import Table, Tree
+from .fancy import ImageButton, RoundButton, TextProgressBar
 from .misc import (
     HorizontalSeparator,
     Menubutton,
@@ -92,6 +93,9 @@ __all__ = [
     "Sizegrip",
     "Menubutton",
     "Scrollbar",
+    "RoundButton",
+    "ImageButton",
+    "TextProgressBar",
     "validate_integer",
     "validate_float",
     "validate_regex",

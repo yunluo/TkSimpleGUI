@@ -303,6 +303,31 @@ class Table(Element):
     def _bind_events(self):
         if self._enable_events:
             self._widget.bind("<<TreeviewSelect>>", lambda _e: self._post_event())
+        # Treeview has no native column-resize virtual event; synthesize one
+        # from the header separator ButtonRelease (战线 B 技法)
+        self._widget.bind("<ButtonRelease-1>", self._on_header_release, add="+")
+
+    def _on_header_release(self, event):
+        region = self._widget.identify("region", event.x, event.y)
+        if region != "separator":
+            return
+        column = self._widget.identify_column(event.x)
+        try:
+            index = int(column.lstrip("#")) - 1
+        except ValueError:
+            return
+        if 0 <= index < len(self._headings):
+            width = self._widget.column(f"col{index}", "width")
+            self._post_event((self._key, "column_resized", index, width))
+
+    def column_width(self, index):
+        """Current pixel width of column ``index``."""
+        return self._widget.column(f"col{index}", "width")
+
+    def set_column_width(self, index, width):
+        """Set column ``index`` to ``width`` pixels programmatically."""
+        self._widget.column(f"col{index}", width=int(width))
+        return self
 
     @property
     def headings(self):
@@ -481,11 +506,57 @@ class Tree(Element):
             height=self._num_rows,
         )
         tree.heading("#0", text="Tree")
+        # group-tag styles: bold group rows, muted summary rows (Treeview
+        # item tags map to per-row ttk styles — native, but undocumented)
+        tree.tag_configure("group", font=("Helvetica", 9, "bold"))
+        tree.tag_configure("summary", foreground="#777777")
         for index, heading in enumerate(self._headings):
             column_id = f"col{index}"
             tree.heading(column_id, text=str(heading))
             tree.column(column_id, width=80)
         return tree
+
+    def insert_group(self, parent, key, display_text=None, values=None, open=True):
+        """Insert a bold group row (a section header that can be collapsed).
+
+        Children inserted with ``parent=key`` collapse together with it.
+        """
+        return self._widget.insert(
+            parent,
+            "end",
+            iid=str(key),
+            text="" if display_text is None else str(display_text),
+            values=[str(v) for v in (values or ())],
+            tags=("group",),
+            open=bool(open),
+        )
+
+    def insert_summary(self, parent, key, display_text=None, values=None):
+        """Insert a muted summary row (e.g. a totals line under a group)."""
+        return self._widget.insert(
+            parent,
+            "end",
+            iid=str(key),
+            text="" if display_text is None else str(display_text),
+            values=[str(v) for v in (values or ())],
+            tags=("summary",),
+        )
+
+    def collapse(self, key):
+        """Collapse the subtree under ``key``. Returns self."""
+        self._widget.item(str(key), open=False)
+        return self
+
+    def expand(self, key):
+        """Expand the subtree under ``key``. Returns self."""
+        self._widget.item(str(key), open=True)
+        return self
+
+    def toggle(self, key):
+        """Toggle the open state of the subtree under ``key``."""
+        item = str(key)
+        self._widget.item(item, open=not self._widget.item(item, "open"))
+        return self
 
     def _bind_events(self):
         if self._enable_events:

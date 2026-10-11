@@ -139,6 +139,9 @@ from .elements import (
     Sizegrip,
     Menubutton,
     Scrollbar,
+    RoundButton,
+    ImageButton,
+    TextProgressBar,
     validate_integer,
     validate_float,
     validate_regex,
@@ -152,6 +155,9 @@ from .event import PySimpleEvent, singleton_window
 
 # --- actions ------------------------------------------------------------------------------
 from .actions import Action, ActionList
+
+# --- Windows desktop integration (no-op off Windows) ----------------------------------------
+from .hotkey import GlobalHotkeys, taskbar_progress
 
 # --- user settings / i18n / animation --------------------------------------------------------
 from .user_settings import UserSettings
@@ -251,9 +257,10 @@ __all__ = [
     "Tab", "TabGroup", "Menu", "Table", "Tree",
     "StatusBar", "VerticalSeparator", "HorizontalSeparator", "Sizegrip",
     "Menubutton", "Scrollbar",
+    "RoundButton", "ImageButton", "TextProgressBar",
     "validate_integer", "validate_float", "validate_regex",
     "Window", "SystemTray", "PySimpleEvent", "singleton_window",
-    "Action", "ActionList", "UserSettings",
+    "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "_", "translate", "set_translations", "add_translation",
     "clear_translations",
     "fade_in", "fade_out", "slide", "animate_progress", "dbg",

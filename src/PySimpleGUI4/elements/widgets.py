@@ -3,6 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
+from typing import cast, Optional, Tuple, Union
 
 from .base import Element, InputElement
 from .. import constants as C
@@ -812,9 +813,22 @@ class Radio(InputElement):
 
 
 class Slider(InputElement):
-    """Horizontal or vertical slider (ttk.Scale for a native look)."""
+    """Horizontal or vertical slider (ttk.Scale for a native look).
 
-    __slots__ = ("_range", "_default_value", "_orientation", "_enable_events", "_resolution")
+    With ``show_value=True`` a small value bubble appears above (or beside)
+    the slider while it is dragged — something ttk.Scale cannot do natively.
+    """
+
+    __slots__ = (
+        "_range",
+        "_default_value",
+        "_orientation",
+        "_enable_events",
+        "_resolution",
+        "_show_value",
+        "_bubble",
+        "_bubble_job",
+    )
 
     def __init__(
         self,
@@ -825,6 +839,7 @@ class Slider(InputElement):
         enable_events=False,
         resolution=None,
         size=(20, 15),
+        show_value=False,
         disabled=False,
         tooltip=None,
         visible=True,
@@ -853,6 +868,9 @@ class Slider(InputElement):
         self._orientation = orientation
         self._enable_events = enable_events
         self._resolution = resolution
+        self._show_value = bool(show_value)
+        self._bubble: Optional[tk.Toplevel] = None
+        self._bubble_job = None
 
     def _create_widget(self, master):
         orient = (
@@ -876,7 +894,76 @@ class Slider(InputElement):
 
     def _bind_events(self):
         if self._enable_events:
-            self._widget.configure(command=lambda _value: self._post_event())
+            self._widget.configure(command=self._on_scale_command)
+        if self._show_value:
+            self._widget.bind("<B1-Motion>", self._show_bubble, add="+")
+            self._widget.bind("<ButtonPress-1>", self._show_bubble, add="+")
+            self._widget.bind("<ButtonRelease-1>", self._hide_bubble, add="+")
+
+    def _on_scale_command(self, value):
+        if self._show_value and self._bubble is not None:
+            self._update_bubble_text(value)
+        self._post_event()
+
+    # --- value bubble (Toplevel following the slider handle) ----------------------
+    def _show_bubble(self, _event):
+        if self._bubble is None:
+            self._bubble = tk.Toplevel(self._widget)
+            self._bubble.wm_overrideredirect(True)
+            self._bubble.attributes("-topmost", True)
+            tk.Label(
+                self._bubble,
+                text="",
+                background="#333333",
+                foreground="#ffffff",
+                font=("Helvetica", 9),
+                padx=6,
+                pady=2,
+            ).pack()
+        self._update_bubble_position()
+        self._update_bubble_text(self._widget.get())
+        if self._bubble_job is not None:
+            self._widget.after_cancel(self._bubble_job)
+
+    def _update_bubble_position(self):
+        if self._bubble is None:
+            return
+        horizontal = str(self._orientation).lower() in ("h", "horizontal")
+        value = float(self._widget.get())
+        low, high = float(self._range[0]), float(self._range[1])
+        span = (high - low) or 1.0
+        ratio = max(0.0, min(1.0, (value - low) / span))
+        if horizontal:
+            x = self._widget.winfo_rootx() + int(
+                ratio * max(1, self._widget.winfo_width() - 24)
+            ) + 4
+            y = self._widget.winfo_rooty() - 30
+        else:
+            x = self._widget.winfo_rootx() + self._widget.winfo_width() + 6
+            y = self._widget.winfo_rooty() + int(
+                (1.0 - ratio) * max(1, self._widget.winfo_height() - 24)
+            ) + 4
+        self._bubble.wm_geometry(f"+{x}+{y}")
+
+    def _update_bubble_text(self, value):
+        if self._bubble is None:
+            return
+        if self._resolution == 1:
+            text = str(int(round(float(value))))
+        else:
+            text = f"{float(value):.2f}".rstrip("0").rstrip(".")
+        # the bubble holds exactly one Label, created in _show_bubble
+        label = cast(tk.Label, self._bubble.winfo_children()[0])
+        label.configure(text=text)
+
+    def _hide_bubble(self, _event):
+        if self._bubble is not None:
+            def destroy():
+                if self._bubble is not None:
+                    self._bubble.destroy()
+                    self._bubble = None
+            # small delay so the release click does not race the popup
+            self._bubble_job = self._widget.after(250, destroy)
 
     def get(self):
         """Current value as float (int when resolution is 1)."""

@@ -1162,6 +1162,158 @@ class TestLineA(unittest.TestCase):
         window.close()
 
 
+class TestLineB(unittest.TestCase):
+    """战线 B：Tk 做不到的也要做（Canvas 自绘 / 合成 / ctypes）。"""
+
+    def test_round_button(self):
+        button = sg.RoundButton("Go", size=(90, 30), radius=14,
+                                fill_color="#e91e63", key="-RB-")
+        window = sg.Window("t", [[button]], finalize=True)
+        window.tk_root.update()
+        self.assertEqual(len(button.widget.find_all()), 2)  # background + text
+        # clicking the middle posts the key
+        button.widget.event_generate("<Button-1>", x=45, y=15, when="tail")
+        window.tk_root.update()
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "-RB-")
+        button.update(value="Stop")
+        window.close()
+
+    def test_round_button_direct_callback(self):
+        calls = []
+        button = sg.RoundButton("Go", key="-RB-")
+        button.set_click_handler(lambda el: calls.append(el))
+        window = sg.Window("t", [[button]], finalize=True)
+        window.tk_root.update()
+        button.widget.event_generate("<Button-1>", x=45, y=15, when="tail")
+        window.tk_root.update()
+        self.assertEqual(calls, [button])
+        window.close()
+
+    def test_image_button(self):
+        button = sg.ImageButton(data_base64=sg.DEFAULT_BASE64_ICON, key="-IB-")
+        window = sg.Window("t", [[button]], finalize=True)
+        window.tk_root.update()
+        self.assertEqual(button._photo.width(), 64)  # sized from the image
+        button.widget.event_generate("<Button-1>", x=10, y=10, when="tail")
+        window.tk_root.update()
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "-IB-")
+        window.close()
+
+    def test_text_progress_bar(self):
+        bar = sg.TextProgressBar(100, current_value=42, key="-TPB-")
+        window = sg.Window("t", [[bar]], finalize=True)
+        self.assertEqual(bar.get(), 42)
+        label = bar._widget.itemconfigure(bar._label_id, "text")
+        self.assertEqual(str(label[-1]), "42%")
+        bar.update(current_value=100)
+        label = bar._widget.itemconfigure(bar._label_id, "text")
+        self.assertEqual(str(label[-1]), "100%")
+        window.close()
+
+    def test_toast(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        toast = window.toast("Saved", title="Demo", duration_ms=400)
+        self.assertIsNotNone(toast)
+        self.assertTrue(toast.winfo_exists())
+        # let the fade-out schedule finish its lifecycle without blocking
+        deadline = time.time() + 2.5
+        while toast.winfo_exists() and time.time() < deadline:
+            window.read(timeout=50)
+        self.assertFalse(toast.winfo_exists())
+        window.close()
+
+    def test_table_column_resize_event(self):
+        table = sg.Table([["a", "b"]], headings=["H1", "H2"], key="-TB-")
+        window = sg.Window("t", [[table]], finalize=True)
+        width = table.column_width(0)
+        self.assertGreater(width, 0)
+        table.set_column_width(0, 150)
+        self.assertEqual(table.column_width(0), 150)
+        window.close()
+
+    def test_slider_value_bubble(self):
+        slider = sg.Slider((0, 100), default_value=30, show_value=True,
+                           enable_events=True, key="-SL-")
+        window = sg.Window("t", [[slider]], finalize=True)
+        slider.widget.event_generate("<ButtonPress-1>", x=20, y=5)
+        window.refresh()
+        self.assertIsNotNone(slider._bubble)
+        self.assertTrue(slider._bubble.winfo_exists())
+        slider.widget.event_generate("<ButtonRelease-1>", x=20, y=5)
+        window.refresh()
+        if slider._bubble_job is not None:
+            slider.widget.after_cancel(slider._bubble_job)
+        if slider._bubble is not None:
+            slider._bubble.destroy()
+        window.close()
+
+    def test_tree_groups(self):
+        tree = sg.Tree(key="-TR-")
+        window = sg.Window("t", [[tree]], finalize=True)
+        tree.insert_group("", "grp1", "Fruits")
+        tree.insert("grp1", "a1", "Apple")
+        tree.insert_summary("grp1", "sum1", "2 items")
+        tags = tree.widget.item("grp1", "tags")
+        self.assertIn("group", tags)
+        self.assertIn("summary", tree.widget.item("sum1", "tags"))
+        self.assertTrue(tree.widget.item("grp1", "open"))
+        tree.collapse("grp1")
+        self.assertFalse(tree.widget.item("grp1", "open"))
+        tree.expand("grp1")
+        tree.toggle("grp1")
+        self.assertFalse(tree.widget.item("grp1", "open"))
+        window.close()
+
+    def test_tabgroup_close_button(self):
+        tab_group = sg.TabGroup(
+            [[sg.Tab("one", [[sg.Text("1")]]), sg.Tab("two", [[sg.Text("2")]])]],
+            key="-TG-", enable_events=True, enable_close=True,
+        )
+        window = sg.Window("t", [[tab_group]], finalize=True)
+        label = tab_group.widget.tab(0, "text")
+        self.assertIn("×", str(label))
+        tab_group.close_tab("one")
+        self.assertEqual(len(tab_group.tabs), 1)
+        self.assertEqual(tab_group.closed_tabs, ["one"])
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, ("-TG-", "tab_closed", "one"))
+        window.close()
+
+    def test_hotkey_parse(self):
+        modifiers, virtual_key = sg.GlobalHotkeys.parse("Ctrl-Alt-P")
+        self.assertEqual(modifiers, 0x0002 | 0x0001)
+        self.assertEqual(virtual_key, ord("P"))
+        modifiers, virtual_key = sg.GlobalHotkeys.parse("Shift-F5")
+        self.assertEqual(modifiers, 0x0004)
+        self.assertEqual(virtual_key, 0x70 + 5 - 1)
+        with self.assertRaises(ValueError):
+            sg.GlobalHotkeys.parse("Ctrl")
+        with self.assertRaises(ValueError):
+            sg.GlobalHotkeys.parse("Ctrl-Foo")
+
+    @unittest.skipUnless(sg.running_windows(), "hotkeys are Windows only")
+    def test_global_hotkeys_lifecycle(self):
+        hotkeys = sg.GlobalHotkeys()
+        hotkeys.register("Ctrl-Alt-F24", "-HK-TEST-")
+        self.assertEqual(hotkeys.combos, ["Ctrl-Alt-F24"])
+        hotkeys.stop()
+        self.assertEqual(hotkeys.combos, [])
+        # re-register works after stop
+        hotkeys.register("Ctrl-Alt-F24", "-HK-TEST-")
+        hotkeys.stop()
+
+    def test_taskbar_progress_gate(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        progress = sg.taskbar_progress(window)
+        if sg.running_windows():
+            self.assertIsNotNone(progress)
+        else:
+            self.assertIsNone(progress)
+        window.close()
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()
