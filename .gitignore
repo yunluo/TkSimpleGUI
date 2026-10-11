@@ -175,3 +175,6 @@ cython_debug/
 
 # _split toolchain throwaway reports
 _split/*.txt
+
+# _split throwaway images (logo previews, demo acceptance shots)
+_split/_*.png
