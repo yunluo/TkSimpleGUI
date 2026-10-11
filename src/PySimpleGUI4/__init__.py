@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 - Python GUI Framework (object oriented, Python 3.4+).
+"""PySimpleGUI4 - Python GUI Framework (object oriented, Python 3.7+).
 
 Usage::
 

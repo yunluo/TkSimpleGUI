@@ -1,7 +1,7 @@
 # PySimpleGUI4 路线图 / TODO
 
 > 对标基准：Qt（架构与 API 完整性）、Delphi VCL（控件面板覆盖度）。
-> 底线不变：Python 3.4、零第三方依赖、Tkinter/ttk 原生实现、OO 封装。
+> 底线不变：Python 3.7、零第三方依赖、Tkinter/ttk 原生实现、OO 封装。
 > 完成项打勾并注明 commit；每批完成后跑 `python -m unittest tests.test_package` + `python _split/oo_smoke.py`。
 
 ## ✅ 已完成

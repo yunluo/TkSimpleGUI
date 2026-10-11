@@ -1063,8 +1063,9 @@ class TestEventManager(unittest.TestCase):
         first.close()
 
 
-class TestPy34Compatibility(unittest.TestCase):
-    def test_no_fstrings(self):
+class TestPy37Compatibility(unittest.TestCase):
+    def test_no_py38_syntax(self):
+        """The 3.7 floor forbids 3.8+ syntax: walrus and positional-only params."""
         package_dir = os.path.join(
             os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "PySimpleGUI4"
         )
@@ -1077,7 +1078,9 @@ class TestPy34Compatibility(unittest.TestCase):
                 with open(path, encoding="utf-8-sig") as handle:
                     tree = ast.parse(handle.read())
                 for node in ast.walk(tree):
-                    if isinstance(node, ast.JoinedStr):
+                    if isinstance(node, ast.NamedExpr):  # walrus := (3.8+)
+                        offenders.append(os.path.basename(path))
+                    elif getattr(node, "posonlyargs", None):  # f(a, /, b) (3.8+)
                         offenders.append(os.path.basename(path))
         self.assertEqual(offenders, [])
 

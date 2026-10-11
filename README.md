@@ -10,7 +10,7 @@
 
 ## What's New in v4.80.7
 
-This version introduces a **modular architecture** for better maintainability and Python 3.4+ compatibility:
+This version introduces a **modular architecture** for better maintainability and Python 3.7+ compatibility:
 
 ### Directory Structure
 
@@ -23,24 +23,32 @@ PySimpleGUI4/
 │   ├── _theme_data.py           # Generated theme table (160 themes)
 │   ├── _theming.py              # ThemeManager (encapsulated look & feel)
 │   ├── settings.py              # Settings singleton + set_options/get_options
-│   ├── utils.py                 # rgb, Timer, platform detection
+│   ├── utils.py                 # rgb, Timer, platform detection, DPI awareness
 │   ├── event.py                 # PySimpleEvent + singleton_window
+│   ├── actions.py               # Action / ActionList (TActionList analog)
+│   ├── user_settings.py         # UserSettings (JSON persistence, QSettings analog)
+│   ├── i18n.py                  # Dictionary translation (Qt tr() analog)
+│   ├── animation.py             # fade/slide/progress animation helpers
 │   ├── popup.py                 # Popup dialogs built on Window itself
 │   ├── elements/
-│   │   ├── base.py              # Element(ABC) hierarchy + Tooltip
-│   │   ├── widgets.py           # Text, Input, Combo, Listbox, Spin, Checkbox,
-│   │   │                        #   Radio, Slider, Multiline, Output, ProgressBar
-│   │   ├── buttons.py           # Button (+ browse/save-as/color-chooser variants)
-│   │   ├── media.py             # Image, Canvas, Graph
-│   │   ├── containers.py        # Frame, Column, Tab, TabGroup, Menu
-│   │   ├── data.py              # Table, Tree
+│   │   ├── base.py              # Element(ABC) hierarchy + right-click menus + grid engine
+│   │   ├── widgets.py           # Text, Input(+validation), Combo, Listbox, Spin,
+│   │   │                        #   Checkbox, CheckList, Radio, Slider, Multiline,
+│   │   │                        #   Output, ProgressBar
+│   │   ├── buttons.py           # Button (+ browse variants, toggle, image, Action)
+│   │   ├── media.py             # Image, Canvas, Graph (figure handles), Shape
+│   │   ├── containers.py        # Frame, Column, Splitter, ScrollableColumn, Toolbar,
+│   │   │                        #   LabeledEdit, KeyValueEditor, FlowPanel, Tab, TabGroup, Menu
+│   │   ├── calendar.py          # Calendar (embedded month view)
+│   │   ├── data.py              # Table (sort/edit/bind/icons), Tree (item icons)
 │   │   └── misc.py              # StatusBar, separators, Sizegrip
 │   └── window/
-│       ├── window.py            # Window: read loop, layout builder, key lookup
-│       └── system_tray.py       # SystemTray (Windows balloon notifications)
+│       ├── window.py            # Window: read loop, layout engine, timers, clipboard
+│       └── system_tray.py       # SystemTray (icon, menu, balloon, events)
 ├── _split/                      # Baseline toolchain (reference & theme extraction)
-├── tests/test_package.py        # unittest suite (33 tests)
-├── demo.py                      # GUI demo covering every element
+├── tests/test_package.py        # unittest suite (90 tests)
+├── demo.py                      # Full feature showcase (six tabs, --smoke self-test)
+├── todo.md                      # Roadmap (Qt/Delphi gap plan, all batches done)
 ├── pyproject.toml               # Project configuration
 └── README.md                    # This file
 ```
@@ -55,13 +63,12 @@ PySimpleGUI4/
   `ThemeManager` and `Settings` singletons instead of module globals
 - **System native by default** - until you call `sg.theme("...")` no colors
   are overridden and ttk widgets use the operating system's native theme
-- **Python 3.4+ compatible** - no f-strings, guarded `typing` imports,
-  `.format()` only
+- **Python 3.7+ compatible** - zero third-party dependencies, Tkinter/ttk only
 
 ### Key Improvements
 
 1. **PEP8 Compliance** - Code follows Python style guidelines
-2. **Python 3.4+ Compatible** - No f-strings, uses `.format()`
+2. **Python 3.7+ Compatible** - No third-party dependencies
 3. **Type Annotations** - All public functions have type hints
 4. **Modular Design** - Easier to maintain and extend
 5. **Backward Compatible** - All original aliases preserved
@@ -110,5 +117,5 @@ window.close()
 ## Version Info
 
 - **Version**: 4.80.7
-- **Python**: >= 3.4
+- **Python**: >= 3.7
 - **License**: GPL-3.0-or-later
