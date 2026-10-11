@@ -57,6 +57,7 @@ class Window(object):
         "_right_click_menu",
         "_popup_menu",
         "_radio_groups",
+        "_toggle_groups",
         "_ttk_style",
         "_drag_offset",
     )
@@ -108,6 +109,7 @@ class Window(object):
         self._right_click_menu = right_click_menu
         self._popup_menu = None
         self._radio_groups = {}
+        self._toggle_groups = {}
         self._ttk_style = None
         self._drag_offset = None
         if finalize:
@@ -367,6 +369,15 @@ class Window(object):
         if group_id not in self._radio_groups:
             self._radio_groups[group_id] = tk.StringVar(value="", master=self._tk_root)
         return self._radio_groups[group_id]
+
+    def _press_toggle(self, group_id, button):
+        """Exclusive-press bookkeeping for toggle buttons sharing ``group_id``."""
+        group = self._toggle_groups.setdefault(group_id, [])
+        for other in group:
+            if other is not button:
+                other._set_down(False)
+        if button not in group:
+            group.append(button)
 
     # --- event plumbing ---------------------------------------------------------------
     def _post_event(self, key):

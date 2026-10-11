@@ -1112,3 +1112,128 @@ class ProgressBar(Element):
     def update_bar(self, current_value, max_value=None):
         """PySimpleGUI compatibility alias for :meth:`update`."""
         return self.update(current_value=current_value, max_value=max_value)
+
+
+class CheckList(Element):
+    """Vertical list of checkboxes (Delphi TCheckListBox equivalent).
+
+    ``get()`` returns the list of currently checked values; clicking an item
+    posts the element's key when ``enable_events`` is on::
+
+        sg.CheckList(["a", "b", "c"], default_checked=["b"], key="-CHECKS-")
+    """
+
+    __slots__ = (
+        "_values",
+        "_default_checked",
+        "_checked_vars",
+        "_enable_events",
+        "_text_color",
+        "_background_color",
+        "_font",
+    )
+
+    def __init__(
+        self,
+        values=(),
+        default_checked=(),
+        key=None,
+        enable_events=True,
+        text_color=None,
+        background_color=None,
+        font=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(CheckList, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._values = [str(value) for value in values]
+        self._default_checked = set(str(value) for value in default_checked)
+        self._checked_vars = {}
+        self._enable_events = enable_events
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
+
+    def _create_widget(self, master):
+        kwargs = theme_mod.theme_manager.text_kwargs(
+            color=self._text_color, background_color=self._background_color
+        )
+        frame = tk.Frame(master, **kwargs)
+        self._build_items(frame)
+        return frame
+
+    def _build_items(self, frame):
+        for child in frame.winfo_children():
+            child.destroy()
+        self._checked_vars = {}
+        checked = self._default_checked
+        for value in self._values:
+            variable = tk.BooleanVar(value=value in checked, master=frame)
+            button = tk.Checkbutton(
+                frame,
+                text=value,
+                variable=variable,
+                anchor="w",
+                command=self._on_change,
+            )
+            if self._font is not None:
+                button.configure(font=self._font)
+            button.pack(fill="x")
+            self._checked_vars[value] = variable
+
+    def _on_change(self):
+        if self._enable_events:
+            self._post_event()
+
+    @property
+    def values(self):
+        return list(self._values)
+
+    def get(self):
+        """List of the currently checked values (in list order)."""
+        return [
+            value
+            for value, variable in self._checked_vars.items()
+            if variable.get()
+        ]
+
+    def update(self, values=None, checked=None, visible=None):
+        if values is not None:
+            self._values = [str(value) for value in values]
+            self._default_checked = set(
+                str(value) for value in (checked or ())
+            )
+            self._build_items(self._widget)
+        elif checked is not None:
+            wanted = set(str(value) for value in checked)
+            for value, variable in self._checked_vars.items():
+                variable.set(value in wanted)
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+    def check_all(self):
+        """Check every item."""
+        for variable in self._checked_vars.values():
+            variable.set(True)
+        return self
+
+    def uncheck_all(self):
+        """Uncheck every item."""
+        for variable in self._checked_vars.values():
+            variable.set(False)
+        return self

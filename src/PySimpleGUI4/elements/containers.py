@@ -5,6 +5,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from .base import ContainerElement, Element, _validate_layout
+from .widgets import Input, Text
 from .. import constants as C
 from .. import _theming as theme_mod
 
@@ -520,3 +521,360 @@ def _width_of(size):
 
 def _height_of(size):
     return size[1] if size and size[1] else 200
+
+
+class Toolbar(Element):
+    """Row of uniform buttons (Delphi TToolBar equivalent).
+
+    ``tools`` items:
+
+    - ``"Text"`` — a button that posts its text as the event
+    - ``("Text", "-KEY-")`` — a button with an explicit key
+    - ``("Text", "-KEY-", ["item", "---", "item2"])`` — dropdown button;
+      selecting an item posts the item label as the event
+    - ``"---"`` — a vertical separator
+    """
+
+    __slots__ = ("_tools", "_background_color", "_button_color", "_font", "_buttons")
+
+    def __init__(
+        self,
+        tools,
+        key=None,
+        background_color=None,
+        button_color=None,
+        font=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(Toolbar, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._tools = list(tools)
+        self._background_color = background_color
+        self._button_color = button_color
+        self._font = font
+        self._buttons = {}
+
+    def _create_widget(self, master):
+        kwargs = {}
+        bg = self._background_color or theme_mod.theme_manager.background_color
+        if bg is not None:
+            kwargs["background"] = bg
+        frame = tk.Frame(master, **kwargs)
+        column = 0
+        for tool in self._tools:
+            if tool == C.MENU_SEPARATOR_LINE:
+                separator = ttk.Separator(frame, orient="vertical")
+                separator.grid(row=0, column=column, padx=3, sticky="ns")
+                column += 1
+                continue
+            text, tool_key, items = self._parse_tool(tool)
+            if items:
+                button = self._make_dropdown(frame, text, tool_key, items)
+            else:
+                button = self._make_button(frame, text, tool_key)
+            button.grid(row=0, column=column, padx=1, pady=1)
+            column += 1
+        return frame
+
+    @staticmethod
+    def _parse_tool(tool):
+        if isinstance(tool, (list, tuple)):
+            text = str(tool[0])
+            tool_key = tool[1] if len(tool) > 1 else text
+            items = tool[2] if len(tool) > 2 else None
+        else:
+            text = str(tool)
+            tool_key = text
+            items = None
+        return text, tool_key, items
+
+    def _make_button(self, frame, text, tool_key):
+        style_name = theme_mod.theme_manager.ttk_widget_style(
+            frame, "TButton", font=self._font
+        )
+        button = ttk.Button(
+            frame,
+            text=text,
+            style=style_name,
+            command=lambda k=tool_key: self._post_event(k),
+        )
+        self._buttons[tool_key] = button
+        return button
+
+    def _make_dropdown(self, frame, text, tool_key, items):
+        menu = tk.Menu(frame, tearoff=False)
+        for item in items:
+            if item == C.MENU_SEPARATOR_LINE:
+                menu.add_separator()
+                continue
+            label = str(item).replace(C.MENU_SHORTCUT_CHARACTER, "")
+            menu.add_command(label=label, command=lambda t=label: self._post_event(t))
+        button = ttk.Menubutton(frame, text=text + " \u25be", direction="below")
+        button.configure(menu=menu)
+        self._buttons[tool_key] = button
+        return button
+
+    def update(self, visible=None):
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+
+class LabeledEdit(ContainerElement):
+    """Label plus input in one element (Delphi TLabeledEdit).
+
+    The key belongs to the :class:`~PySimpleGUI4.elements.widgets.Input`;
+    ``window[key]`` and ``values[key]`` behave like a plain Input.
+    """
+
+    __slots__ = ("_label", "_label_element", "_input")
+
+    def __init__(
+        self,
+        label,
+        default_text="",
+        key=None,
+        label_position="above",
+        label_size=(None, None),
+        input_size=(None, None),
+        input_text_color=None,
+        input_background_color=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        self._label = str(label)
+        self._label_element = Text(self._label, size=label_size)
+        self._input = Input(
+            default_text,
+            key=key,
+            size=input_size,
+            text_color=input_text_color,
+            background_color=input_background_color,
+        )
+        if str(label_position).lower() in ("left", "l"):
+            layout = [[self._label_element, self._input]]
+        else:
+            layout = [[self._label_element], [self._input]]
+        super(LabeledEdit, self).__init__(
+            layout=layout,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+
+    @property
+    def label(self):
+        return self._label
+
+    @property
+    def input(self):
+        """The embedded :class:`Input` element."""
+        return self._input
+
+    def _create_widget(self, master):
+        kwargs = {}
+        bg = theme_mod.theme_manager.background_color
+        if bg is not None:
+            kwargs["background"] = bg
+        return tk.Frame(master, **kwargs)
+
+    def get(self):
+        return self._input.get()
+
+    def update(self, value=None, label=None, visible=None):
+        if value is not None:
+            self._input.update(value=value)
+        if label is not None:
+            self._label = str(label)
+            self._label_element.update(value=self._label)
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+
+class KeyValueEditor(ContainerElement):
+    """Editable key/value rows (Delphi TValueListEditor equivalent).
+
+    ``pairs`` is a list of ``(label, value)`` pairs (or a dict).
+    ``get()`` returns a ``{label: current_value}`` dict; the container's
+    key carries it into ``window.read()`` values.
+    """
+
+    __slots__ = ("_labels", "_inputs")
+
+    def __init__(
+        self,
+        pairs,
+        key=None,
+        label_size=(None, None),
+        value_size=(None, None),
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        if isinstance(pairs, dict):
+            pairs = list(pairs.items())
+        self._labels = []
+        self._inputs = []
+        rows = []
+        for label, value in pairs:
+            label = str(label)
+            input_element = Input(
+                "" if value is None else str(value), size=value_size
+            )
+            self._labels.append(label)
+            self._inputs.append(input_element)
+            rows.append([Text(label, size=label_size), input_element])
+        super(KeyValueEditor, self).__init__(
+            layout=rows,
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+
+    def get(self):
+        """``{label: current_value}`` for every row."""
+        return dict(
+            (label, element.get()) for label, element in zip(self._labels, self._inputs)
+        )
+
+    def _create_widget(self, master):
+        kwargs = {}
+        bg = theme_mod.theme_manager.background_color
+        if bg is not None:
+            kwargs["background"] = bg
+        return tk.Frame(master, **kwargs)
+
+    def update(self, values=None, visible=None):
+        if values is not None:
+            for label, element in zip(self._labels, self._inputs):
+                if label in values:
+                    element.update(value=values[label])
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+
+class FlowPanel(Element):
+    """Children that flow left-to-right and wrap (Delphi TFlowPanel).
+
+    ``elements`` is a flat list of elements (not rows). Placement is
+    recomputed on every resize using tk ``place``; hidden elements are
+    skipped. Children manage their own geometry afterwards — don't grid
+    them manually.
+    """
+
+    __slots__ = (
+        "_children",
+        "_hpadding",
+        "_vpadding",
+        "_background_color",
+    )
+
+    def __init__(
+        self,
+        elements,
+        horizontal_padding=5,
+        vertical_padding=5,
+        key=None,
+        background_color=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(FlowPanel, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._children = list(elements)
+        self._hpadding = horizontal_padding
+        self._vpadding = vertical_padding
+        self._background_color = background_color
+
+    def _create_widget(self, master):
+        kwargs = {}
+        bg = self._background_color or theme_mod.theme_manager.background_color
+        if bg is not None:
+            kwargs["background"] = bg
+        return tk.Frame(master, **kwargs)
+
+    def _post_create(self):
+        super(FlowPanel, self)._post_create()
+        for element in self._children:
+            self._window._register_element(element)
+            element._build(self._widget, self._window)
+        self._widget.bind("<Configure>", self._reflow)
+        self._reflow()
+
+    def _reflow(self, _event=None):
+        x = self._hpadding
+        y = self._vpadding
+        row_height = 0
+        width = self._widget.winfo_width()
+        for element in self._children:
+            widget = element.widget
+            if widget is None:
+                continue
+            if not element.visible:
+                widget.place_forget()
+                continue
+            child_width = widget.winfo_reqwidth()
+            child_height = widget.winfo_reqheight()
+            if width > 1 and x + child_width > width and x > self._hpadding:
+                x = self._hpadding
+                y += row_height + self._vpadding
+                row_height = 0
+            widget.place(x=x, y=y)
+            x += child_width + self._hpadding
+            row_height = max(row_height, child_height)
+        if self._children:
+            self._widget.configure(height=y + row_height + self._vpadding)
+
+    def update(self, visible=None):
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+            if visible:
+                self._reflow()
+        return self

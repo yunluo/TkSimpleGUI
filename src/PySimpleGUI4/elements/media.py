@@ -337,3 +337,119 @@ class Graph(Canvas):
         dy = -y_direction * self._y_scale
         self._widget.move("all", dx, dy)
         return self
+
+
+class Shape(Element):
+    """Static decorative shape (Delphi TShape/TBevel equivalent).
+
+    ``shape_type``: "rectangle", "oval", "triangle" or "line".
+    """
+
+    __slots__ = (
+        "_shape_type",
+        "_fill_color",
+        "_line_color",
+        "_line_width",
+        "_enable_events",
+    )
+
+    _SHAPES = ("rectangle", "oval", "triangle", "line")
+
+    def __init__(
+        self,
+        shape_type="rectangle",
+        size=(40, 20),
+        fill_color=None,
+        line_color="black",
+        line_width=1,
+        key=None,
+        enable_events=False,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(Shape, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        shape_type = str(shape_type).lower()
+        if shape_type not in self._SHAPES:
+            raise ValueError(
+                "shape_type must be one of {!r}".format(self._SHAPES)
+            )
+        self._shape_type = shape_type
+        self._fill_color = fill_color
+        self._line_color = line_color
+        self._line_width = line_width
+        self._enable_events = bool(enable_events)
+
+    def _create_widget(self, master):
+        kwargs = theme_mod.theme_manager.text_kwargs(background_color=None)
+        canvas = tk.Canvas(
+            master,
+            width=self._size[0] or 40,
+            height=self._size[1] or 20,
+            highlightthickness=0,
+            **kwargs
+        )
+        width = self._size[0] or 40
+        height = self._size[1] or 20
+        if self._shape_type == "rectangle":
+            canvas.create_rectangle(
+                0, 0, width, height,
+                fill=self._fill_color, outline=self._line_color,
+                width=self._line_width,
+            )
+        elif self._shape_type == "oval":
+            canvas.create_oval(
+                0, 0, width, height,
+                fill=self._fill_color, outline=self._line_color,
+                width=self._line_width,
+            )
+        elif self._shape_type == "triangle":
+            canvas.create_polygon(
+                width / 2.0, 0, width, height, 0, height,
+                fill=self._fill_color, outline=self._line_color,
+                width=self._line_width,
+            )
+        else:  # line
+            canvas.create_line(
+                0, height / 2.0, width, height / 2.0,
+                fill=self._line_color, width=self._line_width,
+            )
+        return canvas
+
+    def _bind_events(self):
+        if self._enable_events:
+            self._widget.bind("<Button-1>", lambda _e: self._post_event())
+
+    def get(self):
+        return self._shape_type
+
+    def update(self, fill_color=None, line_color=None, visible=None):
+        if fill_color is not None:
+            self._fill_color = fill_color
+            for item in self._widget.find_all():
+                if self._widget.type(item) != "line":
+                    self._widget.itemconfigure(item, fill=fill_color)
+        if line_color is not None:
+            self._line_color = line_color
+            for item in self._widget.find_all():
+                if self._widget.type(item) == "line":
+                    self._widget.itemconfigure(item, fill=line_color)
+                else:
+                    self._widget.itemconfigure(item, outline=line_color)
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self

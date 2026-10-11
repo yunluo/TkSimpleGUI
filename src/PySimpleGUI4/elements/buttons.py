@@ -34,6 +34,9 @@ class Button(Element):
         "_image_data",
         "_compound",
         "_photo",
+        "_toggle",
+        "_group_id",
+        "_down",
     )
 
     def __init__(
@@ -50,6 +53,9 @@ class Button(Element):
         compound="left",
         font=None,
         disabled=False,
+        toggle=False,
+        group_id=None,
+        down=False,
         tooltip=None,
         visible=True,
         pad=None,
@@ -82,6 +88,9 @@ class Button(Element):
         self._disabled = bool(disabled)
         self._font = font
         self._photo = None
+        self._toggle = bool(toggle)
+        self._group_id = group_id
+        self._down = bool(down)
 
     @classmethod
     def browse_file(cls, button_text="Browse", target_key=None, file_types=None, **kwargs):
@@ -151,6 +160,8 @@ class Button(Element):
 
     # --- widget ----------------------------------------------------------------
     def _create_widget(self, master):
+        if self._toggle:
+            return self._create_toggle_button(master)
         kwargs = {}
         width = self._size[0] if self._size else None
         if width is not None:
@@ -186,8 +197,28 @@ class Button(Element):
             button.configure(state="disabled")
         return button
 
+    def _create_toggle_button(self, master):
+        """Toggle buttons use tk.Button: ttk has no pressed-in relief."""
+        kwargs = {}
+        width = self._size[0] if self._size else None
+        if width is not None:
+            kwargs["width"] = int(width)
+        if self._font is not None:
+            kwargs["font"] = self._font
+        kwargs.update(theme_mod.theme_manager.button_kwargs(self._button_color))
+        button = tk.Button(
+            master,
+            text=self._button_text,
+            bd=1,
+            relief="sunken" if self._down else "raised",
+            **kwargs
+        )
+        if self._disabled:
+            button.configure(state="disabled")
+        return button
+
     def _bind_events(self):
-        if self._button_type is C.ButtonType.REALTIME:
+        if self._button_type is C.ButtonType.REALTIME and not self._toggle:
             self._widget.bind("<ButtonPress-1>", self._on_press)
             self._widget.bind("<ButtonRelease-1>", self._on_release)
         else:
@@ -195,12 +226,33 @@ class Button(Element):
 
     # --- behaviour -------------------------------------------------------------
     def _on_click(self):
+        if self._toggle:
+            self._handle_toggle()
+            return
         browse_result = self._run_browse()
         if browse_result is not None and self._target_key is not None:
             target = self._window.find_element(self._target_key)
             if target is not None:
                 target.update(value=browse_result)
         self._post_event()
+
+    def _handle_toggle(self):
+        """Flip the pressed state (exclusive within ``group_id``)."""
+        new_state = not self._down
+        if new_state and self._group_id is not None and self._window is not None:
+            self._window._press_toggle(self._group_id, self)
+        self._set_down(new_state)
+        self._post_event()
+
+    def _set_down(self, down):
+        self._down = bool(down)
+        if self._widget is not None:
+            self._widget.configure(relief="sunken" if self._down else "raised")
+
+    @property
+    def down(self):
+        """Pressed state of a toggle button (False for normal buttons)."""
+        return self._down
 
     def _on_press(self, _event):
         self._post_event()
@@ -229,7 +281,8 @@ class Button(Element):
         return None
 
     def get(self):
-        return self._button_text
+        """Toggle buttons return their pressed state; others their text."""
+        return self._down if self._toggle else self._button_text
 
     def update(self, text=None, disabled=None, visible=None):
         if text is not None:

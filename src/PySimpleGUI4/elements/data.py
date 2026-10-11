@@ -31,7 +31,10 @@ class Table(Element):
 
     Clicking a heading sorts the rows by that column (click again to flip
     the direction); the same behaviour is available programmatically through
-    :meth:`sort_by`.
+    :meth:`sort_by`. With ``enable_edit=True`` double-clicking a cell opens
+    an inline editor; committing posts a ``(key, row, col, new_value)``
+    tuple event. ``row_icons`` assigns one icon per row (bytes = base64
+    data, str = filename).
     """
 
     __slots__ = (
@@ -44,6 +47,10 @@ class Table(Element):
         "_auto_size_columns",
         "_sort_column",
         "_sort_ascending",
+        "_row_icons",
+        "_images",
+        "_enable_edit",
+        "_editor",
     )
 
     def __init__(
@@ -57,6 +64,8 @@ class Table(Element):
         enable_events=True,
         size=(None, None),
         auto_size_columns=True,
+        enable_edit=False,
+        row_icons=None,
         tooltip=None,
         visible=True,
         pad=None,
@@ -92,6 +101,10 @@ class Table(Element):
         self._auto_size_columns = auto_size_columns
         self._sort_column = None
         self._sort_ascending = True
+        self._row_icons = list(row_icons) if row_icons is not None else None
+        self._images = []
+        self._enable_edit = bool(enable_edit)
+        self._editor = None
 
     def _create_widget(self, master):
         kwargs = {}
@@ -119,9 +132,35 @@ class Table(Element):
                 tree.column(column_id, width=int(width))
             elif not self._auto_size_columns:
                 tree.column(column_id, stretch=False)
-        for row in self._values:
-            tree.insert("", "end", values=[str(cell) for cell in row])
+        for row_index, row in enumerate(self._values):
+            item_id = tree.insert("", "end", values=[str(cell) for cell in row])
+            self._apply_row_icon(tree, item_id, row_index)
+        if self._enable_edit:
+            tree.bind("<Double-1>", self._on_double_click)
         return tree
+
+    # --- row icons ------------------------------------------------------------------
+    def _load_image_spec(self, spec):
+        """PhotoImage from a row icon spec (bytes = base64, str = filename)."""
+        import base64
+
+        if isinstance(spec, bytes):
+            photo = tk.PhotoImage(data=base64.b64decode(spec), master=self._widget)
+        else:
+            photo = tk.PhotoImage(file=spec, master=self._widget)
+        self._images.append(photo)
+        return photo
+
+    def _apply_row_icon(self, tree, item_id, row_index):
+        if self._row_icons is None or row_index >= len(self._row_icons):
+            return
+        spec = self._row_icons[row_index]
+        if spec is None:
+            return
+        try:
+            tree.item(item_id, image=self._load_image_spec(spec))
+        except tk.TclError:
+            pass
 
     # --- sorting -------------------------------------------------------------------
     def _on_heading_click(self, column_index):
@@ -189,12 +228,17 @@ class Table(Element):
     def selected_indices(self):
         return list(self._widget.selection())
 
-    def update(self, values=None, select_rows=None, visible=None):
+    def update(self, values=None, select_rows=None, row_icons=None, visible=None):
         if values is not None:
             self._values = [list(row) for row in values]
             self._widget.delete(*self._widget.get_children())
-            for row in self._values:
-                self._widget.insert("", "end", values=[str(cell) for cell in row])
+            for row_index, row in enumerate(self._values):
+                item_id = self._widget.insert(
+                    "", "end", values=[str(cell) for cell in row]
+                )
+                self._apply_row_icon(self._widget, item_id, row_index)
+        if row_icons is not None:
+            self._row_icons = list(row_icons)
         if select_rows is not None:
             children = self._widget.get_children()
             self._widget.selection_set(
@@ -204,11 +248,81 @@ class Table(Element):
             self.unhide() if visible else self.hide()
         return self
 
+    # --- cell editing (double click) --------------------------------------------------
+    def _on_double_click(self, event):
+        item = self._widget.identify_row(event.y)
+        column = self._widget.identify_column(event.x)
+        if item and column.startswith("#"):
+            self._begin_cell_edit(item, column)
+
+    def _begin_cell_edit(self, item, column):
+        """Open an inline editor over ``item``/``column`` ("#1" style)."""
+        bbox = self._widget.bbox(item, column)
+        if not bbox:
+            self._widget.update_idletasks()
+            bbox = self._widget.bbox(item, column)
+        if not bbox:
+            return
+        try:
+            col_index = int(column.lstrip("#")) - 1
+        except ValueError:
+            return
+        row_index = self._widget.index(item)
+        if row_index >= len(self._values) or col_index >= len(
+            self._values[row_index]
+        ):
+            return
+        row = self._values[row_index]
+        x, y, width, height = bbox
+        editor = tk.Entry(self._widget, justify="left", borderwidth=1)
+        editor.place(x=x, y=y, width=max(width, 40), height=height)
+        editor.insert(0, str(row[col_index]))
+        editor.selection_range(0, "end")
+        editor.focus_set()
+        self._editor = editor
+        editor.bind(
+            "<Return>",
+            lambda _e: self._finish_cell_edit(editor, item, row, row_index, col_index),
+        )
+        editor.bind(
+            "<FocusOut>",
+            lambda _e: self._finish_cell_edit(editor, item, row, row_index, col_index),
+        )
+        editor.bind("<Escape>", lambda _e: self._cancel_cell_edit(editor))
+
+    def _finish_cell_edit(self, editor, item, row, row_index, col_index):
+        if self._editor is not editor:
+            return
+        value = editor.get()
+        editor.destroy()
+        self._editor = None
+        if value != row[col_index]:
+            row[col_index] = value
+            self._widget.item(item, values=[str(cell) for cell in row])
+            self._post_event((self._key, row_index, col_index, value))
+
+    def _cancel_cell_edit(self, editor):
+        if self._editor is editor:
+            editor.destroy()
+            self._editor = None
+
 
 class Tree(Element):
-    """Hierarchical data shown with a ttk.Treeview in tree mode."""
+    """Hierarchical data shown with a ttk.Treeview in tree mode.
 
-    __slots__ = ("_headings", "_enable_events", "_show_headings", "_num_rows", "_auto_size_columns")
+    :meth:`insert` accepts ``image_data`` (base64 bytes) or
+    ``image_filename`` to give each item its own icon; the photos are kept
+    alive by the tree.
+    """
+
+    __slots__ = (
+        "_headings",
+        "_enable_events",
+        "_show_headings",
+        "_num_rows",
+        "_auto_size_columns",
+        "_images",
+    )
 
     def __init__(
         self,
@@ -243,6 +357,7 @@ class Tree(Element):
         self._enable_events = enable_events
         self._show_headings = show_headings
         self._auto_size_columns = auto_size_columns
+        self._images = []
 
     def _create_widget(self, master):
         columns = ["col{}".format(i) for i in range(len(self._headings))]
@@ -264,14 +379,27 @@ class Tree(Element):
         if self._enable_events:
             self._widget.bind("<<TreeviewSelect>>", lambda _e: self._post_event())
 
-    def insert(self, parent, key, display_text=None, values=None):
+    def insert(self, parent, key, display_text=None, values=None, image_data=None, image_filename=None):
         """Insert an item; ``parent`` is "" for roots. Returns the item id."""
+        kwargs = {}
+        if image_data is not None or image_filename is not None:
+            import base64
+
+            if image_data is not None:
+                photo = tk.PhotoImage(
+                    data=base64.b64decode(image_data), master=self._widget
+                )
+            else:
+                photo = tk.PhotoImage(file=image_filename, master=self._widget)
+            self._images.append(photo)
+            kwargs["image"] = photo
         item_id = self._widget.insert(
             parent,
             "end",
             iid=str(key),
             text="" if display_text is None else str(display_text),
             values=[str(v) for v in (values or ())],
+            **kwargs
         )
         return item_id
 

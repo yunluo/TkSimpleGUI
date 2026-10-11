@@ -660,6 +660,157 @@ class TestFirstBatch(unittest.TestCase):
         window.close()
 
 
+class TestSecondBatch(unittest.TestCase):
+    """第二批：CheckList/Toolbar/toggle/LabeledEdit/KV/FlowPanel/图标/编辑/Shape。"""
+
+    def test_checklist(self):
+        checklist = sg.CheckList(
+            ["a", "b", "c"], default_checked=["b"], key="-CL-"
+        )
+        window = sg.Window("t", [[checklist]], finalize=True)
+        self.assertEqual(checklist.get(), ["b"])
+        checklist.update(checked=["a", "c"])
+        self.assertEqual(checklist.get(), ["a", "c"])
+        checklist.check_all()
+        self.assertEqual(checklist.get(), ["a", "b", "c"])
+        checklist.uncheck_all()
+        self.assertEqual(checklist.get(), [])
+        checklist.update(values=["x", "y"], checked=["y"])
+        self.assertEqual(checklist.values, ["x", "y"])
+        self.assertEqual(checklist.get(), ["y"])
+        window.close()
+
+    def test_toolbar(self):
+        toolbar = sg.Toolbar(
+            [
+                ("Open", "-OPEN-"),
+                "---",
+                ("Save", "-SAVE-"),
+                ("Options", "-OPT-", ["General", "Advanced"]),
+            ],
+            key="-TB-",
+        )
+        window = sg.Window("t", [[toolbar]], finalize=True)
+        self.assertEqual(len(toolbar._buttons), 3)
+        toolbar._buttons["-SAVE-"].invoke()
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "-SAVE-")
+        dropdown = toolbar._buttons["-OPT-"]
+        menu = dropdown.nametowidget(dropdown.cget("menu"))
+        self.assertEqual(menu.entrycget(0, "label"), "General")
+        window.close()
+
+    def test_toggle_button_group(self):
+        first = sg.Button("B1", key="-B1-", toggle=True, group_id="g")
+        second = sg.Button("B2", key="-B2-", toggle=True, group_id="g")
+        window = sg.Window("t", [[first, second]], finalize=True)
+        self.assertFalse(first.get())
+        first.click()
+        self.assertTrue(first.get())
+        self.assertEqual(str(first.widget.cget("relief")), "sunken")
+        second.click()
+        self.assertFalse(first.get())  # group exclusion
+        self.assertTrue(second.get())
+        second.click()
+        self.assertFalse(second.get())
+        self.assertEqual(str(second.widget.cget("relief")), "raised")
+        window.close()
+
+    def test_labeled_edit(self):
+        labeled = sg.LabeledEdit("Name", "world", key="-NAME-")
+        window = sg.Window("t", [[labeled]], finalize=True)
+        self.assertEqual(window["-NAME-"].get(), "world")
+        self.assertEqual(labeled.get(), "world")
+        self.assertIs(labeled.input, window["-NAME-"])
+        labeled.update(value="changed")
+        self.assertEqual(window["-NAME-"].get(), "changed")
+        labeled.update(label="Surname")
+        self.assertEqual(labeled.label, "Surname")
+        window.close()
+
+    def test_key_value_editor(self):
+        editor = sg.KeyValueEditor(
+            [("host", "localhost"), ("port", "5432")], key="-KV-"
+        )
+        window = sg.Window("t", [[editor]], finalize=True)
+        self.assertEqual(
+            editor.get(), {"host": "localhost", "port": "5432"}
+        )
+        editor.update(values={"port": "5433"})
+        self.assertEqual(editor.get()["port"], "5433")
+        event, values = window.read(timeout=200)
+        self.assertEqual(event, sg.TIMEOUT_KEY)
+        self.assertEqual(values["-KV-"], {"host": "localhost", "port": "5433"})
+        window.close()
+
+    def test_flow_panel(self):
+        flow = sg.FlowPanel(
+            [sg.Text("one"), sg.Text("two"), sg.Text("three")], key="-FLOW-"
+        )
+        window = sg.Window("t", [[flow]], finalize=True)
+        window.refresh()
+        first = flow._children[0].widget
+        self.assertTrue(first.place_info()["x"])
+        flow._reflow()  # resize reflow must not crash
+        self.assertEqual(len(flow._children), 3)
+        window.close()
+
+    def test_tree_row_icons(self):
+        tree = sg.Tree(headings=["H"], key="-TR-")
+        window = sg.Window("t", [[tree]], finalize=True)
+        tree.insert("", "item1", "Root", image_data=sg.BLANK_BASE64)
+        item = tree.widget.item("item1")
+        self.assertTrue(item.get("image"))
+        self.assertEqual(len(tree._images), 1)  # photo retained
+        window.close()
+
+    def test_table_row_icons(self):
+        table = sg.Table(
+            [["a"], ["b"]],
+            headings=["H"],
+            key="-TB-",
+            row_icons=[sg.BLANK_BASE64, None],
+        )
+        window = sg.Window("t", [[table]], finalize=True)
+        children = table.widget.get_children()
+        self.assertTrue(table.widget.item(children[0]).get("image"))
+        self.assertEqual(table.widget.item(children[1]).get("image"), "")
+        window.close()
+
+    def test_table_cell_edit(self):
+        table = sg.Table(
+            [["old", "x"], ["keep", "y"]],
+            headings=["A", "B"],
+            key="-TB-",
+            enable_edit=True,
+        )
+        window = sg.Window("t", [[table]], finalize=True)
+        window.refresh()
+        item = table.widget.get_children()[0]
+        table._begin_cell_edit(item, "#1")
+        self.assertIsNotNone(table._editor)
+        table._editor.delete(0, "end")
+        table._editor.insert(0, "new")
+        table._finish_cell_edit(
+            table._editor, item, table._values[0], 0, 0
+        )
+        window.refresh()
+        self.assertEqual(table.values[0], ["new", "x"])
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, ("-TB-", 0, 0, "new"))
+        self.assertIsNone(table._editor)
+        window.close()
+
+    def test_shape(self):
+        shape = sg.Shape("oval", size=(60, 30), fill_color="red", key="-S-")
+        window = sg.Window("t", [[shape]], finalize=True)
+        self.assertEqual(len(shape.widget.find_all()), 1)
+        shape.update(fill_color="blue", line_color="green")
+        with self.assertRaises(ValueError):
+            sg.Shape("hexagon")
+        window.close()
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()

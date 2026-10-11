@@ -4,6 +4,7 @@
 from .base import ContainerElement, Element, InputElement
 from .widgets import (
     Checkbox,
+    CheckList,
     Combo,
     Input,
     InputText,
@@ -21,8 +22,20 @@ from .widgets import (
     validate_regex,
 )
 from .buttons import Button, CloseButton, Submit
-from .media import Canvas, Graph, Image
-from .containers import Column, Frame, Menu, ScrollableColumn, Splitter, Tab, TabGroup
+from .media import Canvas, Graph, Image, Shape
+from .containers import (
+    Column,
+    FlowPanel,
+    Frame,
+    KeyValueEditor,
+    LabeledEdit,
+    Menu,
+    ScrollableColumn,
+    Splitter,
+    Tab,
+    TabGroup,
+    Toolbar,
+)
 from .calendar import Calendar
 from .data import Table, Tree
 from .misc import HorizontalSeparator, Sizegrip, StatusBar, VerticalSeparator
@@ -39,6 +52,7 @@ __all__ = [
     "Listbox",
     "Spin",
     "Checkbox",
+    "CheckList",
     "Radio",
     "Slider",
     "Multiline",
@@ -50,10 +64,15 @@ __all__ = [
     "Image",
     "Canvas",
     "Graph",
+    "Shape",
     "Frame",
     "Column",
     "Splitter",
     "ScrollableColumn",
+    "Toolbar",
+    "LabeledEdit",
+    "KeyValueEditor",
+    "FlowPanel",
     "Calendar",
     "Tab",
     "TabGroup",

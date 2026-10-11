@@ -21,17 +21,17 @@
 - [x] **Timer helper**（对标 TTimer）— `window.after(ms, cb)` 单次 / `window.every(ms, cb)` 循环，返回可 cancel 的 `_TimerHandle`
 - [x] **popup_find / popup_replace**（对标 TFindDialog/TReplaceDialog）— 基于 tk.Text search；`_text_find`/`_text_replace_all` 可独立调用
 
-## 🥈 第二批：控件补全（Delphi Tier 1 尾 + Tier 2）
+## 🥈 第二批：控件补全（Delphi Tier 1 尾 + Tier 2）✅ 全部完成
 
-- [ ] **CheckList 元素**（对标 TCheckListBox）— 勾选列表容器，`values`/`checked` 双向
-- [ ] **Toolbar 元素**（对标 TToolBar）— 统一高度按钮排 + 分隔符 + 下拉按钮
-- [ ] **Button toggle**（对标 TSpeedButton）— `toggle=True` 按下保持 + `group_id` 互斥分组
-- [ ] **LabeledEdit 便利封装**（对标 TLabeledEdit）— 标签+输入一体元素
-- [ ] **KeyValueEditor**（对标 TValEdit）— 键值对编辑表格（设置页常用）
-- [ ] **FlowPanel**（对标 TFlowPanel）— 自动换行的流式容器
-- [ ] **Tree/Table 行图标**（对标 TImageList 的轻量替代）— ttk.Treeview 每项 `image=` 支持
-- [ ] **Table 单元格编辑**（对标 TStringGrid）— 双击进入编辑、`enable_events` 回传改动
-- [ ] **Shape 元素**（对标 TShape/TBevel）— 常用矩形/圆角/线条便利封装（Graph 之上）
+- [x] **CheckList 元素**（对标 TCheckListBox）— 勾选列表，`default_checked`、`update(values=/checked=)`、`check_all()/uncheck_all()`，`get()` 返回选中列表
+- [x] **Toolbar 元素**（对标 TToolBar）— `Toolbar(["Open", "---", ("Save", "-KEY-"), ("Options", "-KEY-", [菜单项])])`，统一按钮排 + 分隔符 + 下拉按钮（Menubutton）
+- [x] **Button toggle**（对标 TSpeedButton）— `toggle=True` 按下保持（tk.Button 凹陷态）+ `group_id` 组内互斥（Window 注册表），`get()` 返回按下状态
+- [x] **LabeledEdit**（对标 TLabeledEdit）— 标签+输入一体，`label_position="above"/"left"`，key 归 Input，`.input`/`.label` 属性
+- [x] **KeyValueEditor**（对标 TValEdit）— `KeyValueEditor([("host","localhost"), ...])`，`get()` 返回 `{label: value}` 字典进 values
+- [x] **FlowPanel**（对标 TFlowPanel）— place 重排自动换行，`horizontal_padding/vertical_padding`，resize 自适应
+- [x] **Tree/Table 行图标**（对标 TImageList 轻量版）— `Tree.insert(..., image_data=/image_filename=)`；`Table(row_icons=[...])`（bytes=base64, str=文件名）
+- [x] **Table 单元格编辑**（对标 TStringGrid）— `enable_edit=True` 双击编辑，提交后 `values` 同步并投递 `(key, row, col, new_value)` 元组事件
+- [x] **Shape 元素**（对标 TShape/TBevel）— `Shape("rectangle"/"oval"/"triangle"/"line")`，颜色可 update
 
 ## 🥉 第三批：架构件与基础设施（需单独设计）
 
@@ -52,7 +52,7 @@
 
 ## 附：回归基线
 
-- 测试：`python -m unittest tests.test_package`（69 个，含 P0/右键/排序/undo/logo/第一批回归）
+- 测试：`python -m unittest tests.test_package`（79 个，含 P0/右键/排序/undo/logo/前两批回归）
 - 冒烟：`python _split/oo_smoke.py`（32 项）
 - 兼容扫描：ast 检查无 f-string（test_no_fstrings）、`__slots__` 无 `__dict__`
 - 每批提交后：compileall + 上述两项 + git commit（中文 + fix:/feat:/refactor: 前缀）
