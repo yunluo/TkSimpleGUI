@@ -272,7 +272,7 @@ class Element(object, metaclass=ElementBaseMeta):
 
     # --- internals -------------------------------------------------------------
     def _post_event(self, key=None):
-        """Push an event into the owning window's queue."""
+        """Push an event into the owning window's queue (and the global bus)."""
         if self._window is not None:
             self._window._post_event(key if key is not None else self._key)
 

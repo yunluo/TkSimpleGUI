@@ -1354,6 +1354,120 @@ class TestLineB(unittest.TestCase):
         window.close()
 
 
+class TestUnifiedLoop(unittest.TestCase):
+    """单一事件循环：全局总线 + main_loop + 多窗口天然支持。"""
+
+    def tearDown(self):
+        sg.Window.close_all()
+
+    def test_cross_window_events(self):
+        """任何窗口的 read() 能收到其它窗口的事件（总线时间序）。"""
+        first = sg.Window("one", [[sg.Button("ping", key="-PING-")]], finalize=True)
+        second = sg.Window("two", [[sg.Button("pong", key="-PONG-")]], finalize=True)
+        first.write_event_value("-FROM-ONE-")
+        second.write_event_value("-FROM-TWO-")
+        # reading through the *second* window still yields the first's event
+        event, _values = second.read(timeout=500)
+        self.assertEqual(event, "-FROM-ONE-")
+        event, _values = second.read(timeout=500)
+        self.assertEqual(event, "-FROM-TWO-")
+        first.close()
+        second.close()
+
+    def test_read_all_windows_returns_owner(self):
+        first = sg.Window("one", [[sg.Text("x")]], finalize=True)
+        second = sg.Window("two", [[sg.Text("y")]], finalize=True)
+        second.write_event_value("-TWO-EVENT-")
+        window, event, _values = sg.Window.read_all_windows(timeout=500)
+        self.assertIs(window, second)
+        self.assertEqual(event, "-TWO-EVENT-")
+        first.close()
+        second.close()
+
+    def test_winclosed_removes_window_from_registry(self):
+        first = sg.Window("one", [[sg.Text("x")]], finalize=True)
+        second = sg.Window("two", [[sg.Text("y")]], finalize=True)
+        # the WM_DELETE_WINDOW protocol handler posts WIN_CLOSED; firing it
+        # here simulates the user clicking the title bar X
+        first._post_event(sg.WIN_CLOSED)
+        window, event, _values = sg.Window.read_all_windows(timeout=500)
+        self.assertIs(window, first)
+        self.assertEqual(event, sg.WIN_CLOSED)
+        self.assertNotIn(first, sg.Window.active_windows())
+        self.assertIn(second, sg.Window.active_windows())
+        second.close()
+
+    def test_programmatic_close_is_quiet(self):
+        """Window.close() does not post WIN_CLOSED (no user action happened)."""
+        first = sg.Window("one", [[sg.Text("x")]], finalize=True)
+        second = sg.Window("two", [[sg.Text("y")]], finalize=True)
+        first.close()
+        event, _values = second.read(timeout=200)
+        self.assertEqual(event, sg.TIMEOUT_KEY)
+        second.close()
+
+    def test_main_loop_exits_when_all_closed(self):
+        app = sg.PySimpleEvent()
+        window = sg.Window("one", [[sg.Button("quit", key="-QUIT-")]], finalize=True)
+        seen = []
+
+        @app.bind_event("-QUIT-")
+        def on_quit(window, values):
+            seen.append("quit")
+            window.close()  # last window gone -> loop ends
+
+        window.write_event_value("-QUIT-")  # fires once the loop pumps
+        sg.main_loop(window, app)
+        self.assertEqual(seen, ["quit"])
+        self.assertEqual(sg.Window.active_windows(), [])
+
+    def test_main_loop_dispatches_to_on_handlers(self):
+        app = sg.PySimpleEvent()
+        main = sg.Window("main", [[sg.Button("open", key="-OPEN-")]], finalize=True)
+        received = []
+
+        @app.bind_event("-OPEN-")
+        def on_open(window, values):
+            child = sg.Window("child", [[sg.Text("hi", key="-HI-")]], finalize=True)
+            child.write_event_value("-CHILD-READY-")
+
+        @app.bind_event("-CHILD-READY-")
+        def on_child_ready(window, values):
+            received.append(window.title)
+            sg.Window.close_all()
+
+        main.write_event_value("-OPEN-")  # fires inside the loop
+        sg.main_loop(main, app)
+        self.assertEqual(received, ["child"])  # handler got the CHILD window
+        self.assertEqual(sg.Window.active_windows(), [])
+
+    def test_main_loop_with_action_callbacks(self):
+        calls = []
+        app = sg.PySimpleEvent()
+        ok_action = sg.Action("OK", key="OK",
+                              callback=lambda window, values: calls.append("ok"))
+        window = sg.Window("t", [[sg.Button("OK", key="OK")]],
+                           finalize=True, actions=[ok_action])
+
+        @app.bind_event("OK")
+        def on_ok(window, values):
+            calls.append("handler")
+            sg.Window.close_all()
+
+        window.write_event_value("OK")  # fires inside the loop
+        sg.main_loop(window, app)
+        self.assertEqual(calls, ["ok", "handler"])
+
+    def test_close_all_drops_stale_events(self):
+        first = sg.Window("one", [[sg.Text("x")]], finalize=True)
+        first.write_event_value("-STALE-")
+        sg.Window.close_all()
+        second = sg.Window("two", [[sg.Text("y")]], finalize=True)
+        event, _values = second.read(timeout=200)
+        self.assertEqual(event, sg.TIMEOUT_KEY)  # stale event was dropped
+        second.close()
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()

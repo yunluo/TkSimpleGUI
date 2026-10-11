@@ -106,22 +106,28 @@ class PySimpleEvent(object):
             print(f"PySimpleEvent handler error for {event!r}: {error}")
 
     def run_event(self, main_window, close_event=None):
-        """Run the GUI loop over all windows until the main window closes."""
+        """Run the single application event loop until every window closes.
+
+        This is the framework's own loop — user code never writes
+        ``while True``. Events from ALL open windows flow through one global
+        bus; each one is dispatched to its ``on_*`` handler here. ``Window``
+        title-bar closes become WIN_CLOSED events (the window leaves the
+        registry automatically); once no window is left the loop ends.
+        ``main_window`` is only the anchor that gets created first; extra
+        windows opened inside handlers participate automatically.
+        """
+        main_window.finalize()
         try:
-            main_window.finalize()
             while True:
-                result = Window.read_all_windows()
-                if result is None:
+                window, event, values = Window.read_all_windows()
+                if window is None:
+                    break  # every window is gone
+                if close_event is not None and event == close_event and window is main_window:
+                    Window.close_all()
                     break
-                window, event, values = result
-                if event in (C.WIN_CLOSED, close_event):
-                    window.close()
-                    if window is main_window:
-                        break
-                else:
-                    self.apply_event(window, event, values)
+                self.apply_event(window, event, values)
         finally:
-            main_window.close()
+            Window.close_all()
 
 
 def _handler_signature(func):

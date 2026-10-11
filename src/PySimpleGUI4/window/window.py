@@ -71,9 +71,19 @@ class Window(object):
         "_toggle_groups",
         "_ttk_style",
         "_drag_offset",
+        "_last_values",
     )
 
     _open_windows: List["Window"] = []  # class level registry
+
+    # process wide hidden tk master root (all windows are Toplevels of it)
+    _main_root: Optional[tk.Tk] = None
+
+    # Global event bus: every element event lands here as
+    # (window, event, values). There is ONE event loop for the whole
+    # application; any Window.read() (or sg.main_loop) consumes events
+    # raised by ANY window, so multi window support is inherent.
+    _event_bus: "queue.Queue[Any]" = queue.Queue()
 
     # Typed views of the slots (runtime stays __slots__-based).
     _title: str
@@ -105,6 +115,7 @@ class Window(object):
     _toggle_groups: Dict[Any, List[Any]]
     _ttk_style: ttk.Style
     _drag_offset: Optional[Tuple[int, int]]
+    _last_values: Dict[Any, Any]
 
     def __init__(
         self,
@@ -158,6 +169,7 @@ class Window(object):
         self._toggle_groups = {}
         self._ttk_style = None  # ty: ignore[invalid-assignment]
         self._drag_offset = None
+        self._last_values = {}
         if actions is not None:
             self.set_actions(actions)
         if finalize:
@@ -210,16 +222,61 @@ class Window(object):
         return list(cls._open_windows)
 
     @classmethod
-    def read_all_windows(cls, timeout=0, timeout_key=C.TIMEOUT_KEY):
-        """Read from every open window once; returns (window, event, values).
-
-        Returns ``None`` when no windows are open or every read timed out.
-        """
+    def close_all(cls):
+        """Close every open window (used when the application loop ends)."""
         for window in list(cls._open_windows):
-            event, values = window.read(timeout=timeout, timeout_key=timeout_key)
-            if event != timeout_key:
-                return (window, event, values)
-        return None
+            window.close()
+        cls._event_bus = queue.Queue()  # drop stale events
+        return cls
+
+    @classmethod
+    def _drop_stale_bus_events(cls):
+        """Remove bus entries belonging to windows that are no longer open.
+
+        Called from :meth:`_mark_closed`; WIN_CLOSED notifications are kept
+        so the application loop learns that a window went away.
+        """
+        alive = set(id(window) for window in cls._open_windows)
+        kept = []
+        try:
+            while True:
+                entry = cls._event_bus.get_nowait()
+                if entry[1] is C.WIN_CLOSED or id(entry[0]) in alive:
+                    kept.append(entry)
+        except queue.Empty:
+            pass
+        for entry in kept:
+            cls._event_bus.put(entry)
+
+    @classmethod
+    def read_all_windows(cls, timeout=0, timeout_key=C.TIMEOUT_KEY):
+        """Consume ONE event from the global bus; returns (window, event, values).
+
+        Identical to :meth:`read` but returns the owning window too. When
+        the event is WIN_CLOSED (a window was closed via its title bar), the
+        window is finalized out of the registry — with the single
+        application loop this means "all windows closed → returns
+        (None, WIN_CLOSED, {})" once the last one goes away, so callers can
+        simply loop until then (or use :func:`sg.main_loop`).
+        """
+        deadline = None if timeout is None else time.time() + timeout / 1000.0
+        while True:
+            if not cls._open_windows:
+                return None, C.WIN_CLOSED, {}
+            cls._pump_all_roots()
+            try:
+                # WIN_CLOSED is None by design, so an explicit sentinel is
+                # needed to tell "bus empty" from "event with value None"
+                event_window, event, values = cls._event_bus.get_nowait()
+            except queue.Empty:
+                if deadline is not None and time.time() >= deadline:
+                    return None, timeout_key, {}
+                time.sleep(0.01)
+                continue
+            if event is C.WIN_CLOSED and event_window is not None:
+                event_window.close()
+            event_window._dispatch_action(event, values)
+            return event_window, event, values
 
     @classmethod
     def get_screen_size(cls):
@@ -266,11 +323,23 @@ class Window(object):
         self._show()
         return self
 
+    @classmethod
+    def _ensure_hidden_main_root(cls):
+        """The process wide hidden ``tk.Tk`` master root.
+
+        Every window is a Toplevel of this root, so closing one window can
+        never destroy another (Tk kills Toplevels with their master). The
+        master is created lazily and torn down when the last window closes.
+        """
+        if cls._main_root is not None and cls._main_root.winfo_exists():
+            return cls._main_root
+        cls._main_root = tk.Tk()
+        cls._main_root.withdraw()
+        return cls._main_root
+
     def _create_root(self):
-        if Window._open_windows:
-            self._tk_root = tk.Toplevel()
-        else:
-            self._tk_root = tk.Tk()
+        main_root = Window._ensure_hidden_main_root()
+        self._tk_root = tk.Toplevel(main_root)
         Window._open_windows.append(self)
         self._tk_root.withdraw()
         self._ttk_style = ttk.Style(self._tk_root)
@@ -466,13 +535,27 @@ class Window(object):
             action.trigger(self, values)
 
     def _post_event(self, key):
-        """Queue an event (called by elements; user code uses ``write_event``)."""
-        if not self._closed:
-            if self._action_by_text and isinstance(key, str):
-                action = self._action_by_text.get(key)
-                if action is not None:
-                    key = action.key
-            self._event_queue.put(key)
+        """Queue an event on the global bus (elements/user code; consumed by
+        any ``Window.read`` or ``sg.main_loop``)."""
+        if self._closed:
+            return
+        if self._action_by_text and isinstance(key, str):
+            action = self._action_by_text.get(key)
+            if action is not None:
+                key = action.key
+        values = self._snapshot_values()
+        Window._event_bus.put((self, key, values))
+
+    def _snapshot_values(self):
+        """Values snapshot at post time (bus consumers need it even for
+        events raised by other windows)."""
+        values = {}
+        for key, element in self._elements_by_key.items():
+            try:
+                values[key] = element.get()
+            except Exception:
+                values[key] = None
+        return values
 
     def write_event_value(self, value):
         """Queue a custom event from user code."""
@@ -553,39 +636,56 @@ class Window(object):
 
     # --- reading -----------------------------------------------------------------------
     def read(self, timeout=None, close=False, timeout_key=C.TIMEOUT_KEY):
-        """Pump events and return ``(event, values)``.
+        """Consume ONE event from the application wide event bus.
+
+        The global bus receives events from **every** open window, so any
+        ``window.read()`` (there is a single event loop) can return events
+        raised by another window — multi window support is inherent. While
+        waiting, the tk roots of all open windows are pumped. On timeout the
+        latest values snapshot of *this* window is returned.
 
         :param timeout: milliseconds to wait before returning ``timeout_key``
         :param close: close the window after one event is processed
         :param timeout_key: the event string returned on timeout
         """
-        if self._closed:
+        if self._closed and self not in Window._open_windows:
             return C.WIN_CLOSED, {}
         if not self._finalized:
             self.finalize()
         deadline = None if timeout is None else time.time() + timeout / 1000.0
         while True:
-            if self._closed or not self._root_alive():
-                self._mark_closed()
-                return C.WIN_CLOSED, {}
+            if not Window._open_windows:
+                return C.WIN_CLOSED, self._last_values
+            Window._pump_all_roots()
             try:
-                self._tk_root.update()
-            except tk.TclError:
-                self._mark_closed()
-                return C.WIN_CLOSED, {}
-            try:
-                event = self._event_queue.get_nowait()
+                # WIN_CLOSED is None by design; queue.Empty (the except
+                # branch) is the only "no event" signal — do not test the
+                # event value itself
+                event_window, event, values = Window._event_bus.get_nowait()
             except queue.Empty:
-                event = None
-            if event is None and deadline is not None and time.time() >= deadline:
-                event = timeout_key
-            if event is not None:
-                values = self._collect_values()
-                self._dispatch_action(event, values)
-                if close:
-                    self.close()
-                return event, values
-            time.sleep(0.01)
+                self._last_values = self._snapshot_values()
+                if deadline is not None and time.time() >= deadline:
+                    return timeout_key, self._last_values
+                time.sleep(0.01)
+                continue
+            self._last_values = values or {}
+            self._dispatch_action(event, values)
+            if close and event_window is self:
+                self.close()
+            return event, self._last_values
+
+    @classmethod
+    def _pump_all_roots(cls):
+        """Process tk events for every open window's root (one interpreter,
+        one message loop — pumping each keeps all windows responsive)."""
+        for window in list(cls._open_windows):
+            if not window._root_alive():
+                window._mark_closed()
+                continue
+            try:
+                window._tk_root.update()
+            except tk.TclError:
+                window._mark_closed()
 
     def _root_alive(self):
         if self._tk_root is None:
@@ -599,6 +699,7 @@ class Window(object):
         self._closed = True
         if self in Window._open_windows:
             Window._open_windows.remove(self)
+        Window._drop_stale_bus_events()
 
     def _collect_values(self):
         values = {}
@@ -1018,6 +1119,13 @@ class Window(object):
             except tk.TclError:
                 pass
             self._tk_root = None  # ty: ignore[invalid-assignment]
+        # last window gone: tear down the hidden master root too
+        if not Window._open_windows and Window._main_root is not None:
+            try:
+                Window._main_root.destroy()
+            except tk.TclError:
+                pass
+            Window._main_root = None
 
     def __enter__(self):
         return self.finalize()

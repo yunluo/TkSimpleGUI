@@ -152,6 +152,28 @@ from .window import Window, SystemTray
 
 # --- event manager ---------------------------------------------------------------------
 from .event import PySimpleEvent, singleton_window
+from .window.window import Window as _WindowClass
+
+
+def main_loop(window, app=None):
+    """Run the single application event loop (user code never writes one).
+
+    Every event from every window is dispatched through the global event
+    manager (``@app.bind_event`` + ``on_*`` handlers) and window ``Action``
+    callbacks. The loop ends when the last window closes::
+
+        app = sg.PySimpleEvent()
+
+        @app.bind_event("OK")
+        def on_ok(window, values):
+            sg.popup(f"hi {values['-IN-']}")
+
+        window = sg.Window("Demo", layout)
+        sg.main_loop(window, app)          # that's the whole program
+    """
+    if app is None:
+        app = PySimpleEvent()
+    return app.run_event(window)
 
 # --- actions ------------------------------------------------------------------------------
 from .actions import Action, ActionList
@@ -309,7 +331,7 @@ __all__ = [
     "Menubutton", "Scrollbar",
     "RoundButton", "ImageButton", "TextProgressBar",
     "validate_integer", "validate_float", "validate_regex",
-    "Window", "SystemTray", "PySimpleEvent", "singleton_window",
+    "Window", "SystemTray", "PySimpleEvent", "singleton_window", "main_loop",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "_", "translate", "set_translations", "add_translation",
     "clear_translations",
