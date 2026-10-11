@@ -11,10 +11,6 @@ from tkinter import ttk
 
 from ._theme_data import LOOK_AND_FEEL_TABLE
 
-try:
-    from typing import Dict, Optional, Tuple
-except ImportError:
-    Dict = Optional = Tuple = None
 
 
 _THEME_KEY_ALIASES = {
@@ -72,8 +68,8 @@ class ThemeManager(object):
                     break
             if canonical is None:
                 raise ValueError(
-                    "Invalid theme name: {!r}. Use list_of_look_and_feel_values() "
-                    "for the available themes.".format(name)
+                    f"Invalid theme name: {name!r}. Use list_of_look_and_feel_values() "
+                    "for the available themes."
                 )
         self._name = canonical
         return canonical
@@ -215,7 +211,7 @@ class ThemeManager(object):
         cache_key = (base,) + tuple(sorted(effective.items()))
         name = self._style_cache.get(cache_key)
         if name is None:
-            name = "PSG4_{0}.{1}".format(len(self._style_cache), base)
+            name = f"PSG4_{len(self._style_cache)}.{base}"
             self._style_cache[cache_key] = name
             style.configure(name, **effective)
         return name
@@ -286,7 +282,7 @@ class ThemeManager(object):
                 return color
             parts = [int(value[i:i + 2], 16) for i in (0, 2, 4)]
             parts = [min(255, channel + 32) for channel in parts]
-            return "#{:02x}{:02x}{:02x}".format(*parts)
+            return f"#{parts[0]:02x}{parts[1]:02x}{parts[2]:02x}"
         except Exception:
             return color
 

@@ -10,14 +10,10 @@ from tkinter import ttk
 from .. import constants as C
 from .. import _theming as theme_mod
 from .. import settings as settings_mod
-from ..actions import Action, ActionList
-from ..elements.base import ContainerElement, Element, build_popup_menu
+from ..actions import ActionList
+from ..elements.base import Element, build_popup_menu
 from ..elements.containers import Menu
 
-try:
-    from typing import Any, Dict, List, Optional, Tuple
-except ImportError:
-    Any = Dict = List = Optional = Tuple = None
 
 
 class Window(object):
@@ -257,11 +253,11 @@ class Window(object):
             )
         width, height = self._size
         if width is not None and height is not None:
-            root.geometry("{}x{}".format(int(width), int(height)))
+            root.geometry(f"{int(width)}x{int(height)}")
         x, y = self._location
         if x is not None and y is not None:
             current = root.geometry().split("+", 1)[0]
-            root.geometry("{}+{}+{}".format(current, int(x), int(y)))
+            root.geometry(f"{current}+{int(x)}+{int(y)}")
         if self._no_titlebar:
             root.overrideredirect(True)
         if self._keep_on_top:
@@ -329,7 +325,7 @@ class Window(object):
         if offset:
             x = self._tk_root.winfo_x() - offset[0] + event.x
             y = self._tk_root.winfo_y() - offset[1] + event.y
-            self._tk_root.geometry("+{}+{}".format(x, y))
+            self._tk_root.geometry(f"+{x}+{y}")
 
     def _on_keyboard_event(self, event):
         self._post_event(str(event.keysym))
@@ -344,7 +340,7 @@ class Window(object):
             for col_index, element in enumerate(row):
                 if not isinstance(element, Element):
                     raise TypeError(
-                        "layout cell is not an Element: {!r}".format(element)
+                        f"layout cell is not an Element: {element!r}"
                     )
                 self._register_element(element)
                 element._build(master, self)
@@ -367,7 +363,7 @@ class Window(object):
         if key is None:
             return
         if key in self._elements_by_key:
-            raise ValueError("Duplicate element key: {!r}".format(key))
+            raise ValueError(f"Duplicate element key: {key!r}")
         self._elements_by_key[key] = element
 
     def _register_key(self, element):
@@ -577,7 +573,7 @@ class Window(object):
         element = self._elements_by_key.get(key)
         if element is None:
             raise KeyError(
-                "No element with key {!r} in window {!r}".format(key, self._title)
+                f"No element with key {key!r} in window {self._title!r}"
             )
         return element
 
@@ -646,7 +642,7 @@ class Window(object):
     def set_size(self, size):
         """Resize the window to ``(width, height)`` pixels."""
         if self._root_alive() and size is not None:
-            self._tk_root.geometry("{}x{}".format(int(size[0]), int(size[1])))
+            self._tk_root.geometry(f"{int(size[0])}x{int(size[1])}")
         return self
 
     def set_min_size(self, size):
@@ -664,7 +660,7 @@ class Window(object):
     def move(self, x, y):
         """Move the window to the given screen position."""
         if self._root_alive():
-            self._tk_root.geometry("+{}+{}".format(int(x), int(y)))
+            self._tk_root.geometry(f"+{int(x)}+{int(y)}")
         return self
 
     def move_to_center(self):
@@ -678,7 +674,7 @@ class Window(object):
             height = self._tk_root.winfo_reqheight()
         x = max(0, (self._tk_root.winfo_screenwidth() - width) // 2)
         y = max(0, (self._tk_root.winfo_screenheight() - height) // 2)
-        self._tk_root.geometry("+{}+{}".format(x, y))
+        self._tk_root.geometry(f"+{x}+{y}")
         return self
 
     def maximize(self):
@@ -819,9 +815,7 @@ class Window(object):
         return False
 
     def __repr__(self):
-        return "<Window {!r} finalized={} closed={}>".format(
-            self._title, self._finalized, self._closed
-        )
+        return f"<Window {self._title!r} finalized={self._finalized} closed={self._closed}>"
 
 
 class _TimerHandle(object):

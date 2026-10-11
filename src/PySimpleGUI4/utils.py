@@ -82,7 +82,7 @@ def rgb(red, green, blue):
         elif component > 255:
             component = 255
         values.append(component)
-    return "#{:02x}{:02x}{:02x}".format(values[0], values[1], values[2])
+    return f"#{values[0]:02x}{values[1]:02x}{values[2]:02x}"
 
 
 def running_windows():

@@ -10,10 +10,6 @@ wrap every UI string with :func:`_`::
 
 import json
 
-try:
-    from typing import Dict, Optional
-except ImportError:
-    Dict = Optional = None
 
 
 class Translator(object):
@@ -45,7 +41,7 @@ class Translator(object):
         return self._catalog.get(text, text)
 
     def __repr__(self):
-        return "<Translator {} entries>".format(len(self._catalog))
+        return f"<Translator {len(self._catalog)} entries>"
 
 
 _translator = Translator()

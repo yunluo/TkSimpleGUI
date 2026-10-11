@@ -9,10 +9,6 @@ from .widgets import Input, Text
 from .. import constants as C
 from .. import _theming as theme_mod
 
-try:
-    from typing import Any, List, Optional, Tuple
-except ImportError:
-    Any = List = Optional = Tuple = None
 
 
 class Frame(ContainerElement):
@@ -35,7 +31,7 @@ class Frame(ContainerElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Frame, self).__init__(
+        super().__init__(
             layout=layout,
             key=key,
             size=size,
@@ -92,7 +88,7 @@ class Column(ContainerElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Column, self).__init__(
+        super().__init__(
             layout=layout,
             key=key,
             size=size,
@@ -141,7 +137,7 @@ class Tab(ContainerElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Tab, self).__init__(
+        super().__init__(
             layout=layout,
             key=key,
             visible=visible,
@@ -193,7 +189,7 @@ class TabGroup(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(TabGroup, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -254,7 +250,7 @@ class Menu(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Menu, self).__init__(
+        super().__init__(
             key=key,
             visible=visible,
             pad=pad,
@@ -348,7 +344,7 @@ class Splitter(ContainerElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Splitter, self).__init__(
+        super().__init__(
             layout=None,
             key=key,
             tooltip=tooltip,
@@ -383,7 +379,7 @@ class Splitter(ContainerElement):
         return paned
 
     def _post_create(self):
-        super(Splitter, self)._post_create()
+        super()._post_create()
         for frame, layout in zip(self._pane_frames, self._layouts):
             self._widget.add(frame, minsize=20, stretch="always", padx=1, pady=1)
             if layout:
@@ -428,7 +424,7 @@ class ScrollableColumn(ContainerElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(ScrollableColumn, self).__init__(
+        super().__init__(
             layout=layout,
             key=key,
             size=size,
@@ -555,7 +551,7 @@ class Toolbar(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Toolbar, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -677,7 +673,7 @@ class LabeledEdit(ContainerElement):
             layout = [[self._label_element, self._input]]
         else:
             layout = [[self._label_element], [self._input]]
-        super(LabeledEdit, self).__init__(
+        super().__init__(
             layout=layout,
             tooltip=tooltip,
             visible=visible,
@@ -755,7 +751,7 @@ class KeyValueEditor(ContainerElement):
             self._labels.append(label)
             self._inputs.append(input_element)
             rows.append([Text(label, size=label_size), input_element])
-        super(KeyValueEditor, self).__init__(
+        super().__init__(
             layout=rows,
             key=key,
             tooltip=tooltip,
@@ -823,7 +819,7 @@ class FlowPanel(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(FlowPanel, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -847,7 +843,7 @@ class FlowPanel(Element):
         return tk.Frame(master, **kwargs)
 
     def _post_create(self):
-        super(FlowPanel, self)._post_create()
+        super()._post_create()
         for element in self._children:
             self._window._register_element(element)
             element._build(self._widget, self._window)

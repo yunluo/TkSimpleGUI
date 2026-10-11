@@ -15,10 +15,6 @@ Keys may contain ``/`` to address nested sections ("window/size").
 import json
 import os
 
-try:
-    from typing import Any, Dict, Optional
-except ImportError:
-    Any = Dict = Optional = None
 
 _DEFAULT_DIR_NAME = ".pysimplegui4"
 
@@ -156,4 +152,4 @@ class UserSettings(object):
         return True
 
     def __repr__(self):
-        return "<UserSettings {!r} root={!r}>".format(self._path, self._root)
+        return f"<UserSettings {self._path!r} root={self._root!r}>"

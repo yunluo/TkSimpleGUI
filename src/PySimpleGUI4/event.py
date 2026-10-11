@@ -18,10 +18,6 @@ import functools
 from . import constants as C
 from .window.window import Window
 
-try:
-    from typing import Any, Callable, Dict, List, Optional, Tuple, Union
-except ImportError:
-    Any = Callable = Dict = List = Optional = Tuple = Union = None
 
 _ENTER_KEYS = ("special 16777220", "special 16777221", "\r")
 
@@ -66,9 +62,7 @@ class PySimpleEvent(object):
     def _add_event(self, event, func):
         if not str(func.__name__).startswith("on_"):
             raise ValueError(
-                "event handler {!r} must be named with an 'on_' prefix".format(
-                    func.__name__
-                )
+                f"event handler {func.__name__!r} must be named with an 'on_' prefix"
             )
         arg_names, arg_count = _handler_signature(func)
         entry = (func, arg_names, arg_count)
@@ -109,7 +103,7 @@ class PySimpleEvent(object):
                         args.append(values)
             func(*args)
         except Exception as error:  # keep the loop alive on handler errors
-            print("PySimpleEvent handler error for {!r}: {}".format(event, error))
+            print(f"PySimpleEvent handler error for {event!r}: {error}")
 
     def run_event(self, main_window, close_event=None):
         """Run the GUI loop over all windows until the main window closes."""
@@ -146,7 +140,7 @@ def singleton_window(func):
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
-        key = "{}_{}_{}".format(str(func.__name__), str(args), str(kwargs))
+        key = f"{str(func.__name__)}_{str(args)}_{str(kwargs)}"
         if key in instances:
             window = instances[key]
             if not window.was_closed:

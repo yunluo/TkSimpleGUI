@@ -12,10 +12,6 @@ returns the key::
     window = sg.Window("App", layout, actions=[open_action])
 """
 
-try:
-    from typing import Any, Callable, Dict, List, Optional
-except ImportError:
-    Any = Callable = Dict = List = Optional = None
 
 
 class Action(object):
@@ -48,7 +44,7 @@ class Action(object):
         return self
 
     def __repr__(self):
-        return "<Action {!r} key={!r}>".format(self.text, self.key)
+        return f"<Action {self.text!r} key={self.key!r}>"
 
 
 class ActionList(object):

@@ -3,6 +3,7 @@
 
 import ast
 import os
+import re
 import sys
 import time
 import tkinter as tk
@@ -584,7 +585,7 @@ class TestFirstBatch(unittest.TestCase):
         window.close()
 
     def test_scrollable_column(self):
-        rows = [[sg.Text("row {}".format(i))] for i in range(30)]
+        rows = [[sg.Text(f"row {i}")] for i in range(30)]
         scroll = sg.ScrollableColumn(rows, size=(200, 100), key="-SC-")
         window = sg.Window("t", [[scroll]], finalize=True)
         window.refresh()
@@ -913,7 +914,7 @@ class TestThirdBatch(unittest.TestCase):
 
         directory = tempfile.mkdtemp()
         try:
-            catalog_path = "{}{}".format(directory, "zh.json")
+            catalog_path = f"{directory}zh.json"
             with open(catalog_path, "w") as handle:
                 json.dump({"Open": "打开", "Save": "保存"}, handle)
             sg.set_translations(catalog_path)
@@ -1082,6 +1083,25 @@ class TestPy37Compatibility(unittest.TestCase):
                         offenders.append(os.path.basename(path))
                     elif getattr(node, "posonlyargs", None):  # f(a, /, b) (3.8+)
                         offenders.append(os.path.basename(path))
+        self.assertEqual(offenders, [])
+
+    def test_modern_syntax_style(self):
+        """3.7 style: zero-arg super() everywhere, no typing ImportError fallbacks."""
+        package_dir = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "PySimpleGUI4"
+        )
+        offenders = []
+        for root, _dirs, files in os.walk(package_dir):
+            for name in files:
+                if not name.endswith(".py"):
+                    continue
+                path = os.path.join(root, name)
+                with open(path, encoding="utf-8-sig") as handle:
+                    for lineno, line in enumerate(handle.read().splitlines(), 1):
+                        if "except ImportError" in line:
+                            offenders.append(f"{name}:{lineno} typing-fallback")
+                        elif re.search(r"super\(\w+, ?\w+\)", line):
+                            offenders.append(f"{name}:{lineno} old-super")
         self.assertEqual(offenders, [])
 
     def test_slots_encapsulation(self):

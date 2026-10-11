@@ -8,10 +8,6 @@ from .base import Element
 from .. import constants as C
 from .. import _theming as theme_mod
 
-try:
-    from typing import Any, Callable, Optional, Tuple
-except ImportError:
-    Any = Callable = Optional = Tuple = None
 
 
 class Button(Element):
@@ -65,7 +61,7 @@ class Button(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Button, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -321,7 +317,7 @@ class Submit(Button):
     __slots__ = ()
 
     def _on_click(self):
-        super(Submit, self)._on_click()
+        super()._on_click()
         if self._window is not None:
             self._window._post_event(C.WIN_CLOSED)
 

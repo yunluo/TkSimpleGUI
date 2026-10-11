@@ -6,12 +6,7 @@ from tkinter import ttk
 
 from .base import Element
 from .. import constants as C
-from .. import _theming as theme_mod
 
-try:
-    from typing import Any, List, Optional, Tuple
-except ImportError:
-    Any = List = Optional = Tuple = None
 
 
 _SELECT_MODE_MAP = {
@@ -76,7 +71,7 @@ class Table(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Table, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -111,7 +106,7 @@ class Table(Element):
     def _create_widget(self, master):
         kwargs = {}
         mode = _SELECT_MODE_MAP.get(self._select_mode, tk.EXTENDED)
-        columns = ["col{}".format(i) for i in range(len(self._headings))]
+        columns = [f"col{i}" for i in range(len(self._headings))]
         # item images render in the #0 tree column, which "headings" mode
         # hides — include a narrow #0 column when row icons are wanted
         show = "tree headings" if self._row_icons else "headings"
@@ -127,7 +122,7 @@ class Table(Element):
             tree.column("#0", width=26, stretch=False)
             tree.heading("#0", text="")
         for index, heading in enumerate(self._headings):
-            column_id = "col{}".format(index)
+            column_id = f"col{index}"
             tree.heading(
                 column_id,
                 text=str(heading),
@@ -202,10 +197,10 @@ class Table(Element):
         return self
 
     def _rebuild_widget(self):
-        columns = ["col{}".format(i) for i in range(len(self._headings))]
+        columns = [f"col{i}" for i in range(len(self._headings))]
         self._widget.configure(columns=columns)
         for index, heading in enumerate(self._headings):
-            column_id = "col{}".format(index)
+            column_id = f"col{index}"
             self._widget.heading(
                 column_id,
                 text=str(heading),
@@ -247,7 +242,7 @@ class Table(Element):
         number, otherwise lexicographically. ``values`` stays in sync.
         """
         if not 0 <= column_index < max(1, len(self._headings)):
-            raise IndexError("column index out of range: {!r}".format(column_index))
+            raise IndexError(f"column index out of range: {column_index!r}")
         if ascending is None:
             ascending = not (
                 self._sort_column == column_index and self._sort_ascending
@@ -442,7 +437,7 @@ class Tree(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Tree, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -461,7 +456,7 @@ class Tree(Element):
         self._images = []
 
     def _create_widget(self, master):
-        columns = ["col{}".format(i) for i in range(len(self._headings))]
+        columns = [f"col{i}" for i in range(len(self._headings))]
         show = "tree headings" if self._show_headings and self._headings else "tree"
         tree = ttk.Treeview(
             master,
@@ -471,7 +466,7 @@ class Tree(Element):
         )
         tree.heading("#0", text="Tree")
         for index, heading in enumerate(self._headings):
-            column_id = "col{}".format(index)
+            column_id = f"col{index}"
             tree.heading(column_id, text=str(heading))
             tree.column(column_id, width=80)
         return tree

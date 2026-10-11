@@ -10,10 +10,6 @@ from tkinter import ttk
 from .base import Element
 from .. import _theming as theme_mod
 
-try:
-    from typing import Any, Optional, Tuple
-except ImportError:
-    Any = Optional = Tuple = None
 
 _WEEKDAY_HEADERS = ("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
 
@@ -53,7 +49,7 @@ class Calendar(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Calendar, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -153,15 +149,13 @@ class Calendar(Element):
         return "#f0f0f0"
 
     def _post_create(self):
-        super(Calendar, self)._post_create()
+        super()._post_create()
         self._draw_month()
 
     # --- month rendering -------------------------------------------------------------
     def _draw_month(self):
         self._header.configure(
-            text="{} {}".format(
-                _calendar.month_name[self._viewed.month], self._viewed.year
-            )
+            text=f"{_calendar.month_name[self._viewed.month]} {self._viewed.year}"
         )
         for child in self._day_area.winfo_children():
             child.destroy()

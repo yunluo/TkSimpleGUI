@@ -26,10 +26,6 @@ import time
 
 from .. import constants as C
 
-try:
-    from typing import Any, List, Optional
-except ImportError:
-    Any = List = Optional = None
 
 # --- win32 constants ---------------------------------------------------------
 NIM_ADD = 0
@@ -103,7 +99,7 @@ class SystemTray(object):
         self._tooltip = tooltip or title
         self._icon_data = icon
         self._menu = list(menu) if menu else []
-        self._window_class = "PySimpleGUI4Tray{}".format(id(self))
+        self._window_class = f"PySimpleGUI4Tray{id(self)}"
         self._hwnd = None
         self._icon_handle = None
         self._created = False
@@ -360,7 +356,7 @@ class _NotifyIconData(ctypes.Structure):
     ]
 
     def __init__(self):
-        super(_NotifyIconData, self).__init__()
+        super().__init__()
         self.cbSize = ctypes.sizeof(self)
 
 

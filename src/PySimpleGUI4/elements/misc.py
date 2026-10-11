@@ -7,10 +7,6 @@ from tkinter import ttk
 from .base import Element
 from .. import _theming as theme_mod
 
-try:
-    from typing import Any, Optional, Tuple
-except ImportError:
-    Any = Optional = Tuple = None
 
 
 class StatusBar(Element):
@@ -34,7 +30,7 @@ class StatusBar(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(StatusBar, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -79,7 +75,7 @@ class VerticalSeparator(Element):
     __slots__ = ("_padding",)
 
     def __init__(self, padding=1, key=None, visible=True, pad=None, metadata=None):
-        super(VerticalSeparator, self).__init__(
+        super().__init__(
             key=key, visible=visible, pad=pad, metadata=metadata
         )
         self._padding = padding
@@ -94,7 +90,7 @@ class HorizontalSeparator(Element):
     __slots__ = ("_padding",)
 
     def __init__(self, padding=1, key=None, visible=True, pad=None, metadata=None):
-        super(HorizontalSeparator, self).__init__(
+        super().__init__(
             key=key, visible=visible, pad=pad, metadata=metadata
         )
         self._padding = padding
@@ -109,7 +105,7 @@ class Sizegrip(Element):
     __slots__ = ()
 
     def __init__(self, key=None, visible=True, pad=None, metadata=None):
-        super(Sizegrip, self).__init__(key=key, visible=visible, pad=pad, metadata=metadata)
+        super().__init__(key=key, visible=visible, pad=pad, metadata=metadata)
 
     def _create_widget(self, master):
         return ttk.Sizegrip(master)

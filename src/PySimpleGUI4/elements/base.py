@@ -20,10 +20,6 @@ from .. import constants as C
 from .. import _theming as theme_mod
 from .. import settings as settings_mod
 
-try:
-    from typing import Any, Dict, Optional, Tuple
-except ImportError:
-    Any = Dict = Optional = Tuple = None
 
 
 class ElementBaseMeta(ABCMeta):
@@ -43,7 +39,7 @@ class ElementBaseMeta(ABCMeta):
                     if slot not in declared and slot not in inherited:
                         inherited.append(slot)
         namespace["__slots__"] = tuple(inherited) + tuple(declared)
-        return super(ElementBaseMeta, mcs).__new__(mcs, name, bases, namespace)
+        return super().__new__(mcs, name, bases, namespace)
 
 
 class Element(object, metaclass=ElementBaseMeta):
@@ -259,7 +255,7 @@ class Element(object, metaclass=ElementBaseMeta):
     def update(self, **kwargs):
         """Change the element's runtime state (element specific)."""
         raise NotImplementedError(
-            "{} does not support update()".format(self.__class__.__name__)
+            f"{self.__class__.__name__} does not support update()"
         )
 
     def set_focus(self):
@@ -289,7 +285,7 @@ class Element(object, metaclass=ElementBaseMeta):
         return self
 
     def __repr__(self):
-        return "<{} key={!r}>".format(self.__class__.__name__, self._key)
+        return f"<{self.__class__.__name__} key={self._key!r}>"
 
 
 class Tooltip(object):
@@ -323,7 +319,7 @@ class Tooltip(object):
 
         tip = tk.Toplevel(self._widget)
         tip.wm_overrideredirect(True)
-        tip.wm_geometry("+{}+{}".format(x, y))
+        tip.wm_geometry(f"+{x}+{y}")
         label = tk.Label(
             tip,
             text=self._text,
@@ -364,7 +360,7 @@ class InputElement(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(InputElement, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -419,7 +415,7 @@ class ContainerElement(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(ContainerElement, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -439,7 +435,7 @@ class ContainerElement(Element):
         return self._layout
 
     def _post_create(self):
-        super(ContainerElement, self)._post_create()
+        super()._post_create()
         if self._layout:
             self._window._build_layout(self._layout, self._widget)
 
@@ -461,9 +457,7 @@ def build_popup_menu(owner, master, definition):
     for entry in cascades:
         if not isinstance(entry, (list, tuple)) or len(entry) < 2:
             raise ValueError(
-                "menu definition entries must be (title, items) pairs: {!r}".format(
-                    entry
-                )
+                f"menu definition entries must be (title, items) pairs: {entry!r}"
             )
         title = str(entry[0]).replace(C.MENU_SHORTCUT_CHARACTER, "")
         submenu = tk.Menu(menu, tearoff=False)

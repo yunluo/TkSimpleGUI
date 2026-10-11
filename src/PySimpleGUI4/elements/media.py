@@ -6,10 +6,6 @@ import tkinter as tk
 from .base import Element
 from .. import _theming as theme_mod
 
-try:
-    from typing import Any, Optional, Tuple
-except ImportError:
-    Any = Optional = Tuple = None
 
 
 class Image(Element):
@@ -32,7 +28,7 @@ class Image(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Image, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -103,7 +99,7 @@ class Canvas(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Canvas, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -168,7 +164,7 @@ class Graph(Canvas):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Graph, self).__init__(
+        super().__init__(
             size=canvas_size,
             background_color=background_color,
             key=key,
@@ -188,7 +184,7 @@ class Graph(Canvas):
         self._images = []
 
     def _post_create(self):
-        super(Graph, self)._post_create()
+        super()._post_create()
         self._compute_scale()
 
     def _compute_scale(self):
@@ -372,7 +368,7 @@ class Shape(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Shape, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -386,7 +382,7 @@ class Shape(Element):
         shape_type = str(shape_type).lower()
         if shape_type not in self._SHAPES:
             raise ValueError(
-                "shape_type must be one of {!r}".format(self._SHAPES)
+                f"shape_type must be one of {self._SHAPES!r}"
             )
         self._shape_type = shape_type
         self._fill_color = fill_color

@@ -166,10 +166,10 @@ def tab_containers():
          [[sg.Text("右窗格（拖动分隔条）")], [sg.Input("拖我", size=(18, 1))]]],
         key="-SPLIT-")
     scroll = sg.ScrollableColumn(
-        [[sg.Text("  滚动行 {:>2d} ".format(i))] for i in range(1, 21)],
+        [[sg.Text(f"  滚动行 {i:>2d} ")] for i in range(1, 21)],
         size=(140, 110), key="-SCROLL-", background_color="#f7f7f7")
     flow = sg.FlowPanel(
-        [sg.Button("按钮 {}".format(i), size=(6, 1)) for i in range(1, 9)],
+        [sg.Button(f"按钮 {i}", size=(6, 1)) for i in range(1, 9)],
         wrap_width=640, key="-FLOW-")
     calendar = sg.Calendar(key="-CAL-", enable_events=True)
     band_top = sg.Column([
@@ -294,20 +294,19 @@ class Demo(object):
         self._refresh_status()
         # 每秒刷新状态栏时钟（TTimer 对标）
         window.every(1000, self._tick_clock)
-        log(window, "欢迎使用 PySimpleGUI4 {} —— 六个标签页覆盖全部元素".format(sg.__version__))
+        log(window, f"欢迎使用 PySimpleGUI4 {sg.__version__} —— 六个标签页覆盖全部元素")
         log(window, "菜单/工具栏/右键共享 Action；Ctrl+O 打开、Ctrl+S 保存",
             color="#2e7d32")
 
     def _refresh_status(self):
         count = _PREFS.get("launches") or 0
-        self.window["-STATUS-"].update(" 就绪 | {} | 第 {} 次启动 ".format(
-            time.strftime("%H:%M:%S"), count))
+        self.window["-STATUS-"].update(
+            f" 就绪 | {time.strftime('%H:%M:%S')} | 第 {count} 次启动 ")
 
     def _tick_clock(self):
         if _STOPWATCH["start"] is not None:
             elapsed = int(time.time() - _STOPWATCH["start"])
-            self.window["-T-ELAPSED-"].update("{:02d}:{:02d}".format(
-                elapsed // 60, elapsed % 60))
+            self.window["-T-ELAPSED-"].update(f"{elapsed // 60:02d}:{elapsed % 60:02d}")
         self._refresh_status()
 
     # --- 事件分发 --------------------------------------------------------------
@@ -318,18 +317,18 @@ class Demo(object):
         if handler is not None:
             handler(self, values)
         else:
-            log(self.window, "事件: {!r}".format(event))
+            log(self.window, f"事件: {event!r}")
 
     # 输入页
     def on_num_input(self, values):
-        log(self.window, "整数校验输入: {!r}".format(values["-IN-NUM-"]))
+        log(self.window, f"整数校验输入: {values['-IN-NUM-']!r}")
 
     def on_show_password(self, values):
         element = self.window["-IN-PASS-"]
         element.set_password_char("" if values["-CB-SHOW-"] else "*")
 
     def on_spin(self, values):
-        log(self.window, "Spin: {}".format(values["-SP-"]))
+        log(self.window, f"Spin: {values['-SP-']}")
 
     def on_slider(self, values):
         self.window["-PB-SL-"].update(current_value=values["-SL-"])
@@ -343,35 +342,35 @@ class Demo(object):
 
     def on_find(self, _values):
         position = sg.popup_find(self.window["-ML-"])
-        log(self.window, "查找结果: {}".format(position))
+        log(self.window, f"查找结果: {position}")
 
     def on_replace(self, _values):
         count = sg.popup_replace(self.window["-ML-"])
-        log(self.window, "替换完成，共 {} 处".format(count))
+        log(self.window, f"替换完成，共 {count} 处")
 
     def on_submit(self, values):
-        log(self.window, "表单提交：用户名={!r} 数字={!r}".format(
-            values.get("-IN-USER-"), values.get("-IN-NUM-")), color="#2e7d32")
+        log(self.window,
+            f"表单提交：用户名={values.get('-IN-USER-')!r} 数字={values.get('-IN-NUM-')!r}",
+            color="#2e7d32")
 
     # 选择页
     def on_selection(self, event, values):
-        log(self.window, "选择变化: {} = {!r}".format(event, values.get(event)))
+        log(self.window, f"选择变化: {event} = {values.get(event)!r}")
 
     def on_checklist_all(self, _values):
         self.window["-CKL-"].check_all()
-        log(self.window, "勾选列表: {}".format(self.window["-CKL-"].get()))
+        log(self.window, f"勾选列表: {self.window['-CKL-'].get()}")
 
     def on_checklist_none(self, _values):
         self.window["-CKL-"].uncheck_all()
-        log(self.window, "勾选列表: {}".format(self.window["-CKL-"].get()))
+        log(self.window, f"勾选列表: {self.window['-CKL-'].get()}")
 
     # 数据页
     def on_table_select(self, values):
         table = self.window["-TB-"]
         records = table.selected_records
         self.window["-T-REC-"].update(str(records[0]) if records else "")
-        log(self.window, "表格选中: {} 记录={}".format(table.get(),
-                                                      records[0] if records else None))
+        log(self.window, f"表格选中: {table.get()} 记录={records[0] if records else None}")
 
     def on_rebind(self, _values):
         table = self.window["-TB-"]
@@ -383,27 +382,28 @@ class Demo(object):
 
     def on_tree_add(self, _values):
         self.tree_counter += 1
-        name = "节点 {}".format(self.tree_counter)
-        self.window["-TREE-"].insert("root", "n{}".format(self.tree_counter),
+        name = f"节点 {self.tree_counter}"
+        self.window["-TREE-"].insert("root", f"n{self.tree_counter}",
                                      name, image_data=ICON16)
-        log(self.window, "树插入: {}".format(name))
+        log(self.window, f"树插入: {name}")
 
     def on_tree_del(self, _values):
         tree = self.window["-TREE-"]
         selection = tree.widget.selection()
         if selection:
             tree.widget.delete(*selection)
-            log(self.window, "树删除: {}".format(", ".join(str(s) for s in selection)))
+            log(self.window,
+                f"树删除: {', '.join(str(s) for s in selection)}")
         else:
             sg.popup_notify("请先选中一个节点")
 
     def on_kv_get(self, _values):
-        log(self.window, "KeyValueEditor: {}".format(self.window["-KV-"].get()))
+        log(self.window, f"KeyValueEditor: {self.window['-KV-'].get()}")
 
     # 绘图页
     def on_graph_click(self, _values):
         graph = self.window["-GRAPH-"]
-        log(self.window, "画布点击，当前图元 {} 个".format(len(graph.widget.find_all())))
+        log(self.window, f"画布点击，当前图元 {len(graph.widget.find_all())} 个")
 
     def on_draw(self, kind, _values):
         graph = self.window["-GRAPH-"]
@@ -417,17 +417,17 @@ class Demo(object):
         else:
             figure_id = graph.draw_text("字", (x, 15), color="#1565c0")
         self.figure_last = figure_id
-        log(self.window, "绘制 {} -> 图元 id {}".format(kind, figure_id))
+        log(self.window, f"绘制 {kind} -> 图元 id {figure_id}")
 
     def on_move_figure(self, _values):
         if self.figure_last is not None:
             self.window["-GRAPH-"].move_figure(self.figure_last, 3, 2)
-            log(self.window, "移动图元 id {}".format(self.figure_last))
+            log(self.window, f"移动图元 id {self.figure_last}")
 
     def on_delete_figure(self, _values):
         if self.figure_last is not None:
             self.window["-GRAPH-"].delete_figure(self.figure_last)
-            log(self.window, "删除图元 id {}".format(self.figure_last))
+            log(self.window, f"删除图元 id {self.figure_last}")
             self.figure_last = None
 
     def on_clear_graph(self, _values):
@@ -436,39 +436,38 @@ class Demo(object):
         log(self.window, "画布已清空")
 
     def on_calendar(self, values):
-        log(self.window, "日历选择: {}".format(values["-CAL-"]))
+        log(self.window, f"日历选择: {values['-CAL-']}")
 
     # 弹窗家族
     def on_p_msg(self, _values):
-        log(self.window, "popup 返回: {!r}".format(sg.popup("这是 popup 消息")))
+        log(self.window, f"popup 返回: {sg.popup('这是 popup 消息')!r}")
 
     def on_p_yn(self, _values):
-        log(self.window, "popup_yes_no 返回: {!r}".format(sg.popup_yes_no("确定继续？")))
+        log(self.window, f"popup_yes_no 返回: {sg.popup_yes_no('确定继续？')!r}")
 
     def on_p_err(self, _values):
         sg.popup_error("出错了（演示）")
 
     def on_p_scroll(self, _values):
         sg.popup_scrolled(
-            "\n".join("第 {} 行内容".format(i) for i in range(1, 21)),
+            "\n".join(f"第 {i} 行内容" for i in range(1, 21)),
             title="滚动文本")
 
     def on_p_text(self, _values):
-        log(self.window, "popup_get_text 返回: {!r}".format(
-            sg.popup_get_text("请输入一句话")))
+        log(self.window,
+            f"popup_get_text 返回: {sg.popup_get_text('请输入一句话')!r}")
 
     def on_p_file(self, _values):
-        log(self.window, "选择的文件: {!r}".format(sg.popup_get_file("选个文件")))
+        log(self.window, f"选择的文件: {sg.popup_get_file('选个文件')!r}")
 
     def on_p_folder(self, _values):
-        log(self.window, "选择的目录: {!r}".format(sg.popup_get_folder("选个目录")))
+        log(self.window, f"选择的目录: {sg.popup_get_folder('选个目录')!r}")
 
     def on_p_date(self, _values):
-        log(self.window, "选择的日期: {}".format(sg.popup_get_date()))
+        log(self.window, f"选择的日期: {sg.popup_get_date()}")
 
     def on_p_font(self, _values):
-        log(self.window, "选择的字体: {}".format(
-            sg.popup_get_font(include_bold_italic=True)))
+        log(self.window, f"选择的字体: {sg.popup_get_font(include_bold_italic=True)}")
 
     # 窗口控制
     def on_w_center(self, _values):
@@ -549,32 +548,33 @@ class Demo(object):
             log(self.window, "托盘已关闭")
 
     def on_copy(self, _values):
-        self.window.clipboard_set("PySimpleGUI4 剪贴板演示 {}".format(time.time()))
+        self.window.clipboard_set(f"PySimpleGUI4 剪贴板演示 {time.time()}")
         log(self.window, "已写入剪贴板")
 
     def on_paste(self, _values):
-        log(self.window, "剪贴板内容: {!r}".format(self.window.clipboard_get()))
+        log(self.window, f"剪贴板内容: {self.window.clipboard_get()!r}")
 
     def on_save_state(self, _values):
         _PREFS.set("last_theme", sg.theme())
         _PREFS.set("last_seen", time.strftime("%Y-%m-%d %H:%M:%S"))
-        log(self.window, "UserSettings 已保存: last_theme={!r}, last_seen={}".format(
-            _PREFS.get("last_theme"), _PREFS.get("last_seen")))
+        log(self.window,
+            f"UserSettings 已保存: last_theme={_PREFS.get('last_theme')!r}, "
+            f"last_seen={_PREFS.get('last_seen')}")
 
     def on_i18n(self, _values):
         sg.set_translations({"Open": "打开", "Save": "保存"})
         sample = [sg._("Open"), sg._("Save"), sg._("Unknown stays")]
-        log(self.window, "i18n: {}".format(" / ".join(sample)))
+        log(self.window, f"i18n: {' / '.join(sample)}")
         sg.clear_translations()
 
     # 菜单/工具栏/右键共享
     def on_open(self, _values):
         path = sg.popup_get_file("打开（Ctrl+O）")
-        log(self.window, "Action 打开文件: {!r}".format(path))
+        log(self.window, f"Action 打开文件: {path!r}")
 
     def on_save(self, _values):
         path = sg.popup_get_file("保存（Ctrl+S）", save_as=True)
-        log(self.window, "Action 保存文件: {!r}".format(path))
+        log(self.window, f"Action 保存文件: {path!r}")
 
     def on_clear_log(self, _values):
         self.window["-LOG-"].clear()
@@ -582,8 +582,8 @@ class Demo(object):
 
     def on_about(self, _values):
         sg.popup_ok(
-            "PySimpleGUI4 {}\n\nOO 重写的 PySimpleGUI 4.x 分支\n"
-            "零依赖 / Python 3.7+ / 原生默认外观".format(sg.__version__),
+            f"PySimpleGUI4 {sg.__version__}\n\nOO 重写的 PySimpleGUI 4.x 分支\n"
+            "零依赖 / Python 3.7+ / 原生默认外观",
             title="关于")
 
     def on_copy_log(self, _values):
@@ -595,7 +595,7 @@ class Demo(object):
             name = sg.theme("DarkBlue3")
         else:
             name = sg.theme(None)
-        log(self.window, "主题已切换为 {}（对新建窗口生效，重开演示可见）".format(name),
+        log(self.window, f"主题已切换为 {name}（对新建窗口生效，重开演示可见）",
             color="#1565c0")
 
 
@@ -707,7 +707,7 @@ def main(argv=None):
                     _TRAY["obj"] = None
                     log(window, "托盘菜单：已退出托盘")
                 elif tray_event not in (None, sg.TIMEOUT_KEY):
-                    log(window, "托盘事件: {}".format(tray_event))
+                    log(window, f"托盘事件: {tray_event}")
     finally:
         if _TRAY["obj"] is not None:
             _TRAY["obj"].close()

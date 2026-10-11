@@ -3,6 +3,7 @@
 import ast
 import io
 import os
+import re
 import sys
 
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
@@ -159,7 +160,7 @@ app.apply_event(win, "unknown", {})
 check("event dispatch", calls == [("wv", "evt", {"k": 1}), ("e", "b"), ("none",)])
 win.close()
 
-# 11. python3.4: no active f-strings (ast precise)
+# 11. python3.7: no 3.8+ syntax (walrus, positional-only params)
 bad = []
 for root, dirs, files in os.walk("src/PySimpleGUI4"):
     for f in files:
@@ -167,9 +168,24 @@ for root, dirs, files in os.walk("src/PySimpleGUI4"):
             with open(os.path.join(root, f), encoding="utf-8-sig") as fh:
                 tree = ast.parse(fh.read())
             for node in ast.walk(tree):
-                if isinstance(node, ast.JoinedStr):
-                    bad.append("{}:{}".format(f, node.lineno))
-check("no f-strings", not bad)
+                if isinstance(node, getattr(ast, "NamedExpr", ())):
+                    bad.append(f"{f}:{node.lineno} walrus")
+                elif getattr(node, "posonlyargs", None):
+                    bad.append(f"{f}:{node.lineno} posonly")
+check("no 3.8+ syntax", not bad)
+
+# 11b. modern style: zero-arg super() everywhere, no typing fallbacks
+legacy = []
+for root, dirs, files in os.walk("src/PySimpleGUI4"):
+    for f in files:
+        if f.endswith(".py"):
+            with open(os.path.join(root, f), encoding="utf-8-sig") as fh:
+                for lineno, line in enumerate(fh.read().splitlines(), 1):
+                    if "except ImportError" in line:
+                        legacy.append(f"{f}:{lineno} typing-fallback")
+                    elif re.search(r"super\(\w+, ?\w+\)", line):
+                        legacy.append(f"{f}:{lineno} old-super")
+check("modern syntax style", not legacy)
 
 # 12. encapsulation: no __dict__ on elements (slots)
 check("slots encapsulation", not hasattr(sg.Text("x"), "__dict__"))

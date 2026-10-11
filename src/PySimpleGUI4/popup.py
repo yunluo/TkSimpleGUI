@@ -5,7 +5,6 @@ Every popup is built from :class:`~PySimpleGUI4.window.Window` itself, so
 popups automatically follow the active theme.
 """
 
-import time
 
 from . import constants as C
 from . import settings as settings_mod
@@ -15,10 +14,6 @@ from .elements.containers import Column
 from .elements.widgets import Checkbox, Input, Listbox, Multiline, Spin, Text
 from .window.window import Window
 
-try:
-    from typing import Any, List, Optional, Tuple
-except ImportError:
-    Any = List = Optional = Tuple = None
 
 
 def _popup_window(
@@ -283,10 +278,10 @@ def _text_replace_all(widget, needle, replacement, case_sensitive=False):
         pos = widget.search(needle, start, stopindex="end", nocase=not case_sensitive)
         if not pos:
             break
-        widget.delete(pos, "{}+{}c".format(pos, len(needle)))
+        widget.delete(pos, f"{pos}+{len(needle)}c")
         widget.insert(pos, replacement)
         count += 1
-        start = "{}+{}c".format(pos, step)
+        start = f"{pos}+{step}c"
     return count
 
 
@@ -312,7 +307,7 @@ def popup_find(multiline, title="Find Text", case_sensitive=False):
     pos = _text_find(widget, needle, case_sensitive=case_sensitive)
     if pos:
         widget.tag_remove("sel", "1.0", "end")
-        widget.tag_add("sel", pos, "{}+{}c".format(pos, len(needle)))
+        widget.tag_add("sel", pos, f"{pos}+{len(needle)}c")
         widget.mark_set("insert", pos)
         widget.see(pos)
         widget.focus_set()

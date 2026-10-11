@@ -7,12 +7,7 @@ from tkinter import ttk
 from .base import Element, InputElement
 from .. import constants as C
 from .. import _theming as theme_mod
-from .. import settings as settings_mod
 
-try:
-    from typing import Any, Dict, List, Optional, Tuple
-except ImportError:
-    Any = Dict = List = Optional = Tuple = None
 
 
 _SELECT_MODE_MAP = {
@@ -108,7 +103,7 @@ class Text(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Text, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -206,7 +201,7 @@ class Input(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Input, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -341,7 +336,7 @@ class Combo(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Combo, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -421,7 +416,7 @@ class OptionMenu(Combo):
 
     def __init__(self, values=(), default_value=None, key=None, **kwargs):
         kwargs.setdefault("readonly", False)
-        super(OptionMenu, self).__init__(
+        super().__init__(
             values=values, default_value=default_value, key=key, **kwargs
         )
 
@@ -450,7 +445,7 @@ class Listbox(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Listbox, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -560,7 +555,7 @@ class Spin(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Spin, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -650,7 +645,7 @@ class Checkbox(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Checkbox, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -734,7 +729,7 @@ class Radio(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Radio, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,
@@ -823,7 +818,7 @@ class Slider(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Slider, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -918,7 +913,7 @@ class Multiline(InputElement):
         right_click_menu=None,
         metadata=None,
     ):
-        super(Multiline, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -986,7 +981,7 @@ class Multiline(InputElement):
         self._widget.configure(state="normal")
         text = sep.join(str(a) for a in args) + end
         if text_color is not None:
-            tag = "print_{}".format(str(text_color).lstrip("#"))
+            tag = f"print_{str(text_color).lstrip('#')}"
             self._widget.tag_configure(tag, foreground=text_color)
             self._widget.insert("end", text, tag)
         else:
@@ -1042,7 +1037,7 @@ class Output(Multiline):
     __slots__ = ()
 
     def _create_widget(self, master):
-        widget = super(Output, self)._create_widget(master)
+        widget = super()._create_widget(master)
         widget.configure(state="disabled")
         return widget
 
@@ -1067,7 +1062,7 @@ class ProgressBar(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(ProgressBar, self).__init__(
+        super().__init__(
             key=key,
             size=size,
             tooltip=tooltip,
@@ -1152,7 +1147,7 @@ class CheckList(Element):
         right_click_menu=None,
         metadata=None,
     ):
-        super(CheckList, self).__init__(
+        super().__init__(
             key=key,
             tooltip=tooltip,
             visible=visible,

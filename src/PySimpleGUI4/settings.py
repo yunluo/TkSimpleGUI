@@ -8,10 +8,6 @@ plus ``set_options`` / ``get_options`` for PySimpleGUI compatibility.
 
 from . import constants as C
 
-try:
-    from typing import Any, Dict, Tuple
-except ImportError:
-    Any = Dict = Tuple = None
 
 
 _KNOWN_OPTIONS = (
@@ -214,7 +210,7 @@ class Settings(object):
         """Validate and apply a batch of options."""
         for name, value in kwargs.items():
             if name not in _KNOWN_OPTIONS:
-                raise TypeError("Unknown option: {}".format(name))
+                raise TypeError(f"Unknown option: {name}")
             setattr(self, name, value)
 
 
