@@ -34,7 +34,7 @@ class Table(Element):
     :meth:`sort_by`. With ``enable_edit=True`` double-clicking a cell opens
     an inline editor; committing posts a ``(key, row, col, new_value)``
     tuple event. ``row_icons`` assigns one icon per row (bytes = base64
-    data, str = filename).
+    data, str = filename). ``col_widths`` are column widths in characters.
     """
 
     __slots__ = (
@@ -112,14 +112,20 @@ class Table(Element):
         kwargs = {}
         mode = _SELECT_MODE_MAP.get(self._select_mode, tk.EXTENDED)
         columns = ["col{}".format(i) for i in range(len(self._headings))]
+        # item images render in the #0 tree column, which "headings" mode
+        # hides — include a narrow #0 column when row icons are wanted
+        show = "tree headings" if self._row_icons else "headings"
         tree = ttk.Treeview(
             master,
             columns=columns,
-            show="headings",
+            show=show,
             selectmode=mode,
             height=self._num_rows,
             **kwargs
         )
+        if self._row_icons:
+            tree.column("#0", width=26, stretch=False)
+            tree.heading("#0", text="")
         for index, heading in enumerate(self._headings):
             column_id = "col{}".format(index)
             tree.heading(
@@ -131,7 +137,7 @@ class Table(Element):
             if self._col_widths is not None and index < len(self._col_widths):
                 width = self._col_widths[index]
             if width is not None:
-                tree.column(column_id, width=int(width))
+                tree.column(column_id, width=int(width) * 10)  # chars → pixels
             elif not self._auto_size_columns:
                 tree.column(column_id, stretch=False)
         for row_index, row in enumerate(self._values):

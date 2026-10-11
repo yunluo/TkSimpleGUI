@@ -373,7 +373,7 @@ class Splitter(ContainerElement):
             if str(self._orientation).lower() in ("h", "horizontal")
             else "vertical"
         )
-        kwargs = {"sashwidth": int(self._handle_size or 8), "sashrelief": "flat"}
+        kwargs = {"sashwidth": int(self._handle_size or 8)}
         bg = self._background_color or theme_mod.theme_manager.background_color
         if bg is not None:
             kwargs["background"] = bg
@@ -482,7 +482,10 @@ class ScrollableColumn(ContainerElement):
         return outer
 
     def _post_create(self):
-        super(ScrollableColumn, self)._post_create()
+        # NOTE: skip ContainerElement._post_create — it would build the
+        # layout into the outer frame; the content belongs in the inner
+        # frame that lives inside the canvas
+        Element._post_create(self)
         if self._layout:
             self._window._build_layout(self._layout, self._inner_frame)
 
@@ -801,6 +804,7 @@ class FlowPanel(Element):
         "_hpadding",
         "_vpadding",
         "_background_color",
+        "_wrap_width",
     )
 
     def __init__(
@@ -808,6 +812,7 @@ class FlowPanel(Element):
         elements,
         horizontal_padding=5,
         vertical_padding=5,
+        wrap_width=600,
         key=None,
         background_color=None,
         tooltip=None,
@@ -832,6 +837,7 @@ class FlowPanel(Element):
         self._hpadding = horizontal_padding
         self._vpadding = vertical_padding
         self._background_color = background_color
+        self._wrap_width = int(wrap_width)
 
     def _create_widget(self, master):
         kwargs = {}
@@ -849,10 +855,15 @@ class FlowPanel(Element):
         self._reflow()
 
     def _reflow(self, _event=None):
+        width = self._widget.winfo_width()
+        if width <= 1:
+            # not mapped yet — lay out against the fallback width and size
+            # the frame so its grid cell requests a sensible area
+            width = self._wrap_width
+            self._widget.configure(width=width)
         x = self._hpadding
         y = self._vpadding
         row_height = 0
-        width = self._widget.winfo_width()
         for element in self._children:
             widget = element.widget
             if widget is None:
@@ -862,7 +873,7 @@ class FlowPanel(Element):
                 continue
             child_width = widget.winfo_reqwidth()
             child_height = widget.winfo_reqheight()
-            if width > 1 and x + child_width > width and x > self._hpadding:
+            if x + child_width > width and x > self._hpadding:
                 x = self._hpadding
                 y += row_height + self._vpadding
                 row_height = 0

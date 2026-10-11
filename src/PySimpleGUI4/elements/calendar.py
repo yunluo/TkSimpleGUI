@@ -109,10 +109,7 @@ class Calendar(Element):
 
     # --- widget construction ------------------------------------------------------
     def _create_widget(self, master):
-        bg = (
-            self._background_from_theme()
-            or master.cget("background")
-        )
+        bg = self._surface_color(master)
         frame = tk.Frame(master, background=bg)
         header = ttk.Label(
             frame,
@@ -141,9 +138,19 @@ class Calendar(Element):
         return frame
 
     @staticmethod
-    def _background_from_theme():
-        bg = theme_mod.theme_manager.background_color
-        return bg if bg is not None else None
+    def _surface_color(master):
+        """The surface color to paint the calendar onto (theme aware)."""
+        themed = theme_mod.theme_manager.background_color
+        if themed is not None:
+            return themed
+        # ttk parents do not expose -background via cget; ask the toplevel
+        widget = master
+        while widget is not None:
+            try:
+                return str(widget.cget("background"))
+            except (tk.TclError, AttributeError):
+                widget = widget.master if hasattr(widget, "master") else None
+        return "#f0f0f0"
 
     def _post_create(self):
         super(Calendar, self)._post_create()

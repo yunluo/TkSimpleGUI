@@ -153,6 +153,18 @@ class Element(object, metaclass=ElementBaseMeta):
         """Free form user data attached to the element (any object)."""
         return self._metadata
 
+    @property
+    def right_click_menu(self):
+        """The element's right-click menu definition (or None)."""
+        return self._right_click_menu
+
+    @right_click_menu.setter
+    def right_click_menu(self, value):
+        """Set (and attach) the menu; also usable after finalization."""
+        self._right_click_menu = value
+        if self._widget is not None and value is not None and self._popup_menu is None:
+            self._attach_right_click_menu()
+
     # --- template method ------------------------------------------------------
     def _build(self, master, window):
         """Template method: create the widget and wire it up.

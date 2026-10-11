@@ -600,6 +600,8 @@ class Spin(InputElement):
             state=state,
             **kwargs
         )
+        # a Spinbox with values= snaps its variable to values[0]; re-apply
+        self._variable.set(str(self._initial_value))
         return spin
 
     def _bind_events(self):
