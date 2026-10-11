@@ -72,6 +72,8 @@ class Window(object):
         "_ttk_style",
         "_drag_offset",
         "_last_values",
+        "_parent",
+        "_children",
     )
 
     _open_windows: List["Window"] = []  # class level registry
@@ -116,6 +118,8 @@ class Window(object):
     _ttk_style: ttk.Style
     _drag_offset: Optional[Tuple[int, int]]
     _last_values: Dict[Any, Any]
+    _parent: Optional["Window"]
+    _children: List["Window"]
 
     def __init__(
         self,
@@ -137,12 +141,15 @@ class Window(object):
         element_justification=None,
         right_click_menu=None,
         actions=None,
+        parent=None,
     ):
         self._title = title
         self._layout = _validate_layout(layout)
         self._tk_root = None  # ty: ignore[invalid-assignment]
         self._finalized = False
         self._closed = False
+        self._parent = parent
+        self._children: List["Window"] = []
         self._elements_by_key = {}
         self._event_queue = queue.Queue()
         self._keep_on_top = (
@@ -214,6 +221,51 @@ class Window(object):
     @size.setter
     def size(self, value):
         self.set_size(value)
+
+    # --- window hierarchy --------------------------------------------------------
+    @property
+    def parent(self):
+        """The parent :class:`Window` (None for top level windows)."""
+        return self._parent
+
+    @property
+    def children(self):
+        """The live child windows (direct descendants) of this window."""
+        return [
+            child
+            for child in self._children
+            if not child.was_closed and child in Window._open_windows
+        ]
+
+    @property
+    def child_windows(self):
+        """Alias of :attr:`children`."""
+        return self.children
+
+    @property
+    def ancestors(self):
+        """The parent chain of this window, nearest first."""
+        chain = []
+        node = self._parent
+        while node is not None and not node.was_closed:
+            chain.append(node)
+            node = node._parent
+        return chain
+
+    def is_child_of(self, other) -> bool:
+        """True when ``other`` appears in this window's parent chain."""
+        return other in self.ancestors
+
+    def _register_child(self, child):
+        """Link ``child`` into this window's children list."""
+        if child not in self._children:
+            self._children.append(child)
+        return self
+
+    def _unregister_child(self, child):
+        if child in self._children:
+            self._children.remove(child)
+        return self
 
     # --- class level registry ---------------------------------------------------
     @classmethod
@@ -319,6 +371,13 @@ class Window(object):
             self._destroy_root()
             self._mark_closed()
             raise
+        # link into the parent's children list (also gives the WM grouping)
+        if self._parent is not None:
+            self._parent._register_child(self)
+            try:
+                self._tk_root.transient(self._parent._tk_root)
+            except tk.TclError:
+                pass
         self._finalized = True
         self._show()
         return self
@@ -908,10 +967,17 @@ class Window(object):
     def transient(self, parent_window=None):
         """Mark this window as a transient (dialog) of ``parent_window``.
 
-        The window manager groups it above its parent and keeps it on the
-        parent's screen; pass the parent :class:`Window` or None to clear
-        the hint (the window becomes independent again).
+        Also records ``parent_window`` as this window's :attr:`parent` (or
+        clears it when None), so the hierarchy is queryable either way.
         """
+        if parent_window is not None and isinstance(parent_window, Window):
+            self._parent = parent_window
+            if self._finalized:
+                self._parent._register_child(self)
+        elif parent_window is None:
+            if self._parent is not None:
+                self._parent._unregister_child(self)
+            self._parent = None
         if not self._root_alive():
             return self
         if parent_window is None:
@@ -1105,9 +1171,14 @@ class Window(object):
         return self
 
     def close(self):
-        """Destroy the window and release its resources."""
+        """Destroy the window, close its live children first, and unlink
+        it from its parent. Returns self."""
         if self._closed:
             return self
+        for child in self.children:
+            child.close()
+        if self._parent is not None:
+            self._parent._unregister_child(self)
         self._destroy_root()
         self._mark_closed()
         return self

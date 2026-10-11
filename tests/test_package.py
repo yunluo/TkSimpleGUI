@@ -1468,6 +1468,57 @@ class TestUnifiedLoop(unittest.TestCase):
         second.close()
 
 
+class TestWindowHierarchy(unittest.TestCase):
+    """窗口层级：parent/children/ancestors + 级联关闭。"""
+
+    def test_parent_link_and_query(self):
+        main = sg.Window("main", [[sg.Text("m")]], finalize=True)
+        child = sg.Window("child", [[sg.Text("c")]], finalize=True, parent=main)
+        grandchild = sg.Window("grand", [[sg.Text("g")]], finalize=True, parent=child)
+        self.assertIs(child.parent, main)
+        self.assertIs(grandchild.parent, child)
+        self.assertIsNone(main.parent)
+        self.assertIn(child, main.children)
+        self.assertIn(grandchild, child.children)
+        self.assertEqual(grandchild.ancestors, [child, main])
+        self.assertTrue(grandchild.is_child_of(main))
+        self.assertFalse(main.is_child_of(child))
+        main.close()  # cascades: child and grandchild close too
+        self.assertTrue(child.was_closed)
+        self.assertTrue(grandchild.was_closed)
+        self.assertEqual(main.children, [])
+
+    def test_parent_parameter_before_finalize(self):
+        main = sg.Window("main", [[sg.Text("m")]], finalize=True)
+        child = sg.Window("child", [[sg.Text("c")]], parent=main)  # not finalized yet
+        self.assertIs(child.parent, main)
+        child.finalize()  # link established at finalize
+        self.assertIn(child, main.children)
+        child.close()
+        self.assertEqual(main.children, [])
+        main.close()
+
+    def test_transient_sets_parent(self):
+        main = sg.Window("main", [[sg.Text("m")]], finalize=True)
+        dialog = sg.Window("dialog", [[sg.Text("d")]], finalize=True)
+        dialog.transient(main)
+        self.assertIs(dialog.parent, main)
+        self.assertIn(dialog, main.children)
+        dialog.transient(None)  # detach
+        self.assertIsNone(dialog.parent)
+        self.assertEqual(main.children, [])
+        dialog.close()
+        main.close()
+
+    def test_child_close_keeps_parent(self):
+        main = sg.Window("main", [[sg.Text("m")]], finalize=True)
+        child = sg.Window("child", [[sg.Text("c")]], finalize=True, parent=main)
+        child.close()
+        self.assertFalse(main.was_closed)
+        self.assertEqual(main.children, [])
+        main.close()
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()
