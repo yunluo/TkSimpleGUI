@@ -51,6 +51,7 @@ class Table(Element):
         "_images",
         "_enable_edit",
         "_editor",
+        "_records",
     )
 
     def __init__(
@@ -105,6 +106,7 @@ class Table(Element):
         self._images = []
         self._enable_edit = bool(enable_edit)
         self._editor = None
+        self._records = []
 
     def _create_widget(self, master):
         kwargs = {}
@@ -162,6 +164,72 @@ class Table(Element):
         except tk.TclError:
             pass
 
+    # --- data binding (lightweight TDataSource) ---------------------------------------
+    def bind(self, records, headings=None):
+        """Bind a list of dicts (or objects) as the table contents.
+
+        Columns come from ``headings`` (explicit order) or from the union of
+        record keys in first-appearance order. Rebuilds the widget columns
+        and rows; the original records stay available through
+        :attr:`selected_records` and stay in sync with cell edits.
+        """
+        self._records = list(records)
+        if headings is not None:
+            columns = [str(heading) for heading in headings]
+        else:
+            columns = []
+            for record in self._records:
+                keys = record.keys() if isinstance(record, dict) else []
+                for key in keys:
+                    if key not in columns:
+                        columns.append(key)
+        self._headings = columns
+        rows = []
+        for record in self._records:
+            if isinstance(record, dict):
+                rows.append([_record_value(record, column) for column in columns])
+            else:
+                rows.append([_record_value(record, index) for index, _ in enumerate(columns)])
+        self._values = rows
+        if self._widget is not None:
+            self._rebuild_widget()
+        return self
+
+    def _rebuild_widget(self):
+        columns = ["col{}".format(i) for i in range(len(self._headings))]
+        self._widget.configure(columns=columns)
+        for index, heading in enumerate(self._headings):
+            column_id = "col{}".format(index)
+            self._widget.heading(
+                column_id,
+                text=str(heading),
+                command=lambda idx=index: self._on_heading_click(idx),
+            )
+        self._widget.delete(*self._widget.get_children())
+        for row_index, row in enumerate(self._values):
+            item_id = self._widget.insert(
+                "", "end", values=[str(cell) for cell in row]
+            )
+            self._apply_row_icon(self._widget, item_id, row_index)
+
+    @property
+    def records(self):
+        """The records bound by :meth:`bind` (empty when not bound)."""
+        return list(self._records)
+
+    @property
+    def selected_records(self):
+        """The original records of the currently selected rows."""
+        if not self._records:
+            return []
+        children = self._widget.get_children()
+        result = []
+        for item_id in self._widget.selection():
+            index = children.index(item_id) if item_id in children else None
+            if index is not None and index < len(self._records):
+                result.append(self._records[index])
+        return result
+
     # --- sorting -------------------------------------------------------------------
     def _on_heading_click(self, column_index):
         self.sort_by(column_index)
@@ -188,7 +256,18 @@ class Table(Element):
             except (TypeError, ValueError):
                 return (1, 0.0, str(value))
 
-        self._values = sorted(self._values, key=sort_key, reverse=not ascending)
+        order = sorted(
+            range(len(self._values)),
+            key=lambda index: sort_key(self._values[index]),
+            reverse=not ascending,
+        )
+        self._values = [self._values[index] for index in order]
+        if self._records:
+            self._records = [
+                self._records[index]
+                for index in order
+                if index < len(self._records)
+            ]
         if self._widget is not None:
             self._widget.delete(*self._widget.get_children())
             for row in self._values:
@@ -298,6 +377,10 @@ class Table(Element):
         self._editor = None
         if value != row[col_index]:
             row[col_index] = value
+            if self._records and row_index < len(self._records):
+                record = self._records[row_index]
+                if isinstance(record, dict) and col_index < len(self._headings):
+                    record[self._headings[col_index]] = value
             self._widget.item(item, values=[str(cell) for cell in row])
             self._post_event((self._key, row_index, col_index, value))
 
@@ -305,6 +388,18 @@ class Table(Element):
         if self._editor is editor:
             editor.destroy()
             self._editor = None
+
+
+def _record_value(record, key):
+    """Cell text from a dict record (key) or object (attribute/index)."""
+    if isinstance(record, dict):
+        value = record.get(key, "")
+    else:
+        try:
+            value = getattr(record, str(key))
+        except AttributeError:
+            value = ""
+    return "" if value is None else str(value)
 
 
 class Tree(Element):

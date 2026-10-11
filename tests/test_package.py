@@ -811,6 +811,191 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
 
+class TestThirdBatch(unittest.TestCase):
+    """第三批：Action/UserSettings/数据绑定/i18n/动画/托盘/CLI。"""
+
+    def test_action_normalization_and_callback(self):
+        fired = []
+        open_action = sg.Action(
+            "Open", key="-OPEN-", callback=lambda w, v: fired.append("open")
+        )
+        menu_item = sg.Text("menu", key="Open")  # posting text "Open"
+        window = sg.Window(
+            "t", [[menu_item]], finalize=True, actions=[open_action]
+        )
+        window._post_event("Open")  # menu text normalizes to the key
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "-OPEN-")
+        self.assertEqual(fired, ["open"])
+        window.close()
+
+    def test_action_shortcut_bound(self):
+        save_action = sg.Action("Save", key="-SAVE-", shortcut="<Control-s>")
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True, actions=[save_action])
+        shortcuts = [pattern for pattern, _key in window._event_binds]
+        self.assertIn("<Control-s>", shortcuts)
+        window.close()
+
+    def test_action_list_helpers(self):
+        actions = sg.ActionList(
+            [sg.Action("Open", key="-OPEN-"), sg.Action("Exit", key="-EXIT-")]
+        )
+        self.assertEqual(actions.keys(), ["-OPEN-", "-EXIT-"])
+        self.assertEqual(actions.by_text("Exit").key, "-EXIT-")
+        self.assertEqual(actions.by_key("-OPEN-").text, "Open")
+        self.assertEqual(
+            actions.menu_definition("&File"),
+            [["&File", "Open", "Exit"]],
+        )
+        button = sg.Action("Save", key="-SAVE-").to_button()
+        self.assertEqual(button.key, "-SAVE-")
+        self.assertEqual(button.button_text, "Save")
+
+    def test_user_settings(self):
+        import shutil
+        import tempfile
+
+        directory = tempfile.mkdtemp()
+        try:
+            prefs = sg.UserSettings("test.json", path=directory)
+            prefs.set("theme", "DarkBlue3")
+            prefs.set("window/size", "800x600")
+            self.assertEqual(prefs.get("theme"), "DarkBlue3")
+            self.assertEqual(prefs.get("window/size"), "800x600")
+            self.assertIn("theme", prefs)
+            self.assertEqual(prefs["window/size"], "800x600")
+            # a fresh instance reads the same file back
+            again = sg.UserSettings("test.json", path=directory)
+            self.assertEqual(again.get("theme"), "DarkBlue3")
+            again.delete("window/size")
+            self.assertNotIn("window/size", again)
+            self.assertIsNone(again.get("window/size"))
+            prefs.delete_file()
+            self.assertEqual(sg.UserSettings("test.json", path=directory).as_dict(), {})
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
+
+    def test_table_bind(self):
+        records = [
+            {"name": "apple", "qty": 3},
+            {"name": "pear", "qty": 1},
+        ]
+        table = sg.Table([], headings=[], key="-TB-")
+        window = sg.Window("t", [[table]], finalize=True)
+        table.bind(records)
+        window.refresh()
+        self.assertEqual(table.headings, ["name", "qty"])
+        children = table.widget.get_children()
+        self.assertEqual(
+            [list(table.widget.item(c, "values")) for c in children],
+            [["apple", "3"], ["pear", "1"]],
+        )
+        table.widget.selection_set(children[0])
+        self.assertEqual(table.selected_records, [{"name": "apple", "qty": 3}])
+        # cell edit writes back into the bound record
+        table._begin_cell_edit(children[0], "#2")
+        self.assertIsNotNone(table._editor)
+        table._editor.delete(0, "end")
+        table._editor.insert(0, "9")
+        table._finish_cell_edit(table._editor, children[0], table._values[0], 0, 1)
+        self.assertEqual(records[0]["qty"], "9")
+        # sorting keeps records aligned
+        table.sort_by(1, ascending=True)
+        children = table.widget.get_children()  # sorting clears the selection
+        table.widget.selection_set(children[0])
+        self.assertEqual(table.selected_records[0]["name"], "pear")
+        window.close()
+
+    def test_i18n(self):
+        import json
+        import shutil
+        import tempfile
+
+        directory = tempfile.mkdtemp()
+        try:
+            catalog_path = "{}{}".format(directory, "zh.json")
+            with open(catalog_path, "w") as handle:
+                json.dump({"Open": "打开", "Save": "保存"}, handle)
+            sg.set_translations(catalog_path)
+            self.assertEqual(sg.translate("Open"), "打开")
+            self.assertEqual(sg._("Save"), "保存")
+            self.assertEqual(sg._("Unknown"), "Unknown")
+            sg.add_translation("Close", "关闭")
+            self.assertEqual(sg._("Close"), "关闭")
+            sg.clear_translations()
+            self.assertEqual(sg._("Open"), "Open")
+        finally:
+            shutil.rmtree(directory, ignore_errors=True)
+
+    def test_animation_fade_and_progress(self):
+        bar = sg.ProgressBar(100, key="-BAR-")
+        window = sg.Window("t", [[bar]], finalize=True)
+        handle = sg.animate_progress(window, "-BAR-", 100, duration_ms=60, steps=4)
+        deadline = time.time() + 2.0
+        while handle.active and time.time() < deadline:
+            window.read(timeout=20)
+        self.assertEqual(bar.get(), 100)
+        self.assertFalse(handle.active)
+        fade = sg.fade_in(window, duration_ms=60, steps=4)
+        window.refresh()
+        fade.cancel()
+        window.close()
+
+    def test_animation_slide(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        target = (window.current_location()[0] + 30, window.current_location()[1])
+        handle = sg.slide(window, target, duration_ms=60, steps=3)
+        deadline = time.time() + 2.0
+        while handle.active and time.time() < deadline:
+            window.read(timeout=20)
+        location = window.current_location()
+        self.assertGreaterEqual(location[0], target[0] - 2)
+        window.close()
+
+    @unittest.skipUnless(sg.running_windows(), "SystemTray is Windows only")
+    def test_system_tray_lifecycle(self):
+        # runs in a subprocess: the tray owns a hidden Win32 message window,
+        # and its WndProc must not interleave with this process's Tcl state
+        import subprocess
+
+        probe = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "_split",
+            "_tray_probe.py",
+        )
+        result = subprocess.run(
+            [sys.executable, probe],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+        output = result.stdout.decode("utf-8", "replace")
+        self.assertEqual(
+            result.returncode, 0, output + result.stderr.decode("utf-8", "replace")
+        )
+        self.assertIn("step: read -> __TIMEOUT__", output)
+        self.assertIn("SURVIVED", output)
+
+    def test_cli(self):
+        import io
+        from contextlib import redirect_stdout
+
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            sg.main(["--version"])
+        self.assertIn("PySimpleGUI4", buffer.getvalue())
+        self.assertIn(sg.__version__, buffer.getvalue())
+        buffer = io.StringIO()
+        with redirect_stdout(buffer):
+            sg.main(["--themes"])
+        self.assertGreater(len(buffer.getvalue().splitlines()), 150)
+
+    def test_dbg_returns_quickly(self):
+        # dbg formats args and delegates to the quick popup
+        self.assertTrue(callable(sg.dbg))
+        self.assertTrue(callable(sg.popup_quick))
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()

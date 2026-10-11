@@ -29,6 +29,9 @@ requires-python = ">=3.4"
 Homepage = "https://www.pysimplegui.org"
 Repository = "https://github.com/PySimpleGUI/PySimpleGUI"
 
+[project.scripts]
+PySimpleGUI4 = "PySimpleGUI4:main"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 

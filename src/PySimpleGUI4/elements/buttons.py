@@ -145,6 +145,11 @@ class Button(Element):
             **kwargs
         )
 
+    @classmethod
+    def from_action(cls, action, **kwargs):
+        """Create a button wired to an :class:`~PySimpleGUI4.actions.Action`."""
+        return cls(action.text, key=action.key, **kwargs)
+
     # --- identity ------------------------------------------------------------
     @property
     def button_text(self):

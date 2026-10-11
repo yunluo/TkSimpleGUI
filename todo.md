@@ -33,15 +33,15 @@
 - [x] **Table 单元格编辑**（对标 TStringGrid）— `enable_edit=True` 双击编辑，提交后 `values` 同步并投递 `(key, row, col, new_value)` 元组事件
 - [x] **Shape 元素**（对标 TShape/TBevel）— `Shape("rectangle"/"oval"/"triangle"/"line")`，颜色可 update
 
-## 🥉 第三批：架构件与基础设施（需单独设计）
+## 🥉 第三批：架构件与基础设施 ✅ 全部完成
 
-- [ ] **ActionList 设计**（对标 TActionList / Qt QAction）— 菜单项/右键/按钮/快捷键绑定同一动作，一个 `Action(text, key, shortcut, callback)` 多处复用；牵扯事件模型，先出设计再实现
-- [ ] **UserSettings**（对标 TIniFile/QSettings）— INI/JSON 用户配置持久化，`UserSettings()` 读写
-- [ ] **数据绑定轻量版**（对标 TDataSource 的最小替代）— `Table.bind(list_of_dicts)` 自动生成表头+刷新
-- [ ] **i18n**（对标 Qt tr()/QTranslator）— `_("text")` 占位 + 字典翻译
-- [ ] **动画 helper**（对标 QPropertyAnimation 的简化版）— 基于 `after` 的 fade/slide/progress 动画
-- [ ] **SystemTray 托盘菜单** — 补 Windows 托盘右键菜单与图标交互（当前仅气泡通知）
-- [ ] **debug window / CLI 入口**（原版 PySimpleGUI 有的配套件）
+- [x] **ActionList**（对标 TActionList / Qt QAction）— `Action(text, key, shortcut, callback)`；Window 构造参数 `actions=`：菜单/右键文本自动归一化为 key、快捷键自动绑定、事件读取时自动触发 `callback(window, values)`；`Action.to_button()` / `ActionList.menu_definition(title)`
+- [x] **UserSettings**（对标 QSettings/TIniFile）— JSON 持久化（默认 `~/.pysimplegui4/`），`set/get/delete/keys`、`/` 嵌套路径、字典式访问、写入即落盘
+- [x] **Table.bind(records)**（TDataSource 轻量版）— list-of-dicts 自动推列（或显式 headings），`selected_records` 取原始记录，单元格编辑回写 dict，排序同步重排记录
+- [x] **i18n**（Qt tr() 简化版）— `_("Open")` + `set_translations(字典或JSON文件)` / `add_translation` / `clear_translations`，未命中原样返回
+- [x] **动画 helper**（QPropertyAnimation 简化版）— `fade_in/fade_out/slide/animate_progress`，全部基于 `window.every` 返回可取消句柄
+- [x] **SystemTray 托盘菜单** — 真托盘图标（ctypes 隐藏消息窗口 + WNDPROC + PNG→ICO 内存包装）+ 右键菜单（TrackPopupMenu/TPM_RETURNCMD）+ 左键/双击/气泡点击事件队列 + `read(timeout)`（复用 Tk 消息泵，独立托盘自建隐藏 root）
+- [x] **CLI + dbg** — `python -m PySimpleGUI4 [--version|--themes]`（pyproject 注册 `PySimpleGUI4` 命令）；`sg.dbg(*args)` 快速调试弹窗
 
 ## ⛔ 明确不做（超出零依赖 Tkinter 边界，不再反复评估）
 
@@ -52,7 +52,7 @@
 
 ## 附：回归基线
 
-- 测试：`python -m unittest tests.test_package`（79 个，含 P0/右键/排序/undo/logo/前两批回归）
+- 测试：`python -m unittest tests.test_package`（90 个，含三批全部回归；托盘测试以子进程隔离运行）
 - 冒烟：`python _split/oo_smoke.py`（32 项）
 - 兼容扫描：ast 检查无 f-string（test_no_fstrings）、`__slots__` 无 `__dict__`
 - 每批提交后：compileall + 上述两项 + git commit（中文 + fix:/feat:/refactor: 前缀）

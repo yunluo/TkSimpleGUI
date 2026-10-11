@@ -10,6 +10,7 @@ from tkinter import ttk
 from .. import constants as C
 from .. import _theming as theme_mod
 from .. import settings as settings_mod
+from ..actions import Action, ActionList
 from ..elements.base import ContainerElement, Element, build_popup_menu
 from ..elements.containers import Menu
 
@@ -56,6 +57,9 @@ class Window(object):
         "_element_justification",
         "_right_click_menu",
         "_popup_menu",
+        "_action_by_key",
+        "_action_by_text",
+        "_event_binds",
         "_radio_groups",
         "_toggle_groups",
         "_ttk_style",
@@ -83,6 +87,7 @@ class Window(object):
         disable_close=False,
         element_justification=None,
         right_click_menu=None,
+        actions=None,
     ):
         self._title = title
         self._layout = _validate_layout(layout)
@@ -108,10 +113,15 @@ class Window(object):
         self._element_justification = element_justification
         self._right_click_menu = right_click_menu
         self._popup_menu = None
+        self._action_by_key = {}
+        self._action_by_text = {}
+        self._event_binds = []
         self._radio_groups = {}
         self._toggle_groups = {}
         self._ttk_style = None
         self._drag_offset = None
+        if actions is not None:
+            self.set_actions(actions)
         if finalize:
             self.finalize()
 
@@ -276,6 +286,8 @@ class Window(object):
             root.protocol("WM_DELETE_WINDOW", lambda: self._post_event(C.WIN_CLOSED))
         if self._return_keyboard_events:
             root.bind("<Key>", self._on_keyboard_event)
+        for shortcut, key in self._event_binds:
+            root.bind(shortcut, lambda _e, k=key: self._post_event(k))
 
     def _show_popup_menu(self, event):
         if self._popup_menu is not None:
@@ -380,9 +392,49 @@ class Window(object):
             group.append(button)
 
     # --- event plumbing ---------------------------------------------------------------
+    def set_actions(self, actions):
+        """Register :class:`~PySimpleGUI4.actions.Action` objects.
+
+        Menu/right-click item texts matching an action's text are normalized
+        to its key, shortcuts are bound as keyboard events, and the action's
+        callback fires automatically when its event is read. Returns self.
+        """
+        self._action_by_key = {}
+        self._action_by_text = {}
+        if isinstance(actions, ActionList):
+            actions = list(actions)
+        for action in actions:
+            self._action_by_key[action.key] = action
+            self._action_by_text[action.text] = action
+            if action.shortcut:
+                self.bind(action.shortcut, action.key)
+        return self
+
+    def bind(self, shortcut, key=None):
+        """Bind a tk event pattern (e.g. ``"<Control-o>"``) to an event key.
+
+        The binding works before and after :meth:`finalize`. Returns self.
+        """
+        self._event_binds.append((shortcut, key))
+        if self._root_alive():
+            self._tk_root.bind(shortcut, lambda _e, k=key: self._post_event(k))
+        return self
+
+    def _dispatch_action(self, event, values):
+        """Auto-fire the callback of the action matching ``event``."""
+        if not self._action_by_key or not isinstance(event, str):
+            return
+        action = self._action_by_key.get(event)
+        if action is not None:
+            action.trigger(self, values)
+
     def _post_event(self, key):
         """Queue an event (called by elements; user code uses ``write_event``)."""
         if not self._closed:
+            if self._action_by_text and isinstance(key, str):
+                action = self._action_by_text.get(key)
+                if action is not None:
+                    key = action.key
             self._event_queue.put(key)
 
     def write_event_value(self, value):
@@ -492,12 +544,15 @@ class Window(object):
                 event = timeout_key
             if event is not None:
                 values = self._collect_values()
+                self._dispatch_action(event, values)
                 if close:
                     self.close()
                 return event, values
             time.sleep(0.01)
 
     def _root_alive(self):
+        if self._tk_root is None:
+            return False
         try:
             return bool(self._tk_root.winfo_exists())
         except tk.TclError:

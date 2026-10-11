@@ -143,6 +143,20 @@ from .window import Window, SystemTray
 # --- event manager ---------------------------------------------------------------------
 from .event import PySimpleEvent, singleton_window
 
+# --- actions ------------------------------------------------------------------------------
+from .actions import Action, ActionList
+
+# --- user settings / i18n / animation --------------------------------------------------------
+from .user_settings import UserSettings
+from .i18n import (
+    _,
+    translate,
+    set_translations,
+    add_translation,
+    clear_translations,
+)
+from .animation import fade_in, fade_out, slide, animate_progress
+
 # --- popups ------------------------------------------------------------------------------
 from .popup import (
     popup,
@@ -229,6 +243,10 @@ __all__ = [
     "StatusBar", "VerticalSeparator", "HorizontalSeparator", "Sizegrip",
     "validate_integer", "validate_float", "validate_regex",
     "Window", "SystemTray", "PySimpleEvent", "singleton_window",
+    "Action", "ActionList", "UserSettings",
+    "_", "translate", "set_translations", "add_translation",
+    "clear_translations",
+    "fade_in", "fade_out", "slide", "animate_progress", "dbg",
     "popup", "popup_ok", "popup_yes_no", "popup_ok_cancel", "popup_cancel",
     "popup_error", "popup_scrolled", "popup_no_buttons", "popup_non_blocking",
     "popup_quick", "popup_quick_message", "popup_auto_close", "popup_timed",
@@ -242,9 +260,35 @@ __all__ = [
 ]
 
 
-def main():
-    """Print the version (placeholder for a future CLI)."""
-    print("PySimpleGUI4", __version__)
+def dbg(*args, **kwargs):
+    """Print into a quick auto-closing debug popup (PySimpleGUI dbg)."""
+    text = " ".join(
+        str(arg) if not isinstance(arg, str) else arg for arg in args
+    )
+    return popup_quick(text, title=kwargs.get("title", "Debug"))
+
+
+def main(argv=None):
+    """Command line entry: ``python -m PySimpleGUI4 [--version | --themes]``."""
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        prog="PySimpleGUI4", description="PySimpleGUI4 GUI framework"
+    )
+    parser.add_argument(
+        "--version", action="store_true", help="print the version and exit"
+    )
+    parser.add_argument(
+        "--themes", action="store_true", help="list the available themes and exit"
+    )
+    options = parser.parse_args(argv)
+    if options.version:
+        print("PySimpleGUI4", __version__)
+    elif options.themes:
+        for name in list_of_look_and_feel_values():
+            print(name)
+    else:
+        parser.print_help()
 
 
 if __name__ == "__main__":
