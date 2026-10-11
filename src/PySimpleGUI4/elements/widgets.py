@@ -45,7 +45,7 @@ def _char_height(size):
 class Text(Element):
     """A static label."""
 
-    __slots__ = ("_text", "_text_color", "_background_color", "_justification", "_font", "_enable_events")
+    __slots__ = ("_text", "_text_color", "_background_color", "_font", "_enable_events")
 
     def __init__(
         self,
@@ -59,8 +59,24 @@ class Text(Element):
         enable_events=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Text, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Text, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._text = "" if text is None else str(text)
         self._text_color = text_color
         self._background_color = background_color
@@ -82,7 +98,7 @@ class Text(Element):
         if width is not None:
             kwargs["width"] = width
         if self._font is not None:
-            kwargs["font"] = self._resolve_font(self._font)
+            kwargs["font"] = self._font
         label = ttk.Label(master, **kwargs)
         return label
 
@@ -105,17 +121,22 @@ class Text(Element):
             self._background_color = background_color
             self._widget.configure(background=background_color)
         if visible is not None:
-            if visible:
-                self.unhide()
-            else:
-                self.hide()
+            self.unhide() if visible else self.hide()
         return self
 
 
 class Input(InputElement):
     """Single line text entry (ttk based for a native look)."""
 
-    __slots__ = ("_default_text", "_enable_events", "_password_char", "_textvariable")
+    __slots__ = (
+        "_default_text",
+        "_enable_events",
+        "_password_char",
+        "_textvariable",
+        "_text_color",
+        "_background_color",
+        "_font",
+    )
 
     def __init__(
         self,
@@ -124,24 +145,55 @@ class Input(InputElement):
         size=(None, None),
         enable_events=False,
         password_char="",
+        text_color=None,
+        background_color=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Input, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Input, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._default_text = "" if default_text is None else str(default_text)
         self._enable_events = enable_events
         self._password_char = password_char
         self._textvariable = None
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
 
     def _create_widget(self, master):
         self._textvariable = tk.StringVar(value=self._default_text)
-        kwargs = theme_mod.theme_manager.input_kwargs()
+        style_name = theme_mod.theme_manager.ttk_widget_style(
+            master,
+            "TEntry",
+            foreground=self._text_color,
+            fieldbackground=self._background_color,
+            font=self._font,
+        )
+        kwargs = {"style": style_name}
         width = _char_width(self._size)
         if width is not None:
             kwargs["width"] = width
         if self._password_char:
             kwargs["show"] = self._password_char
         entry = ttk.Entry(master, textvariable=self._textvariable, **kwargs)
+        self._apply_disabled(entry)
         return entry
 
     def _bind_events(self):
@@ -159,13 +211,14 @@ class Input(InputElement):
 
     def update(self, value=None, disabled=None, select=None, visible=None):
         if value is not None:
-            state = self._widget.cget("state")
+            state = str(self._widget.cget("state"))
             if state == "disabled":
                 self._widget.configure(state="normal")
             self._textvariable.set(str(value))
             if state == "disabled":
                 self._widget.configure(state="disabled")
         if disabled is not None:
+            self._disabled = bool(disabled)
             self._widget.configure(state="disabled" if disabled else "normal")
         if select:
             self._widget.select_range(0, "end")
@@ -186,7 +239,16 @@ InputText = Input
 class Combo(InputElement):
     """Dropdown combo box (ttk.Combobox)."""
 
-    __slots__ = ("_values", "_default_value", "_enable_events", "_readonly", "_variable")
+    __slots__ = (
+        "_values",
+        "_default_value",
+        "_enable_events",
+        "_readonly",
+        "_variable",
+        "_text_color",
+        "_background_color",
+        "_font",
+    )
 
     def __init__(
         self,
@@ -196,29 +258,60 @@ class Combo(InputElement):
         size=(None, None),
         enable_events=False,
         readonly=True,
+        text_color=None,
+        background_color=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Combo, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Combo, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._values = list(values)
         self._default_value = default_value
         self._enable_events = enable_events
         self._readonly = readonly
         self._variable = None
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
 
     def _create_widget(self, master):
         self._variable = tk.StringVar(
             value="" if self._default_value is None else str(self._default_value)
         )
-        kwargs = theme_mod.theme_manager.input_kwargs()
+        style_name = theme_mod.theme_manager.ttk_widget_style(
+            master,
+            "TCombobox",
+            foreground=self._text_color,
+            fieldbackground=self._background_color,
+            font=self._font,
+        )
+        kwargs = {"style": style_name}
         width = _char_width(self._size)
         if width is not None:
             kwargs["width"] = width
+        state = "disabled" if self._disabled else ("readonly" if self._readonly else "normal")
         combo = ttk.Combobox(
             master,
             textvariable=self._variable,
             values=[str(v) for v in self._values],
-            state="readonly" if self._readonly else "normal",
+            state=state,
             **kwargs
         )
         return combo
@@ -242,6 +335,7 @@ class Combo(InputElement):
         if value is not None:
             self._variable.set(str(value))
         if disabled is not None:
+            self._disabled = bool(disabled)
             state = "disabled" if disabled else ("readonly" if self._readonly else "normal")
             self._widget.configure(state=state)
         if visible is not None:
@@ -264,7 +358,7 @@ class OptionMenu(Combo):
 class Listbox(InputElement):
     """Multi item selection list."""
 
-    __slots__ = ("_values", "_select_mode", "_enable_events")
+    __slots__ = ("_values", "_select_mode", "_enable_events", "_text_color", "_background_color", "_font")
 
     def __init__(
         self,
@@ -273,16 +367,41 @@ class Listbox(InputElement):
         size=C.DEFAULT_LISTBOX_SIZE,
         select_mode=C.SelectMode.BROWSE,
         enable_events=False,
+        text_color=None,
+        background_color=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Listbox, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Listbox, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._values = list(values)
         self._select_mode = select_mode
         self._enable_events = enable_events
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
 
     def _create_widget(self, master):
-        kwargs = theme_mod.theme_manager.input_kwargs()
+        kwargs = theme_mod.theme_manager.input_kwargs(
+            text_color=self._text_color, background_color=self._background_color
+        )
         kwargs["exportselection"] = False
         width = _char_width(self._size)
         height = _char_height(self._size)
@@ -290,10 +409,13 @@ class Listbox(InputElement):
             kwargs["width"] = width
         if height is not None:
             kwargs["height"] = height
+        if self._font is not None:
+            kwargs["font"] = self._font
         mode = _SELECT_MODE_MAP.get(self._select_mode, tk.BROWSE)
         listbox = tk.Listbox(master, selectmode=mode, **kwargs)
         for value in self._values:
             listbox.insert("end", str(value))
+        self._apply_disabled(listbox)
         return listbox
 
     def _bind_events(self):
@@ -313,7 +435,7 @@ class Listbox(InputElement):
     def selected_indices(self):
         return list(self._widget.curselection())
 
-    def update(self, values=None, set_to_index=None, select_rows=None, visible=None):
+    def update(self, values=None, set_to_index=None, select_rows=None, disabled=None, visible=None):
         if values is not None:
             self._values = list(values)
             self._widget.delete(0, "end")
@@ -327,6 +449,9 @@ class Listbox(InputElement):
             self._widget.selection_clear(0, "end")
             for row in select_rows or ():
                 self._widget.selection_set(row)
+        if disabled is not None:
+            self._disabled = bool(disabled)
+            self._widget.configure(state="disabled" if disabled else "normal")
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -335,7 +460,15 @@ class Listbox(InputElement):
 class Spin(InputElement):
     """Spinbox with a fixed set of values."""
 
-    __slots__ = ("_values", "_initial_value", "_enable_events", "_variable")
+    __slots__ = (
+        "_values",
+        "_initial_value",
+        "_enable_events",
+        "_variable",
+        "_text_color",
+        "_background_color",
+        "_font",
+    )
 
     def __init__(
         self,
@@ -344,28 +477,56 @@ class Spin(InputElement):
         key=None,
         size=(None, None),
         enable_events=False,
+        text_color=None,
+        background_color=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Spin, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Spin, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._values = list(values)
         self._initial_value = (
             initial_value if initial_value is not None else (values[0] if values else "")
         )
         self._enable_events = enable_events
         self._variable = None
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
 
     def _create_widget(self, master):
         self._variable = tk.StringVar(value=str(self._initial_value))
-        kwargs = theme_mod.theme_manager.input_kwargs()
+        kwargs = theme_mod.theme_manager.input_kwargs(
+            text_color=self._text_color, background_color=self._background_color
+        )
         width = _char_width(self._size)
         if width is not None:
             kwargs["width"] = width
+        if self._font is not None:
+            kwargs["font"] = self._font
+        state = "disabled" if self._disabled else "readonly"
         spin = tk.Spinbox(
             master,
             values=[str(v) for v in self._values],
             textvariable=self._variable,
-            state="readonly",
+            state=state,
             **kwargs
         )
         return spin
@@ -379,12 +540,15 @@ class Spin(InputElement):
     def get(self):
         return self._variable.get()
 
-    def update(self, value=None, values=None, visible=None):
+    def update(self, value=None, values=None, disabled=None, visible=None):
         if values is not None:
             self._values = list(values)
             self._widget.configure(values=[str(v) for v in self._values])
         if value is not None:
             self._variable.set(str(value))
+        if disabled is not None:
+            self._disabled = bool(disabled)
+            self._widget.configure(state="disabled" if disabled else "readonly")
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -393,7 +557,7 @@ class Spin(InputElement):
 class Checkbox(InputElement):
     """Checkbox with a boolean value."""
 
-    __slots__ = ("_text", "_default", "_enable_events", "_variable")
+    __slots__ = ("_text", "_default", "_enable_events", "_variable", "_text_color", "_background_color", "_font")
 
     def __init__(
         self,
@@ -401,19 +565,50 @@ class Checkbox(InputElement):
         default=False,
         key=None,
         enable_events=False,
+        text_color=None,
+        background_color=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Checkbox, self).__init__(key=key, tooltip=tooltip, visible=visible)
+        super(Checkbox, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._text = text
         self._default = bool(default)
         self._enable_events = enable_events
         self._variable = None
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
 
     def _create_widget(self, master):
         self._variable = tk.BooleanVar(value=self._default)
-        kwargs = theme_mod.theme_manager.text_kwargs()
-        checkbox = ttk.Checkbutton(master, text=self._text, variable=self._variable, **kwargs)
+        style_name = theme_mod.theme_manager.ttk_widget_style(
+            master,
+            "TCheckbutton",
+            foreground=self._text_color,
+            background=self._background_color,
+            font=self._font,
+        )
+        checkbox = ttk.Checkbutton(
+            master, text=self._text, variable=self._variable, style=style_name
+        )
+        self._apply_disabled(checkbox)
         return checkbox
 
     def _bind_events(self):
@@ -435,6 +630,7 @@ class Checkbox(InputElement):
             self._text = text
             self._widget.configure(text=text)
         if disabled is not None:
+            self._disabled = bool(disabled)
             self._widget.configure(state="disabled" if disabled else "normal")
         if visible is not None:
             self.unhide() if visible else self.hide()
@@ -444,7 +640,7 @@ class Checkbox(InputElement):
 class Radio(InputElement):
     """Radio button sharing a value with every radio of the same group."""
 
-    __slots__ = ("_text", "_group_id", "_default", "_enable_events")
+    __slots__ = ("_text", "_group_id", "_default", "_enable_events", "_text_color", "_background_color", "_font")
 
     def __init__(
         self,
@@ -453,14 +649,36 @@ class Radio(InputElement):
         default=False,
         key=None,
         enable_events=False,
+        text_color=None,
+        background_color=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Radio, self).__init__(key=key, tooltip=tooltip, visible=visible)
+        super(Radio, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._text = text
         self._group_id = group_id
         self._default = bool(default)
         self._enable_events = enable_events
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
 
     @property
     def group_id(self):
@@ -468,16 +686,23 @@ class Radio(InputElement):
 
     def _create_widget(self, master):
         group_variable = self._window.radio_group_variable(self._group_id)
-        kwargs = theme_mod.theme_manager.text_kwargs()
+        style_name = theme_mod.theme_manager.ttk_widget_style(
+            master,
+            "TRadiobutton",
+            foreground=self._text_color,
+            background=self._background_color,
+            font=self._font,
+        )
         radio = ttk.Radiobutton(
             master,
             text=self._text,
             value=self._text,
             variable=group_variable,
-            **kwargs
+            style=style_name,
         )
         if self._default:
             group_variable.set(self._text)
+        self._apply_disabled(radio)
         return radio
 
     def _bind_events(self):
@@ -495,6 +720,7 @@ class Radio(InputElement):
             self._text = text
             self._widget.configure(text=text)
         if disabled is not None:
+            self._disabled = bool(disabled)
             self._widget.configure(state="disabled" if disabled else "normal")
         if visible is not None:
             self.unhide() if visible else self.hide()
@@ -515,10 +741,27 @@ class Slider(InputElement):
         enable_events=False,
         resolution=None,
         size=(20, 15),
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Slider, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Slider, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._range = range
         self._default_value = (
             default_value if default_value is not None else range[0]
@@ -544,6 +787,7 @@ class Slider(InputElement):
             to=self._range[1],
         )
         scale.set(self._default_value)
+        self._apply_disabled(scale)
         return scale
 
     def _bind_events(self):
@@ -564,6 +808,7 @@ class Slider(InputElement):
         if value is not None:
             self._widget.set(value)
         if disabled is not None:
+            self._disabled = bool(disabled)
             self._widget.configure(state="disabled" if disabled else "normal")
         if visible is not None:
             self.unhide() if visible else self.hide()
@@ -573,7 +818,13 @@ class Slider(InputElement):
 class Multiline(InputElement):
     """Multi line text area."""
 
-    __slots__ = ("_default_text", "_enable_events")
+    __slots__ = (
+        "_default_text",
+        "_enable_events",
+        "_text_color",
+        "_background_color",
+        "_font",
+    )
 
     def __init__(
         self,
@@ -582,23 +833,51 @@ class Multiline(InputElement):
         size=(40, 5),
         enable_events=False,
         enter_submits=False,
+        text_color=None,
+        background_color=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Multiline, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Multiline, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            disabled=disabled,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._default_text = "" if default_text is None else str(default_text)
         self._enable_events = enable_events
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
 
     def _create_widget(self, master):
-        kwargs = theme_mod.theme_manager.input_kwargs()
+        kwargs = theme_mod.theme_manager.input_kwargs(
+            text_color=self._text_color, background_color=self._background_color
+        )
         width = _char_width(self._size)
         height = _char_height(self._size)
         if width is not None:
             kwargs["width"] = width
         if height is not None:
             kwargs["height"] = height
+        if self._font is not None:
+            kwargs["font"] = self._font
         text = tk.Text(master, **kwargs)
         text.insert("1.0", self._default_text)
+        self._apply_disabled(text)
         return text
 
     def _bind_events(self):
@@ -636,6 +915,7 @@ class Multiline(InputElement):
                 self._widget.insert("1.0", str(value))
             self._widget.configure(state="disabled")
         if disabled is not None:
+            self._disabled = bool(disabled)
             self._widget.configure(state="disabled" if disabled else "normal")
         if visible is not None:
             self.unhide() if visible else self.hide()
@@ -667,8 +947,23 @@ class ProgressBar(Element):
         current_value=0,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(ProgressBar, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(ProgressBar, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._max_value = max_value
         self._orientation = orientation
         self._current = current_value

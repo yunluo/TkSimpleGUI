@@ -6,9 +6,15 @@
 creation, post configuration and event binding. State is fully encapsulated:
 subclasses declare ``__slots__`` and expose behaviour through properties and
 methods instead of public attributes.
+
+Every element also carries the shared layout hints (``pad``, ``expand_x``,
+``expand_y``, ``justification``), an optional ``right_click_menu`` and free
+form ``metadata``, handled by the base class itself.
 """
 
 from abc import ABCMeta, abstractmethod
+
+import tkinter as tk
 
 from .. import constants as C
 from .. import _theming as theme_mod
@@ -43,15 +49,50 @@ class ElementBaseMeta(ABCMeta):
 class Element(object, metaclass=ElementBaseMeta):
     """Abstract base class for every PySimpleGUI4 element."""
 
-    __slots__ = ("_key", "_window", "_widget", "_visible", "_tooltip", "_size")
+    __slots__ = (
+        "_key",
+        "_window",
+        "_widget",
+        "_visible",
+        "_tooltip",
+        "_size",
+        "_pad",
+        "_expand_x",
+        "_expand_y",
+        "_justification",
+        "_right_click_menu",
+        "_metadata",
+        "_tooltip_binding",
+        "_popup_menu",
+    )
 
-    def __init__(self, key=None, size=(None, None), tooltip=None, visible=True):
+    def __init__(
+        self,
+        key=None,
+        size=(None, None),
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
+    ):
         self._key = key
         self._window = None
         self._widget = None
         self._visible = bool(visible)
         self._tooltip = tooltip
         self._size = size
+        self._pad = pad
+        self._expand_x = bool(expand_x)
+        self._expand_y = bool(expand_y)
+        self._justification = justification
+        self._right_click_menu = right_click_menu
+        self._metadata = metadata
+        self._tooltip_binding = None
+        self._popup_menu = None
 
     # --- identity ------------------------------------------------------------
     @property
@@ -87,6 +128,31 @@ class Element(object, metaclass=ElementBaseMeta):
     def visible(self):
         return self._visible
 
+    @property
+    def pad(self):
+        """The per element padding override (None = package default)."""
+        return self._pad
+
+    @property
+    def expand_x(self):
+        """True when the element stretches horizontally with its cell."""
+        return self._expand_x
+
+    @property
+    def expand_y(self):
+        """True when the element stretches vertically with its cell."""
+        return self._expand_y
+
+    @property
+    def justification(self):
+        """Cell alignment hint: "left", "right" or "center"."""
+        return self._justification
+
+    @property
+    def metadata(self):
+        """Free form user data attached to the element (any object)."""
+        return self._metadata
+
     # --- template method ------------------------------------------------------
     def _build(self, master, window):
         """Template method: create the widget and wire it up.
@@ -98,8 +164,6 @@ class Element(object, metaclass=ElementBaseMeta):
         self._widget = self._create_widget(master)
         self._post_create()
         self._bind_events()
-        if not self._visible:
-            self._widget.grid_remove()
         if self._tooltip is not None:
             self._attach_tooltip()
         return self._widget
@@ -109,10 +173,98 @@ class Element(object, metaclass=ElementBaseMeta):
         """Create and return the tk widget (subclass responsibility)."""
 
     def _post_create(self):
-        """Hook run right after widget creation (default: nothing)."""
+        """Hook run right after widget creation (default: right-click menu)."""
+        if self._right_click_menu is not None:
+            self._attach_right_click_menu()
 
     def _bind_events(self):
         """Hook for event bindings (default: nothing)."""
+
+    # --- grid integration ---------------------------------------------------------
+    def _grid_into(self, master, row, column, default_pad, default_justification):
+        """Grid the widget honouring pad/expand/justification hints.
+
+        Called by :meth:`Window._build_layout`. Returns ``(expand_x, expand_y)``
+        so the caller can configure matching row/column weights.
+        """
+        left, right, top, bottom = _parse_pad(
+            self._pad if self._pad is not None else default_pad
+        )
+        if self._expand_x:
+            sticky_x = "we"
+        else:
+            choice = self._justification or default_justification
+            if choice is None or str(choice).lower() in ("l", "left"):
+                sticky_x = "w"
+            elif str(choice).lower() in ("r", "right"):
+                sticky_x = "e"
+            else:
+                sticky_x = ""
+        sticky = sticky_x + ("ns" if self._expand_y else "")
+        self._widget.grid(
+            row=row,
+            column=column,
+            padx=(left, right),
+            pady=(top, bottom),
+            sticky=sticky or None,
+        )
+        if not self._visible:
+            self._widget.grid_remove()
+        return self._expand_x, self._expand_y
+
+    # --- right click menu ---------------------------------------------------------
+    def _attach_right_click_menu(self):
+        definition = self._right_click_menu
+        if definition and isinstance(definition[0], (list, tuple)):
+            cascades = definition
+        else:
+            cascades = [definition]
+        menu = tk.Menu(self._widget, tearoff=False)
+        for entry in cascades:
+            if not isinstance(entry, (list, tuple)) or len(entry) < 2:
+                raise ValueError(
+                    "right_click_menu entries must be (title, items) pairs: {!r}".format(
+                        entry
+                    )
+                )
+            title = str(entry[0]).replace(C.MENU_SHORTCUT_CHARACTER, "")
+            submenu = tk.Menu(menu, tearoff=False)
+            self._fill_popup_items(submenu, entry[1])
+            menu.add_cascade(label=title, menu=submenu)
+        self._popup_menu = menu
+        self._widget.bind("<Button-3>", self._show_popup_menu)
+
+    def _fill_popup_items(self, menu, items):
+        for item in items:
+            if isinstance(item, (list, tuple)):
+                if len(item) == 2 and isinstance(item[1], (list, tuple)):
+                    title = str(item[0]).replace(C.MENU_SHORTCUT_CHARACTER, "")
+                    submenu = tk.Menu(menu, tearoff=False)
+                    self._fill_popup_items(submenu, item[1])
+                    menu.add_cascade(label=title, menu=submenu)
+                else:
+                    self._fill_popup_items(menu, item)
+                continue
+            if item == C.MENU_SEPARATOR_LINE:
+                menu.add_separator()
+                continue
+            label = str(item).replace(C.MENU_SHORTCUT_CHARACTER, "")
+            disabled = label.startswith(C.MENU_DISABLED_CHARACTER)
+            if disabled:
+                label = label[len(C.MENU_DISABLED_CHARACTER):]
+            menu.add_command(
+                label=label,
+                state="disabled" if disabled else "normal",
+                command=lambda text=label: self._post_event(text),
+            )
+
+    def _show_popup_menu(self, event):
+        if self._popup_menu is not None:
+            try:
+                self._popup_menu.tk_popup(event.x_root, event.y_root)
+            finally:
+                self._popup_menu.grab_release()
+        return "break"
 
     # --- internals -------------------------------------------------------------
     def _post_event(self, key=None):
@@ -121,8 +273,6 @@ class Element(object, metaclass=ElementBaseMeta):
             self._window._post_event(key if key is not None else self._key)
 
     def _attach_tooltip(self):
-        from ..tooltip import Tooltip
-
         self._tooltip_binding = Tooltip(self._widget, self._tooltip)
 
     def _resolve_font(self, font):
@@ -225,7 +375,45 @@ class Tooltip(object):
 class InputElement(Element):
     """Intermediate base for elements that hold a readable value."""
 
-    __slots__ = ()
+    __slots__ = ("_disabled",)
+
+    def __init__(
+        self,
+        key=None,
+        size=(None, None),
+        tooltip=None,
+        visible=True,
+        disabled=False,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(InputElement, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._disabled = bool(disabled)
+
+    @property
+    def disabled(self):
+        """True when the element was disabled at construction."""
+        return self._disabled
+
+    def _apply_disabled(self, widget):
+        """Apply the constructor ``disabled`` state to a freshly built widget."""
+        if self._disabled:
+            widget.configure(state="disabled")
 
     def get(self):
         """Return the element's current value."""
@@ -244,9 +432,31 @@ class ContainerElement(Element):
 
     __slots__ = ("_layout",)
 
-    def __init__(self, layout, key=None, size=(None, None), tooltip=None, visible=True):
+    def __init__(
+        self,
+        layout,
+        key=None,
+        size=(None, None),
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
+    ):
         super(ContainerElement, self).__init__(
-            key=key, size=size, tooltip=tooltip, visible=visible
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
         )
         self._layout = _validate_layout(layout)
 
@@ -256,6 +466,7 @@ class ContainerElement(Element):
         return self._layout
 
     def _post_create(self):
+        super(ContainerElement, self)._post_create()
         if self._layout:
             self._window._build_layout(self._layout, self._widget)
 
@@ -274,6 +485,17 @@ def _validate_layout(layout):
             row = [row]
         rows.append(list(row))
     return rows
+
+
+def _parse_pad(pad):
+    """Normalize a pad spec (number, (x, y) or ((l, r), (t, b))) to 4 numbers."""
+    if pad is None:
+        return (0, 0, 0, 0)
+    if isinstance(pad, (int, float)):
+        return (pad, pad, pad, pad)
+    if len(pad) == 2 and isinstance(pad[0], (list, tuple)):
+        return (pad[0][0], pad[0][1], pad[1][0], pad[1][1])
+    return (pad[0], pad[0], pad[1], pad[1])
 
 
 def theme_window_kwargs():

@@ -85,6 +85,8 @@ SOLID = "solid"
 BROWSE_FILES_DELIMITER = ";"
 FILE_TYPES_ALL_FILES = (("ALL Files", "*.*"),)
 
+DEFAULT_THREAD_KEY = "-THREAD DONE-"
+
 # base64 icons
 DEFAULT_BASE64_ICON = (
     b"R0lGODlhIQAgAPcAAAAAADBpmDBqmTFqmjJrmzJsnDNtnTRrmTZtmzZumzRtnTdunDRunTRunjVv"

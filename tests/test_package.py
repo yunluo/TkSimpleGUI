@@ -215,6 +215,185 @@ class TestWindow(unittest.TestCase):
         window.close()
 
 
+class TestElementOptions(unittest.TestCase):
+    """P0 element level options: metadata, pad/expand, right click menu."""
+
+    def test_metadata(self):
+        element = sg.Text("x", metadata={"answer": 42})
+        self.assertEqual(element.metadata, {"answer": 42})
+        self.assertIsNone(sg.Input("d").metadata)
+
+    def test_pad_and_expand_stored(self):
+        element = sg.Text("x", pad=(10, 5), expand_x=True)
+        self.assertEqual(element.pad, (10, 5))
+        self.assertTrue(element.expand_x)
+        self.assertFalse(element.expand_y)
+
+    def test_parse_pad_forms(self):
+        from PySimpleGUI4.elements.base import _parse_pad
+
+        self.assertEqual(_parse_pad(None), (0, 0, 0, 0))
+        self.assertEqual(_parse_pad(3), (3, 3, 3, 3))
+        self.assertEqual(_parse_pad((4, 2)), (4, 4, 2, 2))
+        self.assertEqual(_parse_pad(((1, 2), (3, 4))), (1, 2, 3, 4))
+
+    def test_tooltip_finalize(self):
+        # regression: attaching a tooltip used to crash on __slots__
+        window = sg.Window("t", [[sg.Text("hi", tooltip="tip")]], finalize=True)
+        self.assertIsNotNone(window.tk_root)
+        window.close()
+
+    def test_disabled_construction(self):
+        window = sg.Window(
+            "t",
+            [[sg.Input("", key="-IN-", disabled=True), sg.Button("B", key="-B-", disabled=True)]],
+            finalize=True,
+        )
+        self.assertEqual(str(window["-IN-"].widget.cget("state")), "disabled")
+        self.assertTrue(window["-IN-"].disabled)
+        self.assertEqual(str(window["-B-"].widget.cget("state")), "disabled")
+        window.close()
+
+    def test_right_click_menu_built(self):
+        element = sg.Text(
+            "x",
+            right_click_menu=["&Menu", ["One", "---", "!Two", ["&Sub", ["Deep"]]]],
+        )
+        window = sg.Window("t", [[element]], finalize=True)
+        menu = element._popup_menu
+        self.assertIsNotNone(menu)
+        # single cascade entry "Menu" wrapping the items
+        self.assertEqual(menu.entrycget(0, "label"), "Menu")
+        submenu = menu.nametowidget(menu.entrycget(0, "menu"))
+        self.assertEqual(submenu.entrycget(0, "label"), "One")
+        self.assertEqual(submenu.type(1), "separator")
+        self.assertEqual(submenu.entrycget(2, "label"), "Two")
+        self.assertEqual(submenu.entrycget(2, "state"), "disabled")
+        nested = submenu.nametowidget(submenu.entrycget(3, "menu"))
+        self.assertEqual(nested.entrycget(0, "label"), "Deep")
+        window.close()
+
+    def test_custom_colors_and_font(self):
+        window = sg.Window(
+            "t",
+            [
+                [
+                    sg.Input(
+                        "",
+                        key="-IN-",
+                        text_color="#ff0000",
+                        background_color="#101010",
+                        font=("Courier", 10),
+                    ),
+                    sg.Button("B", key="-B-", button_color=("#ffffff", "#000080")),
+                    sg.Checkbox("c", key="-CK-", text_color="#0000ff", font=("Arial", 12)),
+                    sg.Combo(["a"], key="-CB-", background_color="#202020"),
+                ]
+            ],
+            finalize=True,
+        )
+        self.assertIsNotNone(window["-IN-"].widget)
+        window.close()
+
+    def test_themed_ttk_widgets(self):
+        # regression: themed mode used to crash ttk.Entry/Checkbutton with
+        # unknown "-background" options
+        sg.theme("DarkBlue3")
+        try:
+            window = sg.Window(
+                "t",
+                [
+                    [sg.Input("", key="-IN-"), sg.Combo(["a"], key="-CB-"), sg.Checkbox("c", key="-CK-")],
+                    [sg.Button("B", key="-B-"), sg.Radio("r", 1, key="-R-"), sg.Slider((0, 10))],
+                    [sg.Table([["a"]], headings=["H"], key="-TB-"), sg.Tree(headings=["H"], key="-TR-")],
+                ],
+                finalize=True,
+            )
+            window.close()
+        finally:
+            sg.theme(None)
+
+
+class TestWindowManagement(unittest.TestCase):
+    def test_expand_weights(self):
+        window = sg.Window(
+            "t",
+            [[sg.Text("left"), sg.Input("", key="-IN-", expand_x=True)]],
+            finalize=True,
+        )
+        frame = window.tk_root.grid_slaves()[0]
+        self.assertEqual(frame.columnconfigure(1)["weight"], 1)
+        self.assertEqual(frame.columnconfigure(0)["weight"], 0)
+        window.close()
+
+    def test_justification_sticky(self):
+        window = sg.Window(
+            "t",
+            [[sg.Text("r", justification="right")]],
+            finalize=True,
+        )
+        widget = window.tk_root.grid_slaves()[0].grid_slaves()[0]
+        info = widget.grid_info()
+        self.assertEqual(info["sticky"], "e")
+        window.close()
+
+    def test_perform_long_operation(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        thread = window.perform_long_operation(lambda: "-RESULT-")
+        self.assertTrue(thread.daemon)
+        event, _values = window.read(timeout=3000)
+        self.assertEqual(event, "-RESULT-")
+        window.close()
+
+    def test_perform_long_operation_window_arg(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+
+        def worker(win):
+            win.write_event_value("-FROM-WORKER-")
+
+        window.perform_long_operation(worker, end_key=None)
+        event, _values = window.read(timeout=3000)
+        self.assertEqual(event, "-FROM-WORKER-")
+        window.close()
+
+    def test_window_management_api(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window.set_size((320, 200))
+        window.refresh()
+        self.assertGreaterEqual(window.size[0], 300)
+        window.set_alpha_channel(0.8)
+        window.keep_on_top()
+        window.hide()
+        window.unhide()
+        window.minimize()
+        window.normal()
+        window.maximize()
+        window.normal()
+        window.move_to_center()
+        location = window.current_location()
+        self.assertIsInstance(location, tuple)
+        self.assertEqual(len(location), 2)
+        window.title = "new title"
+        self.assertEqual(window.title, "new title")
+        window.close()
+
+    def test_get_screen_size(self):
+        width, height = sg.Window.get_screen_size()
+        self.assertGreater(width, 0)
+        self.assertGreater(height, 0)
+
+    def test_disable_close(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True, disable_close=True)
+        window.tk_root.protocol("WM_DELETE_WINDOW")  # handler exists, no crash
+        window.close()
+        self.assertTrue(window.was_closed)
+
+    def test_resizable_option(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True, resizable=False)
+        self.assertEqual(window.tk_root.resizable(), (False, False))
+        window.close()
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()

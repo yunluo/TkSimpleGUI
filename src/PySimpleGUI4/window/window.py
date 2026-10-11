@@ -2,6 +2,7 @@
 """The :class:`Window` class: layout hosting, event loop and element lookup."""
 
 import queue
+import threading
 import time
 import tkinter as tk
 from tkinter import ttk
@@ -50,6 +51,9 @@ class Window(object):
         "_margins",
         "_background_color",
         "_icon",
+        "_resizable",
+        "_disable_close",
+        "_element_justification",
         "_radio_groups",
         "_ttk_style",
         "_drag_offset",
@@ -72,6 +76,9 @@ class Window(object):
         icon=None,
         background_color=None,
         margins=None,
+        resizable=None,
+        disable_close=False,
+        element_justification=None,
     ):
         self._title = title
         self._layout = _validate_layout(layout)
@@ -92,6 +99,9 @@ class Window(object):
         self._margins = margins if margins is not None else settings_mod.settings.margins
         self._background_color = background_color
         self._icon = icon
+        self._resizable = resizable
+        self._disable_close = bool(disable_close)
+        self._element_justification = element_justification
         self._radio_groups = {}
         self._ttk_style = None
         self._drag_offset = None
@@ -102,6 +112,12 @@ class Window(object):
     @property
     def title(self):
         return self._title
+
+    @title.setter
+    def title(self, value):
+        self._title = value
+        if self._root_alive():
+            self._tk_root.title(value)
 
     @property
     def tk_root(self):
@@ -121,6 +137,17 @@ class Window(object):
     def ttk_style(self):
         return self._ttk_style
 
+    @property
+    def size(self):
+        """The window size in pixels (use :meth:`set_size` to change it)."""
+        if not self._root_alive():
+            return (0, 0)
+        return (self._tk_root.winfo_width(), self._tk_root.winfo_height())
+
+    @size.setter
+    def size(self, value):
+        self.set_size(value)
+
     # --- class level registry ---------------------------------------------------
     @classmethod
     def active_windows(cls):
@@ -138,6 +165,22 @@ class Window(object):
             if event != timeout_key:
                 return (window, event, values)
         return None
+
+    @classmethod
+    def get_screen_size(cls):
+        """``(width, height)`` of the primary screen in pixels."""
+        root = None
+        if cls._open_windows and cls._open_windows[0]._root_alive():
+            root = cls._open_windows[0]._tk_root
+        temporary = root is None
+        if temporary:
+            root = tk.Tk()
+            root.withdraw()
+        try:
+            return (root.winfo_screenwidth(), root.winfo_screenheight())
+        finally:
+            if temporary:
+                root.destroy()
 
     # --- construction -------------------------------------------------------------
     def finalize(self):
@@ -157,7 +200,9 @@ class Window(object):
             if bg is not None:
                 content.configure(background=bg)
             margins = self._margins
-            content.grid(row=0, column=0, padx=margins[0], pady=margins[1])
+            self._tk_root.rowconfigure(0, weight=1)
+            self._tk_root.columnconfigure(0, weight=1)
+            content.grid(row=0, column=0, padx=margins[0], pady=margins[1], sticky="nsew")
             self._build_layout(self._layout, content)
         except Exception:
             self._destroy_root()
@@ -188,10 +233,7 @@ class Window(object):
         if window_kwargs:
             root.configure(**window_kwargs)
         if self._icon is not None:
-            try:
-                root.iconphoto(True, tk.PhotoImage(data=self._icon, master=root))
-            except tk.TclError:
-                pass
+            self._apply_icon(self._icon)
         width, height = self._size
         if width is not None and height is not None:
             root.geometry("{}x{}".format(int(width), int(height)))
@@ -203,13 +245,27 @@ class Window(object):
             root.overrideredirect(True)
         if self._keep_on_top:
             root.attributes("-topmost", True)
+        if self._resizable is not None:
+            if isinstance(self._resizable, (tuple, list)):
+                root.resizable(bool(self._resizable[0]), bool(self._resizable[1]))
+            else:
+                root.resizable(bool(self._resizable), bool(self._resizable))
         if self._grab_anywhere:
             root.bind("<ButtonPress-1>", self._start_move)
             root.bind("<ButtonRelease-1>", self._stop_move)
             root.bind("<B1-Motion>", self._on_motion)
-        root.protocol("WM_DELETE_WINDOW", lambda: self._post_event(C.WIN_CLOSED))
+        if self._disable_close:
+            root.protocol("WM_DELETE_WINDOW", lambda: None)
+        else:
+            root.protocol("WM_DELETE_WINDOW", lambda: self._post_event(C.WIN_CLOSED))
         if self._return_keyboard_events:
             root.bind("<Key>", self._on_keyboard_event)
+
+    def _apply_icon(self, icon):
+        try:
+            self._tk_root.iconphoto(True, tk.PhotoImage(data=icon, master=self._tk_root))
+        except tk.TclError:
+            pass
 
     def _show(self):
         root = self._tk_root
@@ -221,13 +277,13 @@ class Window(object):
 
     # --- drag when grab_anywhere ------------------------------------------------
     def _start_move(self, event):
-        self._drag_offset = (event.x, event.y)  # noqa: attribute created dynamically
+        self._drag_offset = (event.x, event.y)
 
     def _stop_move(self, _event):
         self._drag_offset = None
 
     def _on_motion(self, event):
-        offset = getattr(self, "_drag_offset", None)
+        offset = self._drag_offset
         if offset:
             x = self._tk_root.winfo_x() - offset[0] + event.x
             y = self._tk_root.winfo_y() - offset[1] + event.y
@@ -239,6 +295,9 @@ class Window(object):
     # --- layout building -----------------------------------------------------------
     def _build_layout(self, layout, master):
         padding = settings_mod.settings.element_padding
+        default_justification = self._element_justification
+        expand_columns = set()
+        expand_rows = set()
         for row_index, row in enumerate(layout):
             for col_index, element in enumerate(row):
                 if not isinstance(element, Element):
@@ -246,16 +305,20 @@ class Window(object):
                         "layout cell is not an Element: {!r}".format(element)
                     )
                 self._register_element(element)
-                widget = element._build(master, self)
+                element._build(master, self)
                 if isinstance(element, Menu):
                     continue  # menubar is attached to the root, not gridded
-                widget.grid(
-                    row=row_index,
-                    column=col_index,
-                    padx=padding[0],
-                    pady=padding[1],
-                    sticky="w",
+                expand_x, expand_y = element._grid_into(
+                    master, row_index, col_index, padding, default_justification
                 )
+                if expand_x:
+                    expand_columns.add(col_index)
+                if expand_y:
+                    expand_rows.add(row_index)
+        for column in expand_columns:
+            master.columnconfigure(column, weight=1)
+        for row in expand_rows:
+            master.rowconfigure(row, weight=1)
 
     def _register_element(self, element):
         key = element.key
@@ -288,8 +351,31 @@ class Window(object):
         self._post_event(value)
         return self
 
-    def _on_keyboard_event(self, event):  # noqa: F811 - single definition used
-        self._post_event(str(event.keysym))
+    def perform_long_operation(self, func, end_key=C.DEFAULT_THREAD_KEY):
+        """Run ``func`` in a background thread without blocking the GUI.
+
+        With the default ``end_key`` the thread's return value is posted as
+        an event (``end_key`` itself when the function returns ``None``;
+        on an exception ``end_key`` is posted and the traceback re-raised in
+        the worker thread). Pass ``end_key=None`` to receive this window as
+        the ``func`` argument and post events yourself with
+        :meth:`write_event_value`.
+        """
+        if end_key is None:
+            def target():
+                func(self)
+        else:
+            def target():
+                try:
+                    result = func()
+                except Exception:
+                    self._post_event(end_key)
+                    raise
+                self.write_event_value(result if result is not None else end_key)
+        thread = threading.Thread(target=target)
+        thread.daemon = True
+        thread.start()
+        return thread
 
     # --- reading -----------------------------------------------------------------------
     def read(self, timeout=None, close=False, timeout_key=C.TIMEOUT_KEY):
@@ -414,6 +500,104 @@ class Window(object):
             element = self._elements_by_key.get(element)
         if element is not None:
             element.unhide()
+        return self
+
+    # --- window management ---------------------------------------------------------------
+    def set_size(self, size):
+        """Resize the window to ``(width, height)`` pixels."""
+        if self._root_alive() and size is not None:
+            self._tk_root.geometry("{}x{}".format(int(size[0]), int(size[1])))
+        return self
+
+    def current_location(self):
+        """The window's ``(x, y)`` position on the screen."""
+        if not self._root_alive():
+            return (0, 0)
+        return (self._tk_root.winfo_x(), self._tk_root.winfo_y())
+
+    def move(self, x, y):
+        """Move the window to the given screen position."""
+        if self._root_alive():
+            self._tk_root.geometry("+{}+{}".format(int(x), int(y)))
+        return self
+
+    def move_to_center(self):
+        """Center the window on the screen."""
+        if not self._root_alive():
+            return self
+        width, height = self.size
+        if width <= 1:
+            self._tk_root.update_idletasks()
+            width = self._tk_root.winfo_reqwidth()
+            height = self._tk_root.winfo_reqheight()
+        x = max(0, (self._tk_root.winfo_screenwidth() - width) // 2)
+        y = max(0, (self._tk_root.winfo_screenheight() - height) // 2)
+        self._tk_root.geometry("+{}+{}".format(x, y))
+        return self
+
+    def maximize(self):
+        """Maximize the window (fills the screen; the title bar stays)."""
+        if self._root_alive():
+            try:
+                self._tk_root.state("zoomed")
+            except tk.TclError:
+                try:
+                    self._tk_root.attributes("-zoomed", True)
+                except tk.TclError:
+                    pass
+        return self
+
+    def minimize(self):
+        """Iconify the window to the task bar."""
+        if self._root_alive():
+            self._tk_root.iconify()
+        return self
+
+    def normal(self):
+        """Restore the window to its normal size and position."""
+        if self._root_alive():
+            try:
+                self._tk_root.state("normal")
+            except tk.TclError:
+                self._tk_root.deiconify()
+        return self
+
+    def restore(self):
+        """Alias of :meth:`normal`."""
+        return self.normal()
+
+    def set_alpha_channel(self, alpha):
+        """Set the window transparency (``0.0`` invisible - ``1.0`` opaque)."""
+        if self._root_alive():
+            try:
+                self._tk_root.attributes("-alpha", float(alpha))
+            except tk.TclError:
+                pass
+        return self
+
+    def keep_on_top(self):
+        """Keep this window above all others."""
+        if self._root_alive():
+            self._tk_root.attributes("-topmost", True)
+        return self
+
+    def hide(self):
+        """Withdraw the window (it keeps running, just not shown)."""
+        if self._root_alive():
+            self._tk_root.withdraw()
+        return self
+
+    def unhide(self):
+        """Show a hidden window again."""
+        if self._root_alive():
+            self._tk_root.deiconify()
+        return self
+
+    def set_icon(self, icon):
+        """Set the window icon from base64 image data."""
+        self._icon = icon
+        if self._root_alive() and icon is not None:
+            self._apply_icon(icon)
         return self
 
     # --- lifecycle -----------------------------------------------------------------------

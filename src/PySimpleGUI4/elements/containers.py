@@ -27,8 +27,26 @@ class Frame(ContainerElement):
         size=(None, None),
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Frame, self).__init__(layout=layout, key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Frame, self).__init__(
+            layout=layout,
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._title = title
 
     @property
@@ -66,8 +84,26 @@ class Column(ContainerElement):
         vertical_alignment=None,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Column, self).__init__(layout=layout, key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Column, self).__init__(
+            layout=layout,
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._background_color = background_color
         self._vertical_alignment = vertical_alignment
 
@@ -91,8 +127,30 @@ class Tab(ContainerElement):
 
     __slots__ = ("_title",)
 
-    def __init__(self, title, layout, key=None, visible=True):
-        super(Tab, self).__init__(layout=layout, key=key, visible=visible)
+    def __init__(
+        self,
+        title,
+        layout,
+        key=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(Tab, self).__init__(
+            layout=layout,
+            key=key,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._title = title
 
     @property
@@ -120,8 +178,31 @@ class TabGroup(Element):
 
     __slots__ = ("_tabs",)
 
-    def __init__(self, layout, key=None, tab_location=C.Location.TOP, tooltip=None, visible=True):
-        super(TabGroup, self).__init__(key=key, tooltip=tooltip, visible=visible)
+    def __init__(
+        self,
+        layout,
+        key=None,
+        tab_location=C.Location.TOP,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(TabGroup, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         rows = _validate_layout(layout)
         tabs = []
         for row in rows:
@@ -159,8 +240,29 @@ class Menu(Element):
 
     __slots__ = ("_menu_definition", "_tearoff")
 
-    def __init__(self, menu_definition, key=None, tearoff=False, visible=True):
-        super(Menu, self).__init__(key=key, visible=visible)
+    def __init__(
+        self,
+        menu_definition,
+        key=None,
+        tearoff=False,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super(Menu, self).__init__(
+            key=key,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._menu_definition = menu_definition
         self._tearoff = tearoff
 

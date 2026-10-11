@@ -7,6 +7,8 @@ system's native look (Windows Vista style, macOS Aqua, ...). Applying a named
 theme from :data:`LOOK_AND_FEEL_TABLE` switches to PySimpleGUI colors.
 """
 
+from tkinter import ttk
+
 from ._theme_data import LOOK_AND_FEEL_TABLE
 
 try:
@@ -36,10 +38,11 @@ class ThemeManager(object):
     keep the system's default theme.
     """
 
-    __slots__ = ("_name",)
+    __slots__ = ("_name", "_style_cache")
 
     def __init__(self):
         self._name = None
+        self._style_cache = {}
 
     # --- name handling -----------------------------------------------------
     @property
@@ -195,6 +198,28 @@ class ThemeManager(object):
         return kwargs
 
     # --- ttk styling ---------------------------------------------------------
+    def ttk_widget_style(self, master, base, **options):
+        """Return a ttk style name honouring per-widget option overrides.
+
+        ``base`` is a ttk style class such as ``"TEntry"``. When every option
+        is ``None`` the plain base is returned (no derived style is created).
+        Derived styles are cached so widgets asking for the same combination
+        share one style.
+        """
+        effective = dict(
+            (key, value) for key, value in options.items() if value is not None
+        )
+        if not effective:
+            return base
+        style = ttk.Style(master)
+        cache_key = (base,) + tuple(sorted(effective.items()))
+        name = self._style_cache.get(cache_key)
+        if name is None:
+            name = "PSG4_{0}.{1}".format(len(self._style_cache), base)
+            self._style_cache[cache_key] = name
+            style.configure(name, **effective)
+        return name
+
     def configure_ttk(self, style):
         """Apply the current theme to a ``ttk.Style`` (no-op when native)."""
         if self.is_native:
@@ -226,6 +251,16 @@ class ThemeManager(object):
         input_fg = self.input_text_color or fg
         style.configure("TEntry", fieldbackground=input_bg, foreground=input_fg)
         style.configure("TCombobox", fieldbackground=input_bg, foreground=input_fg)
+        style.configure(
+            "Treeview",
+            background=input_bg or bg,
+            fieldbackground=input_bg or bg,
+            foreground=input_fg,
+        )
+        style.configure("Treeview.Heading", background=bg, foreground=fg)
+        if self.slider_color is not None:
+            style.configure("Horizontal.TScale", troughcolor=self.slider_color)
+            style.configure("Vertical.TScale", troughcolor=self.slider_color)
         style.configure("TNotebook", background=bg, foreground=fg)
         style.configure("TNotebook.Tab", background=bg, foreground=fg)
         style.map("TNotebook.Tab", background=[("selected", input_bg or bg)])

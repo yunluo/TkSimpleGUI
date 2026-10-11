@@ -16,7 +16,7 @@ except ImportError:
 class StatusBar(Element):
     """Sunken label typically placed at the bottom of a window."""
 
-    __slots__ = ("_text", "_text_color", "_background_color")
+    __slots__ = ("_text", "_text_color", "_background_color", "_font")
 
     def __init__(
         self,
@@ -24,13 +24,31 @@ class StatusBar(Element):
         key=None,
         text_color=None,
         background_color=None,
+        font=None,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(StatusBar, self).__init__(key=key, tooltip=tooltip, visible=visible)
+        super(StatusBar, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._text = text
         self._text_color = text_color
         self._background_color = background_color
+        self._font = font
 
     def _create_widget(self, master):
         kwargs = theme_mod.theme_manager.text_kwargs(
@@ -38,6 +56,8 @@ class StatusBar(Element):
         )
         kwargs.setdefault("relief", tk.SUNKEN)
         kwargs.setdefault("anchor", "w")
+        if self._font is not None:
+            kwargs["font"] = self._font
         label = tk.Label(master, text=self._text, **kwargs)
         return label
 
@@ -58,8 +78,10 @@ class VerticalSeparator(Element):
 
     __slots__ = ("_padding",)
 
-    def __init__(self, padding=1, key=None, visible=True):
-        super(VerticalSeparator, self).__init__(key=key, visible=visible)
+    def __init__(self, padding=1, key=None, visible=True, pad=None, metadata=None):
+        super(VerticalSeparator, self).__init__(
+            key=key, visible=visible, pad=pad, metadata=metadata
+        )
         self._padding = padding
 
     def _create_widget(self, master):
@@ -71,8 +93,10 @@ class HorizontalSeparator(Element):
 
     __slots__ = ("_padding",)
 
-    def __init__(self, padding=1, key=None, visible=True):
-        super(HorizontalSeparator, self).__init__(key=key, visible=visible)
+    def __init__(self, padding=1, key=None, visible=True, pad=None, metadata=None):
+        super(HorizontalSeparator, self).__init__(
+            key=key, visible=visible, pad=pad, metadata=metadata
+        )
         self._padding = padding
 
     def _create_widget(self, master):
@@ -83,6 +107,9 @@ class Sizegrip(Element):
     """The small triangle that allows resizing a borderless window."""
 
     __slots__ = ()
+
+    def __init__(self, key=None, visible=True, pad=None, metadata=None):
+        super(Sizegrip, self).__init__(key=key, visible=visible, pad=pad, metadata=metadata)
 
     def _create_widget(self, master):
         return ttk.Sizegrip(master)

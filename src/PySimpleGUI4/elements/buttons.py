@@ -22,7 +22,15 @@ class Button(Element):
     element's key.
     """
 
-    __slots__ = ("_button_text", "_button_type", "_button_color", "_target_key", "_file_types", "_disabled")
+    __slots__ = (
+        "_button_text",
+        "_button_type",
+        "_button_color",
+        "_target_key",
+        "_file_types",
+        "_disabled",
+        "_font",
+    )
 
     def __init__(
         self,
@@ -33,16 +41,36 @@ class Button(Element):
         size=(None, None),
         target_key=None,
         file_types=None,
+        font=None,
+        disabled=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Button, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Button, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._button_text = button_text
         self._button_type = button_type
         self._button_color = button_color
         self._target_key = target_key
         self._file_types = tuple(file_types) if file_types is not None else C.FILE_TYPES_ALL_FILES
-        self._disabled = False
+        self._disabled = bool(disabled)
+        self._font = font
 
     @classmethod
     def browse_file(cls, button_text="Browse", target_key=None, file_types=None, **kwargs):
@@ -106,19 +134,34 @@ class Button(Element):
     def button_type(self):
         return self._button_type
 
+    @property
+    def disabled(self):
+        return self._disabled
+
     # --- widget ----------------------------------------------------------------
     def _create_widget(self, master):
         kwargs = {}
         width = self._size[0] if self._size else None
         if width is not None:
             kwargs["width"] = int(width)
-        button = ttk_button_class()(master, text=self._button_text, **kwargs)
-        if self._button_color is not None and isinstance(button, tk.Button):
-            fg, bg = self._button_color
+        colors = self._button_color
+        if colors is None:
+            colors = theme_mod.theme_manager.button_colors
+        style_options = {}
+        if colors is not None:
+            fg, bg = colors
             if fg is not None:
-                button.configure(foreground=fg)
+                style_options["foreground"] = fg
             if bg is not None:
-                button.configure(background=bg)
+                style_options["background"] = bg
+        if self._font is not None:
+            style_options["font"] = self._font
+        kwargs["style"] = theme_mod.theme_manager.ttk_widget_style(
+            master, "TButton", **style_options
+        )
+        button = ttk.Button(master, text=self._button_text, **kwargs)
+        if self._disabled:
+            button.configure(state="disabled")
         return button
 
     def _bind_events(self):
@@ -171,7 +214,7 @@ class Button(Element):
             self._button_text = text
             self._widget.configure(text=text)
         if disabled is not None:
-            self._disabled = disabled
+            self._disabled = bool(disabled)
             self._widget.configure(state="disabled" if disabled else "normal")
         if visible is not None:
             self.unhide() if visible else self.hide()
@@ -184,15 +227,12 @@ class Button(Element):
 
 
 def ttk_button_class():
-    """Pick the button class: ttk for native look, tk when colors are set.
+    """Legacy hook: the ttk button class used for a native look.
 
-    ttk buttons cannot display arbitrary (fg, bg) color pairs; when the
-    current theme defines button colors we fall back to a themed tk.Button.
+    Buttons are always ttk based since PySimpleGUI4 styles per-widget colors
+    through ttk styles; the function is kept for backward compatibility.
     """
-    manager = theme_mod.theme_manager
-    if manager.is_native:
-        return ttk.Button
-    return tk.Button
+    return ttk.Button
 
 
 class Submit(Button):

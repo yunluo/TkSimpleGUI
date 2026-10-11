@@ -52,8 +52,24 @@ class Table(Element):
         auto_size_columns=True,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Table, self).__init__(key=key, tooltip=tooltip, visible=visible)
+        super(Table, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._values = [list(row) for row in values]
         self._headings = list(headings)
         self._select_mode = select_mode
@@ -149,8 +165,24 @@ class Tree(Element):
         auto_size_columns=True,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Tree, self).__init__(key=key, tooltip=tooltip, visible=visible)
+        super(Tree, self).__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._headings = list(headings)
         self._num_rows = int(num_rows)
         self._enable_events = enable_events

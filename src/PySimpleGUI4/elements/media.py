@@ -26,8 +26,23 @@ class Image(Element):
         size=(None, None),
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Image, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Image, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._filename = filename
         self._data_base64 = data_base64
         self._photo = None
@@ -82,8 +97,23 @@ class Canvas(Element):
         enable_events=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
-        super(Canvas, self).__init__(key=key, size=size, tooltip=tooltip, visible=visible)
+        super(Canvas, self).__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
         self._background_color = background_color
         self._canvas_size = size
 
@@ -123,6 +153,11 @@ class Graph(Canvas):
         enable_events=False,
         tooltip=None,
         visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
     ):
         super(Graph, self).__init__(
             size=canvas_size,
@@ -131,6 +166,11 @@ class Graph(Canvas):
             enable_events=enable_events,
             tooltip=tooltip,
             visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
         )
         self._bottom_left = graph_bottom_left
         self._top_right = graph_top_right
