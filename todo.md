@@ -45,6 +45,15 @@
 - [x] **Tab 关闭按钮 ×**：`enable_close=True` 标签渲染 "×"，点击尾部 18px 命中区投递 `(key, "tab_closed", title)`，`closed_tabs` 属性
 - [x] **Windows 专属加码（hotkey.py，ctypes）**：`GlobalHotkeys`（RegisterHotKey + 专用 GetMessageW 线程 → write_event_value，非 Windows no-op）、`taskbar_progress(window)`（ITaskbarList3 手写 vtable 调用：set_value/set_indeterminate/set_state/clear）
 
+## 🎯 新阶段 · 单一事件循环 ✅ 完成（1c6febd）
+
+- [x] **全局事件总线**：`Window._event_bus` 类级队列，`_post_event` 投递 `(window, event, values快照)`；**任何** `window.read()` / `read_all_windows()` 都能消费**任何**窗口的事件（时间序）——多窗口天然支持，无需任何额外代码
+- [x] **`sg.main_loop(window, app)`**：用户**零循环**。框架泵所有窗口 root → 取总线事件 → `app.apply_event`（`@app.bind_event` + `on_*` 装饰器）→ `Action` 回调 → 全部窗口关闭自动退出
+- [x] **隐藏主 root 架构**：所有窗口都是隐藏 `tk.Tk` master 的 Toplevel——关闭任一窗口（含第一个）不再连带销毁其它窗口
+- [x] **WIN_CLOSED 语义**：仅用户点标题栏 X 产生（程序性 close 静默）；标题栏关闭自动出 registry；`Window.close_all()` 收尾
+- [x] **修复关键哨兵歧义**：WIN_CLOSED=None 与"总线空"无法区分导致的永久等待/丢事件——统一用 `queue.Empty` 作唯一无事件信号
+- [x] **跨窗口测试**：互发事件、子窗口创建、on_* 分发、main_loop 全关退出、stale 事件隔离（8 个新测试）
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
