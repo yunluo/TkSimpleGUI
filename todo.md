@@ -32,18 +32,18 @@
 
 - [x] **ty 零诊断（5865778）**：370 → 0；技法：非 Optional 类级槽注解（`_widget`/`_tk_root`/`_text`…，None 初始化行加 `# ty: ignore[invalid-assignment]`）、`Element.update(*args, **kwargs)` Liskov 基签名、tk stub Literal 参数 `cast(Literal[...], x)`、popup 布局行显式 `List[ElementRow]`；守卫：`python tests/check_types.py` 进回归基线
 
-## 🎯 新阶段 · 战线 B：Tk/ttk 做不到的也做（组合控件 / Canvas 自绘 / ctypes）
+## 🎯 新阶段 · 战线 B：Tk/ttk 做不到的也做 ✅ 全部完成
 
 已完成 same-spirit：表格行图标(#0 列技巧)、单元格编辑(Entry 覆盖)、FlowPanel(place 重排)、ScrollableColumn、CheckList、Calendar、toggle Button、Toolbar、托盘图标+菜单(ctypes Win32)、ActionList、数据绑定。
 
-- [ ] **Canvas 自绘按钮家族**：`RoundButton`（圆角/圆形按钮，tag_bind 命中）、`ImageButton`（任意底图按钮）——tk 无原生圆角
-- [ ] **Table 列宽拖拽**：表头分隔线命中检测 + 拖动改列宽（Treeview 无原生列拖拽）
-- [ ] **Tab 关闭按钮**：Notebook 标签页带 × 关闭（tab image + 点击区域命中）
-- [ ] **Toast 浮层**：窗口内右下角淡入淡出通知（Toplevel + alpha 动画 + after）
-- [ ] **带文字进度条**：Canvas 自绘进度 + 百分比文字覆盖（ttk 做不了文字叠加）
-- [ ] **Slider 数值气泡**：拖动时在滑块上方显示当前值
-- [ ] **Windows 专属加码（ctypes）**：任务栏进度条状态（ITaskbarList3）、全局热键（RegisterHotKey）
-- [ ] **多列分组 Tree**：可折叠分组节 + 汇总行样式（Treeview item tag 配色）
+- [x] **Canvas 自绘按钮家族（5933b9b，新 elements/fancy.py）**：`RoundButton`（圆角/圆形，smooth 多边形 + hover 变亮 + find_overlapping 命中）、`ImageButton`（任意图片整图点击 + hover 提亮）
+- [x] **带文字进度条**：`TextProgressBar`（Canvas 自绘 bar+trough+居中百分比文字，ttk 做不了文字叠加）
+- [x] **Toast 浮层**：`window.toast(msg, title=, duration_ms=)` 右下角淡入淡出 Toplevel，不抢焦点自动销毁
+- [x] **Table 列宽拖拽事件**：Treeview 无原生列宽事件 → ButtonRelease+identify("separator") 合成 `(key, "column_resized", col, px)` 事件 + `column_width`/`set_column_width`
+- [x] **Slider 数值气泡**：`show_value=True` 拖动时 Toplevel 气泡跟随滑块显示当前值（horizontal 上方 / vertical 右侧）
+- [x] **Tree 分组节点**：`insert_group`（粗体 tag）/`insert_summary`（灰色汇总行）/`collapse`/`expand`/`toggle`
+- [x] **Tab 关闭按钮 ×**：`enable_close=True` 标签渲染 "×"，点击尾部 18px 命中区投递 `(key, "tab_closed", title)`，`closed_tabs` 属性
+- [x] **Windows 专属加码（hotkey.py，ctypes）**：`GlobalHotkeys`（RegisterHotKey + 专用 GetMessageW 线程 → write_event_value，非 Windows no-op）、`taskbar_progress(window)`（ITaskbarList3 手写 vtable 调用：set_value/set_indeterminate/set_state/clear）
 
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
@@ -51,7 +51,7 @@
 
 ## 附：回归基线
 
-- 测试：`python -m unittest tests.test_package`（105 个，含全部批次回归；托盘测试以子进程隔离运行）
+- 测试：`python -m unittest tests.test_package`（117 个，含全部批次回归；托盘测试以子进程隔离运行）
 - 类型：`python tests/check_types.py`（ty 零诊断守卫）
 - 冒烟：`python _split/oo_smoke.py`（32+ 项，含 3.8+ 语法扫描与现代风格守卫）+ `python demo.py --smoke`
 - 每批提交后：compileall + 上述四项 + git commit（中文 + fix:/feat:/refactor: 前缀）
