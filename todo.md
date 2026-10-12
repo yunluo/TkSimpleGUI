@@ -82,6 +82,15 @@
 
 **核对后确认已覆盖无需补**：Button（text/disabled/image/compound/invoke）、Checkbutton 全部选项经 style/variable、Slider（from/to/orientation/value）、Menu（tearoff/separator/disabled/shortcut）、TabGroup（tab state/traversal/事件）、Scrollbar（command 双向直通）、Window wm 全集、Graph 全部 create_* + item 操作。
 
+## 🎯 新阶段 · IDE 亲和力专项 ✅ 完成（698500d）
+
+针对"讨厌 Tk 一切都是字符串"：新增 `src/PySimpleGUI4/enums.py`，**13 类 str 子类枚举**替代魔术字符串（枚举的值就是 Tk 字符串，与裸字符串完全互换）：
+
+- [x] **`sg.Anchor`**（9方位）/ **`sg.LabelAnchor`**（12方位标题）/ **`sg.Justify`** / **`sg.Relief`** / **`sg.Orientation`** / **`sg.Compound`**（图文混排）/ **`sg.State`** / **`sg.WrapMode`** / **`sg.ProgressMode`** / **`sg.Cursor`** / **`sg.Color`**（常用色名，`#rrggbb` 照常可用）
+- [x] **`sg.EventType`** —— 替代 `"<Button-1>"` 式事件串：`DOUBLE_CLICK`/`RIGHT_CLICK`/`FOCUS_IN`/`RETURN`... + 工厂方法 `control("o")`/`shift("F5")`/`alt("q")`/`key(name)`
+- [x] **`py.typed`**（PEP 561）+ 全量 Literal 注解 —— IDE 静默识别类型、补全、查错
+- [x] 控件构造参数全部接受枚举（str 子类天然兼容），枚举/字符串互换有 6 个专项测试钉住
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
