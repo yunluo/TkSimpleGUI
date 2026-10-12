@@ -1909,6 +1909,22 @@ class TestRunEntry(unittest.TestCase):
         window.run()  # no app: default_app() is used, handler above fires
         self.assertEqual(sg.Window.active_windows(), [])
 
+    def test_run_survives_idle_bus_before_any_event(self):
+        # regression: read_all_windows(timeout=0) returns (None, TIMEOUT_KEY)
+        # when the bus is empty, which used to be mistaken for "all windows
+        # closed" — run() exited immediately on the first idle tick
+        app = sg.TkSimpleEvent()
+
+        @app.bind_event("-LATE-")
+        def on_late(window, values):
+            sg.Window.close_all()
+
+        window = sg.Window("idle", [[sg.Text("x")]], finalize=True)
+        # post the event AFTER the loop has had a chance to see idle ticks
+        window.tk_root.after(300, lambda: window.write_event_value("-LATE-"))
+        window.run(app)
+        self.assertTrue(window.was_closed)
+
     def test_default_app_is_singleton(self):
         self.assertIs(sg.default_app(), sg.default_app())
         self.assertIsInstance(sg.default_app(), sg.TkSimpleEvent)

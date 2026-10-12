@@ -74,10 +74,16 @@ class TkSimpleEvent(object):
 
     # --- dispatch --------------------------------------------------------------
     def apply_event(self, window, event, values):
-        """Dispatch one event to its registered handler (if any)."""
+        """Dispatch one event to its registered handler (if any).
+
+        Timer ticks (``TIMEOUT_KEY``) and other no-handler events are
+        dropped silently; ``window`` may be ``None`` on timeout results.
+        """
+        if event == C.TIMEOUT_KEY:
+            return
         try:
             entry = self._event_handlers.get(event)
-            if entry is None and event in _ENTER_KEYS:
+            if entry is None and event in _ENTER_KEYS and window is not None:
                 focused = window.find_element_with_focus()
                 if focused is not None and focused.key is not None:
                     entry = self._event_handlers.get(focused.key)
@@ -123,8 +129,11 @@ class TkSimpleEvent(object):
         try:
             while True:
                 window, event, values = Window.read_all_windows()
-                if window is None:
-                    break  # every window is gone
+                # exit ONLY on the all-windows-closed notification; a
+                # (None, TIMEOUT_KEY, {}) result just means the bus was
+                # empty this tick — keep pumping
+                if window is None and event is C.WIN_CLOSED:
+                    break
                 if close_event is not None and event == close_event and window is main_window:
                     Window.close_all()
                     break
