@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 OO package test suite (unittest, headless friendly)."""
+"""TkSimpleGUI OO package test suite (unittest, headless friendly)."""
 
 import ast
 import os
@@ -12,12 +12,12 @@ from tkinter import ttk
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 
-import PySimpleGUI4 as sg  # noqa: E402
+import TkSimpleGUI as sg  # noqa: E402
 
 
 class TestMeta(unittest.TestCase):
     def test_version(self):
-        self.assertEqual(sg.__version__, "4.80.7")
+        self.assertEqual(sg.__version__, "0.1.0")
 
     def test_author(self):
         self.assertEqual(sg.__author__, "yunluo")
@@ -274,7 +274,7 @@ class TestElementOptions(unittest.TestCase):
         self.assertFalse(element.expand_y)
 
     def test_parse_pad_forms(self):
-        from PySimpleGUI4.elements.base import _parse_pad
+        from TkSimpleGUI.elements.base import _parse_pad
 
         self.assertEqual(_parse_pad(None), (0, 0, 0, 0))
         self.assertEqual(_parse_pad(3), (3, 3, 3, 3))
@@ -934,7 +934,7 @@ class TestFirstBatch(unittest.TestCase):
         window.close()
 
     def test_text_find_and_replace_helpers(self):
-        from PySimpleGUI4.popup import _text_find, _text_replace_all
+        from TkSimpleGUI.popup import _text_find, _text_replace_all
 
         multiline = sg.Multiline("alpha beta ALPHA end", key="-ML-")
         window = sg.Window("t", [[multiline]], finalize=True)
@@ -1279,7 +1279,7 @@ class TestThirdBatch(unittest.TestCase):
         buffer = io.StringIO()
         with redirect_stdout(buffer):
             sg.main(["--version"])
-        self.assertIn("PySimpleGUI4", buffer.getvalue())
+        self.assertIn("TkSimpleGUI", buffer.getvalue())
         self.assertIn(sg.__version__, buffer.getvalue())
         buffer = io.StringIO()
         with redirect_stdout(buffer):
@@ -1339,7 +1339,7 @@ class TestLineA(unittest.TestCase):
         multiline = sg.Multiline("", key="-ML-")
         window = sg.Window("t", [[multiline]], finalize=True)
         multiline.print("Visit ")
-        multiline.link("PySimpleGUI4", key="-LINK-")
+        multiline.link("TkSimpleGUI", key="-LINK-")
         self.assertEqual(multiline.search_all("Simple"), 1)
         ranges = multiline._text.tag_ranges("search_all")
         self.assertEqual(len(ranges), 2)  # start + end index
@@ -1662,7 +1662,7 @@ class TestUnifiedLoop(unittest.TestCase):
         second.close()
 
     def test_main_loop_exits_when_all_closed(self):
-        app = sg.PySimpleEvent()
+        app = sg.TkSimpleEvent()
         window = sg.Window("one", [[sg.Button("quit", key="-QUIT-")]], finalize=True)
         seen = []
 
@@ -1677,7 +1677,7 @@ class TestUnifiedLoop(unittest.TestCase):
         self.assertEqual(sg.Window.active_windows(), [])
 
     def test_main_loop_dispatches_to_on_handlers(self):
-        app = sg.PySimpleEvent()
+        app = sg.TkSimpleEvent()
         main = sg.Window("main", [[sg.Button("open", key="-OPEN-")]], finalize=True)
         received = []
 
@@ -1698,7 +1698,7 @@ class TestUnifiedLoop(unittest.TestCase):
 
     def test_main_loop_with_action_callbacks(self):
         calls = []
-        app = sg.PySimpleEvent()
+        app = sg.TkSimpleEvent()
         ok_action = sg.Action("OK", key="OK",
                               callback=lambda window, values: calls.append("ok"))
         window = sg.Window("t", [[sg.Button("OK", key="OK")]],
@@ -1781,7 +1781,7 @@ class TestRunEntry(unittest.TestCase):
         sg.Window.close_all()
 
     def test_window_run_with_explicit_app(self):
-        app = sg.PySimpleEvent()
+        app = sg.TkSimpleEvent()
         window = sg.Window("one", [[sg.Button("quit", key="-QUIT-")]], finalize=True)
         seen = []
 
@@ -1807,7 +1807,7 @@ class TestRunEntry(unittest.TestCase):
 
     def test_default_app_is_singleton(self):
         self.assertIs(sg.default_app(), sg.default_app())
-        self.assertIsInstance(sg.default_app(), sg.PySimpleEvent)
+        self.assertIsInstance(sg.default_app(), sg.TkSimpleEvent)
 
     def test_package_level_bind_event(self):
         """@sg.bind_event wires handlers without any explicit manager import."""
@@ -1825,7 +1825,7 @@ class TestRunEntry(unittest.TestCase):
         sg.default_app()._event_handlers.pop("-PKG-LEVEL-EVENT-", None)
 
     def test_run_without_finalize_finalizes(self):
-        app = sg.PySimpleEvent()
+        app = sg.TkSimpleEvent()
         window = sg.Window("one", [[sg.Text("x")]])  # NOT finalized
 
         @app.bind_event("-GO-")
@@ -1862,7 +1862,7 @@ class TestRunEntry(unittest.TestCase):
 
 class TestEventManager(unittest.TestCase):
     def setUp(self):
-        self.app = sg.PySimpleEvent()
+        self.app = sg.TkSimpleEvent()
         self.calls = []
 
     def test_dispatch_signatures(self):
@@ -1931,7 +1931,7 @@ class TestPy37Compatibility(unittest.TestCase):
     def test_no_py38_syntax(self):
         """The 3.7 floor forbids 3.8+ syntax: walrus and positional-only params."""
         package_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "PySimpleGUI4"
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "TkSimpleGUI"
         )
         offenders = []
         for root, _dirs, files in os.walk(package_dir):
@@ -1951,7 +1951,7 @@ class TestPy37Compatibility(unittest.TestCase):
     def test_modern_syntax_style(self):
         """3.7 style: zero-arg super() everywhere, no typing ImportError fallbacks."""
         package_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "PySimpleGUI4"
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "src", "TkSimpleGUI"
         )
         offenders = []
         for root, _dirs, files in os.walk(package_dir):

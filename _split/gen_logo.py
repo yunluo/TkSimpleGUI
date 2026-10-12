@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Generate the PySimpleGUI4 default window icon (replaces the Tk feather).
+"""Generate the TkSimpleGUI default window icon (replaces the Tk feather).
 
-Pure stdlib: draws a rounded-square blue gradient badge with a white "P4"
-monogram (64x64) and a white "P" mark (32x32), encodes both as PNG and
+Pure stdlib: draws a rounded-square blue gradient badge with a white "T4"
+monogram (64x64) and a white "T" mark (32x32), encodes both as PNG and
 writes their base64 to ``_split/logo_b64.txt`` for pasting into
 ``constants.py``.
 """
@@ -13,14 +13,23 @@ import zlib
 
 # --- 5x7 pixel glyphs ---------------------------------------------------------
 GLYPHS = {
-    "P": (
-        "11110",
+    "T": (
+        "11111",
+        "00100",
+        "00100",
+        "00100",
+        "00100",
+        "00100",
+        "00100",
+    ),
+    "k": (
         "10001",
-        "10001",
-        "11110",
-        "10000",
-        "10000",
-        "10000",
+        "10010",
+        "10100",
+        "11000",
+        "10100",
+        "10010",
+        "10011",
     ),
     "4": (
         "00010",
@@ -118,8 +127,8 @@ def draw_icon(size, text, scale, radius):
 def main():
     outputs = []
     for name, png in (
-        ("DEFAULT_BASE64_ICON (64px)", draw_icon(64, "P4", 5, 13)),
-        ("DEFAULT_BASE64_ICON_SMALL (32px)", draw_icon(32, "P", 3, 7)),
+        ("DEFAULT_BASE64_ICON (64px)", draw_icon(64, "Tk", 5, 13)),
+        ("DEFAULT_BASE64_ICON_SMALL (32px)", draw_icon(32, "T", 3, 7)),
     ):
         encoded = base64.b64encode(png)
         outputs.append((name, len(png), encoded))

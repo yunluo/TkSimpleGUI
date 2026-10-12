@@ -3,9 +3,9 @@ requires = ["setuptools>=45", "wheel"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "PySimpleGUI4"
-version = "4.80.7"
-description = "Python GUI Framework - PySimpleGUI4"
+name = "TkSimpleGUI"
+version = "0.1.0"
+description = "TkSimpleGUI - zero-dependency object-oriented Tkinter GUI framework with a global event bus"
 license = {text = "GPL-3.0-or-later"}
 authors = [{name = "yunluo", email = "sp91@qq.com"}]
 readme = "README.md"
@@ -21,19 +21,20 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 requires-python = ">=3.7"
+keywords = ["tkinter", "ttk", "gui", "ui", "event-driven", "declarative"]
 
 [project.urls]
-Homepage = "https://www.pysimplegui.org"
-Repository = "https://github.com/PySimpleGUI/PySimpleGUI"
+Homepage = "https://github.com/yunluo/TkSimpleGUI"
+Repository = "https://github.com/yunluo/TkSimpleGUI"
 
 [project.scripts]
-PySimpleGUI4 = "PySimpleGUI4:main"
+TkSimpleGUI = "TkSimpleGUI:main"
 
 [tool.setuptools.packages.find]
 where = ["src"]
 
 [tool.setuptools.package-data]
-PySimpleGUI4 = ["*.pyi", "py.typed"]
+TkSimpleGUI = ["*.pyi", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -42,7 +43,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 
 [tool.coverage.run]
-source = ["PySimpleGUI4"]
+source = ["TkSimpleGUI"]
 omit = ["tests/*", "*__pycache__*"]
 branch = true
 

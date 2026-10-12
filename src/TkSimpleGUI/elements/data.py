@@ -182,7 +182,7 @@ class Table(Element):
         and rows; the original records stay available through
         :attr:`selected_records` and stay in sync with cell edits.
 
-        The ``records`` parameter reuses the ``bind`` name for PySimpleGUI
+        The ``records`` parameter reuses the ``bind`` name for TkSimpleGUI
         compatibility (``Table.bind(records)``); the keyword names
         intentionally differ from :meth:`Element.bind`, whose tk event
         binding is still reachable via ``super().bind(event_pattern)`` when

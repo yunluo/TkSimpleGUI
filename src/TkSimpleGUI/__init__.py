@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 - Python GUI Framework (object oriented, Python 3.7+).
+"""TkSimpleGUI - Python GUI Framework (object oriented, Python 3.7+).
 
 Usage::
 
-    import PySimpleGUI4 as sg
+    import TkSimpleGUI as sg
 
     layout = [
         [sg.Text("Hello")],
@@ -171,7 +171,7 @@ from .window import Window, SystemTray
 
 # --- event manager ---------------------------------------------------------------------
 from .event import (
-    PySimpleEvent,
+    TkSimpleEvent,
     singleton_window,
     default_app,
     run_application,
@@ -260,7 +260,7 @@ from .popup import (
     MsgBox,
 )
 
-# --- convenience aliases (PySimpleGUI style) ---------------------------------------------
+# --- convenience aliases (TkSimpleGUI style) ---------------------------------------------
 I = Input
 T = Text
 B = Button
@@ -370,7 +370,7 @@ __all__ = [
     "Menubutton", "Scrollbar",
     "RoundButton", "ImageButton", "TextProgressBar",
     "validate_integer", "validate_float", "validate_regex",
-    "Window", "SystemTray", "PySimpleEvent", "singleton_window", "main_loop",
+    "Window", "SystemTray", "TkSimpleEvent", "singleton_window", "main_loop",
     "default_app", "run_application", "bind_event", "on_event",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "ElementOptions", "WindowConfig",
@@ -403,7 +403,7 @@ __all__ = [
 
 
 def dbg(*args, **kwargs):
-    """Print into a quick auto-closing debug popup (PySimpleGUI dbg)."""
+    """Print into a quick auto-closing debug popup (TkSimpleGUI dbg)."""
     text = " ".join(
         str(arg) if not isinstance(arg, str) else arg for arg in args
     )
@@ -411,11 +411,11 @@ def dbg(*args, **kwargs):
 
 
 def main(argv=None):
-    """Command line entry: ``python -m PySimpleGUI4 [--version | --themes]``."""
+    """Command line entry: ``python -m TkSimpleGUI [--version | --themes]``."""
     import argparse
 
     parser = argparse.ArgumentParser(
-        prog="PySimpleGUI4", description="PySimpleGUI4 GUI framework"
+        prog="TkSimpleGUI", description="TkSimpleGUI GUI framework"
     )
     parser.add_argument(
         "--version", action="store_true", help="print the version and exit"
@@ -425,7 +425,7 @@ def main(argv=None):
     )
     options = parser.parse_args(argv)
     if options.version:
-        print("PySimpleGUI4", __version__)
+        print("TkSimpleGUI", __version__)
     elif options.themes:
         for name in list_of_look_and_feel_values():
             print(name)

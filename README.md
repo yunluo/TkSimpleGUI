@@ -1,131 +1,169 @@
-<p align="center">
-  <img src="https://raw.githubusercontent.com/PySimpleGUI/PySimpleGUI/master/images/for_readme/Logo%20with%20text%20for%20GitHub%20Top.png" alt="User Interfaces for Humans">
-</p>
+<h align="center">
+  <img src="logo.png" alt="TkSimpleGUI" width="360">
+</h>
 
-# PySimpleGUI4
+# TkSimpleGUI
 
-**PySimpleGUI** is a Python library that simplifies the process of creating graphical user interfaces (GUIs). It abstracts away the complexity of underlying frameworks like Tkinter, offering a beginner-friendly, high-level API.
+**TkSimpleGUI** 是一个零第三方依赖、纯 Tkinter/ttk 的 Python GUI 框架。
+声明式布局、面向对象控件、全局事件总线、统一事件循环——用 Tk 也要有 Qt 的开发体验。
 
----
-
-## What's New in v4.80.7
-
-This version introduces a **modular architecture** for better maintainability and Python 3.7+ compatibility:
-
-### Directory Structure
-
-```
-PySimpleGUI4/
-├── src/PySimpleGUI4/            # Object oriented package (import as `PySimpleGUI4`)
-│   ├── __init__.py              # Public API + PySimpleGUI style aliases
-│   ├── _version.py              # Version information
-│   ├── constants.py             # Immutable constants + enums
-│   ├── _theme_data.py           # Generated theme table (160 themes)
-│   ├── _theming.py              # ThemeManager (encapsulated look & feel)
-│   ├── settings.py              # Settings singleton + set_options/get_options
-│   ├── utils.py                 # rgb, Timer, platform detection, DPI awareness
-│   ├── event.py                 # PySimpleEvent + singleton_window
-│   ├── actions.py               # Action / ActionList (TActionList analog)
-│   ├── user_settings.py         # UserSettings (JSON persistence, QSettings analog)
-│   ├── i18n.py                  # Dictionary translation (Qt tr() analog)
-│   ├── animation.py             # fade/slide/progress animation helpers
-│   ├── popup.py                 # Popup dialogs built on Window itself
-│   ├── elements/
-│   │   ├── base.py              # Element(ABC) hierarchy + right-click menus + grid engine
-│   │   ├── widgets.py           # Text, Input(+validation), Combo, Listbox, Spin,
-│   │   │                        #   Checkbox, CheckList, Radio, Slider, Multiline,
-│   │   │                        #   Output, ProgressBar
-│   │   ├── buttons.py           # Button (+ browse variants, toggle, image, Action)
-│   │   ├── media.py             # Image, Canvas, Graph (figure handles), Shape
-│   │   ├── containers.py        # Frame, Column, Splitter, ScrollableColumn, Toolbar,
-│   │   │                        #   LabeledEdit, KeyValueEditor, FlowPanel, Tab, TabGroup, Menu
-│   │   ├── calendar.py          # Calendar (embedded month view)
-│   │   ├── data.py              # Table (sort/edit/bind/icons), Tree (item icons)
-│   │   └── misc.py              # StatusBar, separators, Sizegrip
-│   └── window/
-│       ├── window.py            # Window: read loop, layout engine, timers, clipboard
-│       └── system_tray.py       # SystemTray (icon, menu, balloon, events)
-├── _split/                      # Baseline toolchain (reference & theme extraction)
-├── tests/test_package.py        # unittest suite (90 tests)
-├── demo.py                      # Full feature showcase (six tabs, --smoke self-test)
-├── todo.md                      # Roadmap (Qt/Delphi gap plan, all batches done)
-├── pyproject.toml               # Project configuration
-└── README.md                    # This file
-```
-
-### Design
-
-- **Object oriented** - every element derives from `Element` (ABC) with
-  `InputElement` / `ContainerElement` intermediate bases; the window builds
-  layouts through polymorphism, no giant type-checking chains
-- **Three naming styles** - plain (`sg.Text`), PySimpleGUI short aliases
-  (`sg.T`, `sg.B`), and the uniform T-prefix rule (`sg.TText`, `sg.TInput`,
-  `sg.TButton`, `sg.TRoundButton`... — every widget's own name with a "T"
-  in front) — all the same classes, pick whichever reads best for you
-- **No more magic strings** - Tk's stringly-typed options are typed enums
-  (`sg.Anchor.CENTER`, `sg.Justify.RIGHT`, `sg.EventType.DOUBLE_CLICK`,
-  `sg.Color.NAVY`, `sg.Relief.SUNKEN`...) with IDE completion everywhere.
-  Every enum's value IS the Tk string, so raw strings still work too
-- **Fully type annotated** - 100% typed (py.typed, zero ty diagnostics);
-  your IDE autocompletes and type-checks every call
-- **Encapsulated** - `__slots__` everywhere, private attributes, `@property`
-  accessors; the mutable look & feel and options state live in the
-  `ThemeManager` and `Settings` singletons instead of module globals
-- **System native by default** - until you call `sg.theme("...")` no colors
-  are overridden and ttk widgets use the operating system's native theme
-- **Python 3.7+ compatible** - zero third-party dependencies, Tkinter/ttk only
-
-### Key Improvements
-
-1. **PEP8 Compliance** - Code follows Python style guidelines
-2. **Python 3.7+ Compatible** - No third-party dependencies
-3. **Type Annotations** - All public functions have type hints
-4. **Modular Design** - Easier to maintain and extend
-5. **Backward Compatible** - All original aliases preserved
+> 由 PySimpleGUI 4.x（GPLv3）分叉而来，现已是独立的框架：不再兼容上游 API，
+> 全面转向「零事件循环 + 事件装饰器」的现代写法。改名是为了避免与
+> PySimpleSoft 的商标冲突，同时如实反映项目的独立性。
 
 ---
 
-## Installation
+## 特性
+
+- **零事件循环** — 永远不写 `while True`：`window.run()` 一个入口，
+  全局唯一事件循环天然支持多窗口协同
+- **事件绑定走装饰器** — `@sg.bind_event` 绑定模块级 `on_*` 函数，
+  `window` / `event` / `values` 按参数名自动注入
+- **面向对象控件** — 每个控件都是真正的类实例，属性读写、方法直调，
+  不再和 `window["-KEY-"].update(...)` 的字符串寻址缠斗
+- **三种命名风格** — 朴素（`sg.Text`）、短别名（`sg.T` / `sg.B`）、
+  统一 T 前缀（`sg.TText` / `sg.TInput` / `sg.TButton`）——同一个类，随你喜欢
+- **消灭魔术字符串** — Tk 的字符串选项全部类型化为枚举
+  （`sg.Anchor.CENTER`、`sg.Justify.RIGHT`、`sg.EventType.DOUBLE_CLICK`、
+  `sg.Color.NAVY`、`sg.Relief.SUNKEN`…），枚举值本身就是 Tk 字符串，裸字符串依旧可用
+- **dataclass 配置对象** — `sg.WindowConfig` / `sg.ElementOptions`
+  声明式参数包，可共享复用
+- **100% 类型标注** — `py.typed`（PEP 561），ty 零诊断，IDE 全程补全与检查
+- **超越 Tk** — 圆角按钮、图像按钮、文字进度条、全局热键、任务栏进度、
+  系统托盘、日历控件、表格编辑/排序、拆分器、流式面板……Tk/ttk 没有的这里也有
+- **封装彻底** — `__slots__` 全覆盖、私有属性 + `@property`、
+  主题与设置走单例而非模块全局
+- **系统原生外观** — 不调 `sg.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
+- **Python 3.7+** — 零第三方依赖，Tkinter/ttk + 标准库
+
+## 安装
 
 ```bash
-pip install PySimpleGUI4
+pip install TkSimpleGUI
 ```
 
-## Quick Start
+## 快速上手
 
 ```python
-import PySimpleGUI4 as sg
+import TkSimpleGUI as sg
 
-layout = [
-    [sg.Text("Hello, PySimpleGUI4!")],
-    [sg.Button("OK"), sg.Button("Cancel")]
-]
+window = sg.Window("Demo", [
+    [sg.Text("Hello, TkSimpleGUI!", key="-OUT-")],
+    [sg.Input(key="-IN-"), sg.Button("Greet")],
+    [sg.Button("Exit")],
+])
 
-window = sg.Window("My Window", layout)
+@sg.bind_event
+def on_greet(window, values):
+    window["-OUT-"].update(f"Hello, {values['-IN-'] or 'stranger'}!")
 
-while True:
-    event, values = window.read()
-    if event in (sg.WIN_CLOSED, "Cancel"):
-        break
-    print("Event:", event)
+@sg.bind_event
+def on_exit(window):
+    window.close()
 
-window.close()
+window.run()   # 就这一行——没有 while True
 ```
 
----
+多窗口同样零仪式：
 
-## Features
+```python
+main = sg.Window("Main", [[sg.Button("Open child")], [sg.Button("Quit")]])
+child = sg.Window("Child", [[sg.Text("I am the child")], [sg.Button("Close me")]],
+                  parent=main)
 
-- **Beginner-Friendly**: Intuitive syntax
-- **Rich Component Library**: Buttons, inputs, sliders, progress bars, tables, and more
-- **Cross-Platform**: Works on Windows, macOS, and Linux
-- **Dynamic Updates**: Real-time GUI element updates
-- **Theming**: Built-in color themes
+@sg.bind_event
+def on_open_child(window):
+    child.un_hide()
 
----
+@sg.bind_event
+def on_close_me(window):
+    window.close()
 
-## Version Info
+main.run()     # 唯一的循环，泵所有窗口
+```
 
-- **Version**: 4.80.7
+## 窗口层级
+
+```python
+main = sg.Window("Main", layout)
+child = sg.Window("Child", layout, parent=main)
+
+child.parent is main        # True
+main.children               # [child]
+child.is_child_of(main)     # True
+child.close()               # 级联关闭自己的子窗口
+```
+
+## 声明式配置（dataclass）
+
+```python
+import TkSimpleGUI as sg
+
+label_style = sg.ElementOptions(justification=sg.Justify.CENTER,
+                                expand_x=True, pad=(8, 4))
+
+layout = [
+    [sg.Text("Title", config=label_style)],
+    [sg.Text("Body", config=label_style)],
+]
+
+cfg = sg.WindowConfig(title="Settings", size=(420, 280), resizable=True)
+window = sg.Window(config=cfg)
+window.layout(layout).finalize()
+```
+
+## 目录结构
+
+```
+TkSimpleGUI/
+├── src/TkSimpleGUI/            # 对象导向包（import TkSimpleGUI）
+│   ├── __init__.py             # 公开 API + 全部别名
+│   ├── enums.py                # 13 类 Tk 字符串枚举（Anchor/Color/EventType…）
+│   ├── config.py               # WindowConfig / ElementOptions dataclass
+│   ├── _version.py             # 版本信息
+│   ├── constants.py            # 不可变常量
+│   ├── _theme_data.py          # 生成式主题表（160 主题）
+│   ├── _theming.py             # ThemeManager（封装的 look & feel）
+│   ├── settings.py             # Settings 单例 + set_options/get_options
+│   ├── utils.py                # rgb、Timer、平台检测、DPI 感知
+│   ├── event.py                # TkSimpleEvent 全局事件总线 + default_app
+│   ├── actions.py              # Action / ActionList（Delphi TActionList 对标）
+│   ├── user_settings.py        # UserSettings（JSON 持久化）
+│   ├── i18n.py                 # 字典翻译（Qt tr() 对标）
+│   ├── animation.py            # fade/slide/progress 动画辅助
+│   ├── hotkey.py               # 全局热键 + 任务栏进度（Win32/COM）
+│   ├── popup.py                # 基于 Window 本体的弹窗族
+│   ├── elements/
+│   │   ├── base.py             # Element(ABC) + 右键菜单 + 网格布局引擎
+│   │   ├── widgets.py          # Text/Input/Combo/Listbox/Spin/Checkbox/Radio…
+│   │   ├── buttons.py          # Button 及浏览/开关/图像变体
+│   │   ├── fancy.py            # 圆角按钮/图像按钮/文字进度条
+│   │   ├── media.py            # Image/Canvas/Graph（图元句柄）
+│   │   ├── containers.py       # Frame/Column/Splitter/TabGroup/Toolbar…
+│   │   ├── calendar.py         # 内嵌月历
+│   │   ├── data.py             # Table（排序/编辑/图标）、Tree
+│   │   └── misc.py             # StatusBar/Separator/Sizegrip
+│   └── window/
+│       ├── window.py           # Window：统一循环、层级、定时器、剪贴板
+│       └── system_tray.py      # SystemTray（托盘图标/菜单/气泡/事件）
+├── tests/test_package.py       # unittest 测试套件（163 项）
+├── demo.py                     # 全功能展示（七页签，--smoke 自检）
+├── todo.md                     # 路线图
+├── pyproject.toml
+└── README.md
+```
+
+## 开发与测试
+
+```bash
+pip install -e .
+python -m unittest discover tests     # 163 项测试
+python tests/check_types.py           # ty 类型检查零诊断守卫
+python demo.py --smoke                # demo 冒烟自检
+```
+
+## 版本信息
+
+- **Version**: 0.1.0
 - **Python**: >= 3.7
-- **License**: GPL-3.0-or-later
+- **License**: GPL-3.0-or-later（继承自上游 PySimpleGUI 4.x）

@@ -28,7 +28,7 @@ class Action(object):
         self.metadata = metadata
 
     def to_button(self, **kwargs):
-        """A :class:`~PySimpleGUI4.elements.buttons.Button` for this action."""
+        """A :class:`~TkSimpleGUI.elements.buttons.Button` for this action."""
         from .elements.buttons import Button
 
         return Button(self.text, key=self.key, **kwargs)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 element class hierarchy.
+"""TkSimpleGUI element class hierarchy.
 
 :class:`Element` is the abstract base of every widget. Subclasses implement
 ``_create_widget``; the template method :meth:`Element._build` orchestrates
@@ -86,7 +86,7 @@ class ElementBaseMeta(ABCMeta):
 
 
 class Element(object, metaclass=ElementBaseMeta):
-    """Abstract base class for every PySimpleGUI4 element."""
+    """Abstract base class for every TkSimpleGUI element."""
 
     __slots__ = (
         "_key",
@@ -174,7 +174,7 @@ class Element(object, metaclass=ElementBaseMeta):
 
     @property
     def window(self):
-        """The :class:`~PySimpleGUI4.window.Window` this element belongs to."""
+        """The :class:`~TkSimpleGUI.window.Window` this element belongs to."""
         return self._window
 
     @property
@@ -541,7 +541,7 @@ class ContainerElement(Element):
 
 
 def build_popup_menu(owner, master, definition):
-    """Build a ``tk.Menu`` from a PySimpleGUI menu definition.
+    """Build a ``tk.Menu`` from a TkSimpleGUI menu definition.
 
     Selecting an item posts its (shortcut-stripped) label as an event on
     ``owner`` (any object with a ``_post_event(key)`` method, typically an

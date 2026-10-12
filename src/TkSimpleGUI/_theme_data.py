@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 theme definitions.
+"""TkSimpleGUI theme definitions.
 
-Generated from the PySimpleGUI LOOK_AND_FEEL_TABLE by _split/gen_theme_data.py.
+Generated from the TkSimpleGUI LOOK_AND_FEEL_TABLE by _split/gen_theme_data.py.
 Pure data module - do not edit by hand.
 """
 

@@ -485,5 +485,5 @@ class TextProgressBar(Element):
         return self
 
     def update_bar(self, current_value, max_value=None):
-        """PySimpleGUI compatibility alias for :meth:`update`."""
+        """TkSimpleGUI compatibility alias for :meth:`update`."""
         return self.update(current_value=current_value, max_value=max_value)

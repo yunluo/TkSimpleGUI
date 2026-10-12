@@ -359,7 +359,7 @@ class TabGroup(Element):
 
 
 class Menu(Element):
-    """Menu bar built from a PySimpleGUI menu definition.
+    """Menu bar built from a TkSimpleGUI menu definition.
 
     The definition is a list of entries: ``["Label", ["Item", "Item2"]]``.
     Items starting with the disable character are disabled; the separator
@@ -775,7 +775,7 @@ class Toolbar(Element):
 class LabeledEdit(ContainerElement):
     """Label plus input in one element (Delphi TLabeledEdit).
 
-    The key belongs to the :class:`~PySimpleGUI4.elements.widgets.Input`;
+    The key belongs to the :class:`~TkSimpleGUI.elements.widgets.Input`;
     ``window[key]`` and ``values[key]`` behave like a plain Input.
     """
 

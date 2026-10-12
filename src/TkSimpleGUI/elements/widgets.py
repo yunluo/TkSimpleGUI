@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Standard input and display widgets for PySimpleGUI4."""
+"""Standard input and display widgets for TkSimpleGUI."""
 
 import tkinter as tk
 from tkinter import ttk
@@ -1510,7 +1510,7 @@ class ProgressBar(Element):
         return self
 
     def update_bar(self, current_value, max_value=None):
-        """PySimpleGUI compatibility alias for :meth:`update`."""
+        """TkSimpleGUI compatibility alias for :meth:`update`."""
         return self.update(current_value=current_value, max_value=max_value)
 
 

@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 global settings.
+"""TkSimpleGUI global settings.
 
 All mutable global options live in one :class:`Settings` instance instead of
 loose module level variables. The package exposes the ``settings`` singleton
-plus ``set_options`` / ``get_options`` for PySimpleGUI compatibility.
+plus ``set_options`` / ``get_options`` for TkSimpleGUI compatibility.
 """
 
 from . import constants as C

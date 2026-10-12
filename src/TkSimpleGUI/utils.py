@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 utility helpers."""
+"""TkSimpleGUI utility helpers."""
 
 import os
 import socket

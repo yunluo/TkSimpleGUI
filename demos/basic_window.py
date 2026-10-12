@@ -1,10 +1,10 @@
 #! /usr/bin/python3
 # -*- coding: utf-8 -*-
-import PySimpleGUI4 as sg
+import TkSimpleGUI as sg
 
 sg.theme("DefaultNoMoreNagging")
 
-app = sg.PySimpleEvent()
+app = sg.TkSimpleEvent()
 
 
 def make_main_window() -> sg.Window:

@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Persistent user settings (QSettings / TIniFile analog).
 
-Settings live in a JSON file (default ``~/.pysimplegui4/settings.json``)
+Settings live in a JSON file (default ``~/.tksimplegui4/settings.json``)
 and every :meth:`~UserSettings.set` writes through to disk immediately::
 
     prefs = sg.UserSettings("myapp.json")
@@ -16,11 +16,11 @@ import json
 import os
 
 
-_DEFAULT_DIR_NAME = ".pysimplegui4"
+_DEFAULT_DIR_NAME = ".tksimplegui"
 
 
 def _default_directory():
-    override = os.environ.get("PYSIMPLEGUI4_HOME")
+    override = os.environ.get("TKSIMPLEGUI_HOME")
     if override:
         return override
     return os.path.join(os.path.expanduser("~"), _DEFAULT_DIR_NAME)

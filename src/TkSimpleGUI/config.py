@@ -68,7 +68,7 @@ class ElementOptions:
 class WindowConfig:
     """The Window constructor options as one typed object.
 
-    Pass as ``config=`` to :class:`~PySimpleGUI4.window.Window`; explicit
+    Pass as ``config=`` to :class:`~TkSimpleGUI.window.Window`; explicit
     keyword arguments still override the config values.
     """
 

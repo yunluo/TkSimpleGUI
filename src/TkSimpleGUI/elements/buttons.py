@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Button elements for PySimpleGUI4."""
+"""Button elements for TkSimpleGUI."""
 
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser
@@ -144,7 +144,7 @@ class Button(Element):
 
     @classmethod
     def from_action(cls, action, **kwargs):
-        """Create a button wired to an :class:`~PySimpleGUI4.actions.Action`."""
+        """Create a button wired to an :class:`~TkSimpleGUI.actions.Action`."""
         return cls(action.text, key=action.key, **kwargs)
 
     # --- identity ------------------------------------------------------------
@@ -315,7 +315,7 @@ class Button(Element):
 def ttk_button_class():
     """Legacy hook: the ttk button class used for a native look.
 
-    Buttons are always ttk based since PySimpleGUI4 styles per-widget colors
+    Buttons are always ttk based since TkSimpleGUI styles per-widget colors
     through ttk styles; the function is kept for backward compatibility.
     """
     return ttk.Button

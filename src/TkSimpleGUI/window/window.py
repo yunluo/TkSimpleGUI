@@ -460,10 +460,8 @@ class Window(object):
             root.configure(**window_kwargs)
         if self._icon is not None:
             self._apply_icon(self._icon)
-        else:
-            self._apply_icon(
-                (C.DEFAULT_BASE64_ICON, C.DEFAULT_BASE64_ICON_SMALL)
-            )
+        # default: keep the host interpreter's own icon (python.exe) — no
+        # iconphoto/iconbitmap call means Tk shows the embedded Python icon.
         width, height = self._size
         if width is not None and height is not None:
             root.geometry(f"{int(width)}x{int(height)}")
@@ -602,7 +600,7 @@ class Window(object):
 
     # --- event plumbing ---------------------------------------------------------------
     def set_actions(self, actions):
-        """Register :class:`~PySimpleGUI4.actions.Action` objects.
+        """Register :class:`~TkSimpleGUI.actions.Action` objects.
 
         Menu/right-click item texts matching an action's text are normalized
         to its key, shortcuts are bound as keyboard events, and the action's
@@ -984,12 +982,18 @@ class Window(object):
         """Set the window icon from base64 image data.
 
         Pass a single base64 payload or a tuple (small, large); ``None``
-        restores the PySimpleGUI4 default badge.
+        restores the default interpreter (python.exe) icon.
         """
         self._icon = icon
         if self._root_alive():
             if icon is None:
-                icon = (C.DEFAULT_BASE64_ICON, C.DEFAULT_BASE64_ICON_SMALL)
+                try:
+                    # dropping the iconphoto mapping restores the embedded
+                    # interpreter icon on the title bar
+                    self._tk_root.tk.call("wm", "iconphoto", self._tk_root, "-default")
+                except tk.TclError:
+                    pass
+                return self
             self._apply_icon(icon)
         return self
 

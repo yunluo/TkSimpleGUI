@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
-"""Popup dialogs for PySimpleGUI4.
+"""Popup dialogs for TkSimpleGUI.
 
-Every popup is built from :class:`~PySimpleGUI4.window.Window` itself, so
+Every popup is built from :class:`~TkSimpleGUI.window.Window` itself, so
 popups automatically follow the active theme.
 """
 
@@ -298,7 +298,7 @@ def _text_replace_all(widget, needle, replacement, case_sensitive=False):
 
 
 def popup_find(multiline, title="Find Text", case_sensitive=False):
-    """Find text in a :class:`~PySimpleGUI4.elements.widgets.Multiline`.
+    """Find text in a :class:`~TkSimpleGUI.elements.widgets.Multiline`.
 
     The first match from the top is selected and scrolled into view.
     Returns the match's ``"line.col"`` index, or None when not found /

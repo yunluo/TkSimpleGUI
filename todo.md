@@ -1,4 +1,4 @@
-# PySimpleGUI4 路线图 / TODO
+# TkSimpleGUI 路线图 / TODO
 
 > **项目总目标（2026-10-11 定）：Tk/ttk 能实现的全覆盖，Tk/ttk 实现不了的也要实现。**
 > 底线：Python 3.7、零第三方依赖、Tkinter/ttk 原生实现、OO 封装。
@@ -84,12 +84,21 @@
 
 ## 🎯 新阶段 · IDE 亲和力专项 ✅ 完成（698500d）
 
-针对"讨厌 Tk 一切都是字符串"：新增 `src/PySimpleGUI4/enums.py`，**13 类 str 子类枚举**替代魔术字符串（枚举的值就是 Tk 字符串，与裸字符串完全互换）：
+针对"讨厌 Tk 一切都是字符串"：新增 `src/TkSimpleGUI/enums.py`，**13 类 str 子类枚举**替代魔术字符串（枚举的值就是 Tk 字符串，与裸字符串完全互换）：
 
 - [x] **`sg.Anchor`**（9方位）/ **`sg.LabelAnchor`**（12方位标题）/ **`sg.Justify`** / **`sg.Relief`** / **`sg.Orientation`** / **`sg.Compound`**（图文混排）/ **`sg.State`** / **`sg.WrapMode`** / **`sg.ProgressMode`** / **`sg.Cursor`** / **`sg.Color`**（常用色名，`#rrggbb` 照常可用）
 - [x] **`sg.EventType`** —— 替代 `"<Button-1>"` 式事件串：`DOUBLE_CLICK`/`RIGHT_CLICK`/`FOCUS_IN`/`RETURN`... + 工厂方法 `control("o")`/`shift("F5")`/`alt("q")`/`key(name)`
 - [x] **`py.typed`**（PEP 561）+ 全量 Literal 注解 —— IDE 静默识别类型、补全、查错
 - [x] 控件构造参数全部接受枚举（str 子类天然兼容），枚举/字符串互换有 6 个专项测试钉住
+
+## 🎯 新阶段 · dataclass 配置对象 ✅ 完成（5a22725）
+
+Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/元类链保持），新增 `src/TkSimpleGUI/config.py`：
+
+- [x] **`sg.WindowConfig`** —— 18 个窗口选项的 typed dataclass（title/layout/size/modal/resizable/parent...），`sg.Window(layout=..., config=cfg)`；显式 kwargs 覆盖 config 值
+- [x] **`sg.ElementOptions`** —— 元素共享参数包（pad/expand/tooltip/right_click_menu/metadata/disabled...），**任何控件** `config=opts` 一次带全
+- [x] **元类自动展开**：`ElementBaseMeta` 包装子类 `__init__` 拦截 `config=`，40 个控件构造器**零改动**即获得能力；显式 kwargs 优先于 config
+- [x] 7 个专项测试（override 优先级/类型校验/layout 进 config/共享 options 复用）
 
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 

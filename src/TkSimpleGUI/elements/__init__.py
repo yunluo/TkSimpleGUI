@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 elements subpackage."""
+"""TkSimpleGUI elements subpackage."""
 
 from .base import ContainerElement, Element, InputElement
 from .widgets import (

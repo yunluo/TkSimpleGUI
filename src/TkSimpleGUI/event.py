@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Event manager for PySimpleGUI4.
+"""Event manager for TkSimpleGUI.
 
-:class:`PySimpleEvent` replaces the hand written ``while True`` read loop with
+:class:`TkSimpleEvent` replaces the hand written ``while True`` read loop with
 decorator based handlers::
 
-    app = sg.PySimpleEvent()
+    app = sg.TkSimpleEvent()
 
     @app.bind_event("-OK-")
     def on_ok(window, values):
@@ -24,7 +24,7 @@ from .window.window import Window
 _ENTER_KEYS = ("special 16777220", "special 16777221", "\r")
 
 
-class PySimpleEvent(object):
+class TkSimpleEvent(object):
     """Decorator based dispatch of window events to handler functions.
 
     A handler function may be written with any of these signatures:
@@ -105,7 +105,7 @@ class PySimpleEvent(object):
                         args.append(values)
             func(*args)
         except Exception as error:  # keep the loop alive on handler errors
-            print(f"PySimpleEvent handler error for {event!r}: {error}")
+            print(f"TkSimpleEvent handler error for {event!r}: {error}")
 
     def run_event(self, main_window, close_event=None):
         """Run the single application event loop until every window closes.
@@ -136,22 +136,22 @@ class PySimpleEvent(object):
 # sg.Window(...).run() / sg.SystemTray(...).run() use this instance when no
 # explicit app is passed; @app.bind_event handlers registered on it are
 # picked up automatically.
-_default_app: Optional["PySimpleEvent"] = None
+_default_app: Optional["TkSimpleEvent"] = None
 
 
-def default_app() -> "PySimpleEvent":
+def default_app() -> "TkSimpleEvent":
     """The global default event manager (created on first use)."""
     global _default_app
     if _default_app is None:
-        _default_app = PySimpleEvent()
+        _default_app = TkSimpleEvent()
     return _default_app
 
 
-def run_application(anchor, app: Optional["PySimpleEvent"] = None, close_event=None):
+def run_application(anchor, app: Optional["TkSimpleEvent"] = None, close_event=None):
     """Run the application loop with ``anchor`` as the root object.
 
-    ``anchor`` is either a :class:`~PySimpleGUI4.window.Window` (a normal
-    main window) or a :class:`~PySimpleGUI4.window.SystemTray` (a tray-only
+    ``anchor`` is either a :class:`~TkSimpleGUI.window.Window` (a normal
+    main window) or a :class:`~TkSimpleGUI.window.SystemTray` (a tray-only
     application). This is what ``.run()`` calls on both.
     """
     from .window.system_tray import SystemTray

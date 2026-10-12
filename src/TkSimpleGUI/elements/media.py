@@ -292,7 +292,7 @@ class Canvas(Element):
     def create_window(self, position, window_element=None, widget=None, anchor="nw", **options):
         """Embed a widget (an element's or a raw tk widget) in the canvas.
 
-        Accepts either a PySimpleGUI4 element (its widget is used; the
+        Accepts either a TkSimpleGUI element (its widget is used; the
         element should be built in the same window) or a raw tk widget.
         Returns the canvas window item id. ``position`` is in graph
         coordinates on a Graph, raw canvas pixels on a plain Canvas.

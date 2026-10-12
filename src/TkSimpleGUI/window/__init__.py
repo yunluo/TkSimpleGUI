@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 window subpackage."""
+"""TkSimpleGUI window subpackage."""
 
 from .window import Window
 from .system_tray import SystemTray

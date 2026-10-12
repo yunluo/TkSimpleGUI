@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""PySimpleGUI4 theming.
+"""TkSimpleGUI theming.
 
 All theme state is encapsulated in :class:`ThemeManager`. By default the
 manager is in "native" mode: no colors are overridden and ttk widgets use the
 system's native look (Windows Vista style, macOS Aqua, ...). Applying a named
-theme from :data:`LOOK_AND_FEEL_TABLE` switches to PySimpleGUI colors.
+theme from :data:`LOOK_AND_FEEL_TABLE` switches to TkSimpleGUI colors.
 """
 
 import tkinter as tk
@@ -407,7 +407,7 @@ def ttk_themes():
 def ttk_theme(name=None):
     """Get or set the ttk engine theme on every open window.
 
-    Independent from the 160 PySimpleGUI color themes: this selects the
+    Independent from the 160 TkSimpleGUI color themes: this selects the
     widget *engine* look (Windows: "vista"/"xpnative"; Linux: "clam"/"alt";
     macOS: "aqua"). Without arguments returns the current engine theme.
     """

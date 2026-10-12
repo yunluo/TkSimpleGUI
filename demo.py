@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
-"""PySimpleGUI4 全功能演示（最新标准版）。
+"""TkSimpleGUI 全功能演示（最新标准版）。
 
 演示**当前推荐写法**：
 - ``window.run()`` —— 根对象直接启动应用，用户零事件循环
@@ -19,7 +19,7 @@ import sys
 import time
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
-import PySimpleGUI4 as sg  # noqa: E402
+import TkSimpleGUI as sg  # noqa: E402
 
 # 16x16 P4 徽标（表格行图标 / 树节点图标用）
 ICON16 = (
@@ -304,7 +304,7 @@ def build_main_window():
         [sg.TStatusBar("", key="-STATUS-", expand_x=True), sg.TSizegrip()],
     ]
     window = sg.Window(
-        "PySimpleGUI4 功能全景演示",
+        "TkSimpleGUI 功能全景演示",
         layout,
         finalize=True,
         resizable=True,
@@ -335,7 +335,7 @@ def _post_build(window):
     _refresh_status()
     # 每秒刷新状态栏时钟（TTimer 对标）
     window.every(1000, _tick_clock)
-    log(f"欢迎使用 PySimpleGUI4 {sg.__version__} —— 七个标签页 + window.run() 零循环")
+    log(f"欢迎使用 TkSimpleGUI {sg.__version__} —— 七个标签页 + window.run() 零循环")
     log("事件由 @sg.bind_event 的 on_* 函数分发；Ctrl+O 打开、Ctrl+S 保存",
         color="#2e7d32")
 
@@ -747,7 +747,7 @@ def on_tray_create(window, values):
         sg.popup_notify("托盘已存在")
         return
     try:
-        _TRAY["obj"] = sg.SystemTray(title="PySimpleGUI4 演示",
+        _TRAY["obj"] = sg.SystemTray(title="TkSimpleGUI 演示",
                                      menu=["显示通知", "退出托盘"])
         log("托盘图标已创建（左键/右键它有事件与菜单）", color="#2e7d32")
     except RuntimeError as error:
@@ -757,7 +757,7 @@ def on_tray_create(window, values):
 @sg.bind_event("-S-NOTIFY-")
 def on_tray_notify(window, values):
     if _TRAY["obj"] is not None:
-        _TRAY["obj"].ShowMessage("PySimpleGUI4", "这是托盘气泡通知")
+        _TRAY["obj"].ShowMessage("TkSimpleGUI", "这是托盘气泡通知")
     else:
         sg.popup_notify("先创建托盘")
 
@@ -772,7 +772,7 @@ def on_tray_off(window, values):
 
 @sg.bind_event("-S-COPY-")
 def on_copy(window, values):
-    window.clipboard_set(f"PySimpleGUI4 剪贴板演示 {time.time()}")
+    window.clipboard_set(f"TkSimpleGUI 剪贴板演示 {time.time()}")
     log("已写入剪贴板")
 
 
@@ -819,7 +819,7 @@ def on_clear_log(window, values):
 @sg.bind_event("-ACT-ABOUT-")
 def on_about(window, values):
     sg.popup_ok(
-        f"PySimpleGUI4 {sg.__version__}\n\nOO 重写的 PySimpleGUI 4.x 分支\n"
+        f"TkSimpleGUI {sg.__version__}\n\nOO 重写的 TkSimpleGUI 4.x 分支\n"
         "零依赖 / Python 3.7+ / 原生默认外观",
         title="关于")
 

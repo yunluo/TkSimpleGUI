@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""System tray support for PySimpleGUI4 (Windows only).
+"""System tray support for TkSimpleGUI (Windows only).
 
 A real tray icon backed by a hidden Win32 message window: balloon
 notifications, a right-click context menu and mouse events, all delivered
@@ -103,7 +103,7 @@ class SystemTray(object):
         self._tooltip = tooltip or title
         self._icon_data = icon
         self._menu = list(menu) if menu else []
-        self._window_class = f"PySimpleGUI4Tray{id(self)}"
+        self._window_class = f"TkSimpleGUITray{id(self)}"
         self._hwnd = None
         self._icon_handle = None
         self._created = False
@@ -320,7 +320,7 @@ class SystemTray(object):
                 return C.TIMEOUT_KEY, None
             time.sleep(0.01)
 
-    Read = read  # PySimpleGUI style alias
+    Read = read  # TkSimpleGUI style alias
 
     def close(self):
         """Remove the icon and release the tray resources."""
