@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """System tray support for TkSimpleGUI (Windows only).
 
@@ -91,7 +90,7 @@ class WNDCLASSW(ctypes.Structure):
     ]
 
 
-class SystemTray(object):
+class SystemTray:
     """A system tray icon with a context menu and notifications."""
 
     # borrowed from an open Window or a private hidden Tk root

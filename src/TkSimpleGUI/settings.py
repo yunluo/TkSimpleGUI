@@ -30,7 +30,7 @@ _KNOWN_OPTIONS = (
 )
 
 
-class Settings(object):
+class Settings:
     """Encapsulated package wide options."""
 
     __slots__ = (

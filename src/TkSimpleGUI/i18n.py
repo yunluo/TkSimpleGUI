@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Dictionary based internationalization (Qt ``tr()`` analog).
 
@@ -13,7 +12,7 @@ import json
 
 
 
-class Translator(object):
+class Translator:
     """A replaceable string catalog; unknown strings pass through."""
 
     __slots__ = ("_catalog",)
@@ -33,7 +32,7 @@ class Translator(object):
 
     def _load_catalog(self, catalog):
         if isinstance(catalog, str):
-            with open(catalog, "r") as handle:
+            with open(catalog) as handle:
                 loaded = json.load(handle)
             return dict(loaded)
         return dict(catalog)

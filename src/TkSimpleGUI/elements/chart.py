@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 """Chart: a high-level plotting element built on the Graph canvas.
 
 Six chart types share one declarative data model — line, bar, hbar
@@ -35,7 +34,7 @@ TEXT_COLOR = "#333333"
 PIE_START = 0.0  # degrees; pie drawing runs counter-clockwise from east
 
 
-class ChartType(object):
+class ChartType:
     """Chart kind names accepted by ``TChart(chart_type=...)``."""
 
     LINE = "line"
@@ -48,7 +47,7 @@ class ChartType(object):
     ALL = (LINE, BAR, HBAR, SCATTER, AREA, PIE)
 
 
-class _Series(object):
+class _Series:
     """One data series (or, for pie charts, the single labelled slice set)."""
 
     __slots__ = ("name", "values", "labels", "color")
@@ -116,7 +115,7 @@ class Chart(Graph):
     ):
         if chart_type not in ChartType.ALL:
             raise ValueError(
-                "chart_type must be one of %s, got %r" % (ChartType.ALL, chart_type)
+                f"chart_type must be one of {ChartType.ALL}, got {chart_type!r}"
             )
         super().__init__(
             canvas_size=canvas_size,
@@ -183,7 +182,7 @@ class Chart(Graph):
                         series.labels = list(labels)
                 break
         else:
-            raise KeyError("no series named %r" % (series_name,))
+            raise KeyError(f"no series named {series_name!r}")
         return self.redraw()
 
     @property
@@ -351,7 +350,7 @@ class Chart(Graph):
     def _fmt(value):
         if float(value).is_integer():
             return str(int(value))
-        return ("%.2f" % value).rstrip("0").rstrip(".")
+        return f"{value:.2f}".rstrip("0").rstrip(".")
 
     def _draw_line_series(self, series, color):
         points = [

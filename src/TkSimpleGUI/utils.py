@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """TkSimpleGUI utility helpers."""
 
@@ -8,7 +7,7 @@ import sys
 import time
 
 
-class Timer(object):
+class Timer:
     """Simple stopwatch: call :meth:`start` then read :attr:`elapsed`."""
 
     def __init__(self):
@@ -44,7 +43,7 @@ class Timer(object):
         return self
 
 
-class _ModuleTimer(object):
+class _ModuleTimer:
     """Backing state for the module level timer_start/timer_stop helpers."""
 
     _start = 0.0

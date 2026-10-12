@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Event manager for TkSimpleGUI.
 
@@ -25,7 +24,7 @@ from .window.window import Window
 _ENTER_KEYS = ("special 16777220", "special 16777221", "\r")
 
 
-class TkSimpleEvent(object):
+class TkSimpleEvent:
     """Decorator based dispatch of window events to handler functions.
 
     A handler function may be written with any of these signatures:

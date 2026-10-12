@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
 """TkSimpleGUI full-featured showcase (current standard style).
 
 Demonstrates the **recommended style**:
@@ -170,7 +169,7 @@ def tab_graphics():
         ("-CH-HBAR-", "hbar", "HBar", "Speed"),
         ("-CH-PIE-", "pie", "Pie", "Share"),
     ]
-    for key, kind, label, title in specs:
+    for key, kind, _label, title in specs:
         chart = sg.TChart((300, 190), chart_type=kind, title=title,
                           legend=(kind != "pie"), key=key,
                           enable_events=True, background_color="#ffffff")

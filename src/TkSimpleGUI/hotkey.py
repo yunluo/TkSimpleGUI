@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Windows desktop integration beyond Tk (ctypes, Windows only).
 
@@ -41,7 +40,7 @@ _MOD_ALIASES = {
 }
 
 
-class GlobalHotkeys(object):
+class GlobalHotkeys:
     """Register system-wide hotkeys that post events into a Window.
 
     Usage::
@@ -141,7 +140,7 @@ class GlobalHotkeys(object):
     def stop(self):
         """Unregister every hotkey and stop the dispatch thread."""
         self._running = False
-        for combo, hotkey_id in list(self._id_by_combo.items()):
+        for _combo, hotkey_id in list(self._id_by_combo.items()):
             ctypes.windll.user32.UnregisterHotKey(None, hotkey_id)
         self._id_by_combo.clear()
         self._key_by_id.clear()
@@ -163,7 +162,7 @@ class GlobalHotkeys(object):
 _MOD_ALIASES = _MOD_ALIASES
 
 
-class _TaskbarProgress(object):
+class _TaskbarProgress:
     """ITaskbarList3 wrapper for the Windows task bar progress overlay."""
 
     def __init__(self, window):

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """TkSimpleGUI element class hierarchy.
 
@@ -86,7 +85,7 @@ class ElementBaseMeta(ABCMeta):
         return cls
 
 
-class Element(object, metaclass=ElementBaseMeta):
+class Element(metaclass=ElementBaseMeta):
     """Abstract base class for every TkSimpleGUI element."""
 
     __slots__ = (
@@ -389,7 +388,7 @@ class Element(object, metaclass=ElementBaseMeta):
         return f"<{self.__class__.__name__} key={self._key!r}>"
 
 
-class Tooltip(object):
+class Tooltip:
     """Minimal hover tooltip bound to a widget."""
 
     def __init__(self, widget, text, delay_ms=None):

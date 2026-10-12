@@ -63,7 +63,7 @@ target-version = "py37"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W"]
+select = ["E", "F", "W", "B", "UP"]
 ignore = [
     # Literal["a","b"] strings are flagged as forward references because ruff
     # cannot resolve the _typing_compat conditional import chain (33 false

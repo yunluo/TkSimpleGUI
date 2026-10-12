@@ -14,7 +14,7 @@ returns the key::
 
 
 
-class Action(object):
+class Action:
     """A named command shared by several UI entry points."""
 
     __slots__ = ("text", "key", "shortcut", "callback", "enabled", "metadata")
@@ -47,7 +47,7 @@ class Action(object):
         return f"<Action {self.text!r} key={self.key!r}>"
 
 
-class ActionList(object):
+class ActionList:
     """An ordered collection of :class:`Action` objects."""
 
     __slots__ = ("_actions",)

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Tabular data elements: Table and Tree (both ttk.Treeview based)."""
 

@@ -26,7 +26,7 @@ def _default_directory():
     return os.path.join(os.path.expanduser("~"), _DEFAULT_DIR_NAME)
 
 
-class UserSettings(object):
+class UserSettings:
     """A JSON backed key/value store with immediate persistence."""
 
     __slots__ = ("_path", "_root", "_data")
@@ -44,9 +44,9 @@ class UserSettings(object):
         if not os.path.exists(self._path):
             return {}
         try:
-            with open(self._path, "r") as handle:
+            with open(self._path) as handle:
                 data = json.load(handle)
-        except (IOError, ValueError):
+        except (OSError, ValueError):
             return {}
         return data if isinstance(data, dict) else {}
 

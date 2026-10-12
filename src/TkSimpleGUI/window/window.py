@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """The :class:`Window` class: layout hosting, event loop and element lookup."""
 
@@ -23,7 +22,7 @@ OptionalPoint = Tuple[Optional[int], Optional[int]]
 
 
 
-class Window(object):
+class Window:
     """A top level window hosting a layout of elements.
 
     Typical usage::
@@ -208,7 +207,7 @@ class Window(object):
         self._finalized = False
         self._closed = False
         self._parent = parent
-        self._children: List["Window"] = []
+        self._children: List[Window] = []
         self._elements_by_key = {}
         self._event_queue = queue.Queue()
         self._keep_on_top = (
@@ -248,6 +247,7 @@ class Window(object):
     # --- properties -----------------------------------------------------------
     @property
     def title(self):
+        """The window title (read/write; live-updates the OS title bar)."""
         return self._title
 
     @title.setter
@@ -263,6 +263,7 @@ class Window(object):
 
     @property
     def finalized(self):
+        """True once :meth:`finalize` has been called."""
         return self._finalized
 
     @property
@@ -272,6 +273,7 @@ class Window(object):
 
     @property
     def ttk_style(self):
+        """The ``ttk.Style`` bound to this window (None until finalized)."""
         return self._ttk_style
 
     @property
@@ -1388,7 +1390,7 @@ class Window(object):
         return f"<Window {self._title!r} finalized={self._finalized} closed={self._closed}>"
 
 
-class _TimerHandle(object):
+class _TimerHandle:
     """Cancellable handle returned by :meth:`Window.after` / :meth:`Window.every`."""
 
     __slots__ = ("_window", "_id", "_cancelled")

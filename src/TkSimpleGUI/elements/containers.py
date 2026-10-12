@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Container elements: Frame, Column, Tab, TabGroup and Menu."""
 
@@ -507,7 +506,7 @@ class Splitter(ContainerElement):
         if bg is not None:
             kwargs["background"] = bg
         paned = tk.PanedWindow(master, orient=orient, **kwargs)
-        for layout in self._layouts:
+        for _layout in self._layouts:
             self._pane_frames.append(tk.Frame(paned))
         return paned
 

@@ -89,7 +89,7 @@ def _is_own_window(hwnd):
     return pid.value == kernel32.GetCurrentProcessId()
 
 
-class InputBlocker(object):
+class InputBlocker:
     """Blocks all desktop input outside this process until released.
 
     Reentrant: ``acquire``/``release`` are counted, so stacked forced

@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """TkSimpleGUI OO package test suite (unittest, headless friendly)."""
 
@@ -1317,8 +1316,7 @@ class TestThirdBatch(unittest.TestCase):
         )
         result = subprocess.run(
             [sys.executable, probe],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=60,
         )
         output = result.stdout.decode("utf-8", "replace")
@@ -1575,7 +1573,7 @@ class TestChart(unittest.TestCase):
                 chart.add_series("s", [1, 3, 2], labels=["a", "b", "c"])
             chart.redraw()
             self.assertGreater(
-                len(chart.widget.find_all()), 3, msg="kind=%s" % kind
+                len(chart.widget.find_all()), 3, msg=f"kind={kind}"
             )
 
     def test_redraw_before_finalize_is_safe(self):
@@ -2191,7 +2189,7 @@ class TestRunEntry(unittest.TestCase):
         popup_module = sys.modules["TkSimpleGUI.popup"]
         captured = []
 
-        class SpyWindow(object):
+        class SpyWindow:
             def __init__(self, title, rows, **kwargs):
                 captured.append({"title": title, "kwargs": kwargs})
 
@@ -2229,8 +2227,7 @@ class TestRunEntry(unittest.TestCase):
         )
         result = subprocess.run(
             [sys.executable, probe],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            capture_output=True,
             timeout=60,
         )
         output = result.stdout.decode("utf-8", "replace")

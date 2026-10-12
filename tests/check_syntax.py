@@ -25,13 +25,10 @@ for p in files:
     try:
         ast.parse(p.read_bytes(), filename=str(p))
     except SyntaxError as e:
-        bad.append("%s:%s %s" % (p, e.lineno, e.msg))
+        bad.append(f"{p}:{e.lineno} {e.msg}")
 
 if bad:
     print("\n".join(bad))
     sys.exit(1)
-print(
-    "ALL %d FILES PARSE OK on %s%s"
-    % (len(files), sys.version.split()[0],
-       " (project floor - authoritative)" if sys.version_info[:2] == (3, 7) else "")
-)
+suffix = " (project floor - authoritative)" if sys.version_info[:2] == (3, 7) else ""
+print(f"ALL {len(files)} FILES PARSE OK on {sys.version.split()[0]}{suffix}")

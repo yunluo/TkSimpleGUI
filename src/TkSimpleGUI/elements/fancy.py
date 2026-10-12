@@ -1,4 +1,3 @@
-# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Canvas-drawn widgets that Tk cannot do natively.
 
@@ -107,7 +106,7 @@ class _CanvasButton(Element):
         self._hover_fill = hover_color or self._lighten(fill_color)
         self._text_color = text_color
         self._font = font
-        self._clicked: Optional[Callable[["_CanvasButton"], None]] = None
+        self._clicked: Optional[Callable[[_CanvasButton], None]] = None
         self._background_id = None
         self._text_id = None
 
@@ -589,9 +588,9 @@ class LED(Element):
         if isinstance(value, str):
             text = value
         elif float(value) < 0:
-            text = str(int(math.ceil(value))) if float(value).is_integer() else ("%.2f" % value)
+            text = str(int(math.ceil(value))) if float(value).is_integer() else f"{value:.2f}"
         else:
-            text = str(int(value)) if float(value).is_integer() else ("%.2f" % value)
+            text = str(int(value)) if float(value).is_integer() else f"{value:.2f}"
         allowed = "0123456789-." + (":" if self._allow_colon else "")
         cleaned = "".join(ch for ch in text if ch in allowed)
         return cleaned[-self._digits:].rjust(self._digits)
