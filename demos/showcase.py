@@ -277,6 +277,43 @@ def tab_fancy():
     ]
 
 
+def tab_themes():
+    """A visual swatch + preview for each of the five built-in themes.
+
+    Clicking a swatch row opens a sample window in that theme; the
+    ``Set as default`` button switches the global theme for every
+    future window. The System row is just there as the visual baseline
+    (no color overrides -- it shows whatever the OS already paints).
+    """
+    from TkSimpleGUI._theme_data import LOOK_AND_FEEL_TABLE
+
+    rows = []
+    rows.append([sg.TText(
+        "Click a theme to open a sample window in that palette, or set it "
+        "as the default for new windows. Five hand picked palettes, all "
+        "low chroma, suitable for both commercial and personal apps."
+    )])
+    for name in ("System", "Slate", "Daylight", "Dusk", "Sage"):
+        palette = LOOK_AND_FEEL_TABLE[name]["COLOR_LIST"]
+        bg, accent, panel, fg = palette
+        # System uses sentinel "system" placeholders -- resolve to a
+        # neutral sample swatch so the row still shows something
+        sample = ["#cfd2d6" if c == "system" else c for c in (bg, accent, panel, fg)]
+        swatch = sg.TCanvas((180, 40), key=f"-SW-{name}-", background_color=sample[0])
+        description = " / ".join(LOOK_AND_FEEL_TABLE[name].get("DESCRIPTION", []))
+        row = sg.Column([
+            [sg.TText(f"{name:9s}", size=(10, 1),
+                      font=("Segoe UI", 10, "bold"), key=f"-LBL-{name}-"),
+             swatch,
+             sg.TText(description, size=(38, 1), text_color="#666666",
+                      key=f"-DESC-{name}-"),
+             sg.TButton("Preview", key=f"-PREVIEW-{name}-"),
+             sg.TButton("Set as default", key=f"-SET-{name}-")]
+        ], key=f"-ROW-{name}-", pad=(2, 2))
+        rows.append([row])
+    return rows
+
+
 def tab_system():
     return [
         [sg.Column([[sg.TText("Popup family")],
@@ -348,6 +385,7 @@ def build_main_window():
         [[sg.TTab("Inputs", tab_inputs()), sg.TTab("Selection", tab_selection()),
           sg.TTab("Data", tab_data()), sg.TTab("Graphics", tab_graphics()),
           sg.TTab("Containers", tab_containers()), sg.TTab("Fancy", tab_fancy()),
+          sg.TTab("Themes", tab_themes()),
           sg.TTab("System", tab_system())]],
         key="-TABS-", enable_events=False, expand_x=True, expand_y=True)
     log_element = sg.TOutput(size=(96, 7), key="-LOG-", expand_x=True)
@@ -388,7 +426,62 @@ def _confirm_exit(window):
     return answer == "Yes"
 
 
+def _draw_theme_swatches(window):
+    """Paint the 4-color palette into each Themes tab canvas."""
+    from TkSimpleGUI._theme_data import LOOK_AND_FEEL_TABLE
+
+    width, height = 180, 40
+    slot = width // 4
+    for name in ("System", "Slate", "Daylight", "Dusk", "Sage"):
+        canvas = window[f"-SW-{name}-"].widget
+        canvas.delete("all")
+        palette = LOOK_AND_FEEL_TABLE[name]["COLOR_LIST"]
+        # when the theme is "system" the palette holds the string
+        # "system" placeholders; render them as neutral greys so the
+        # row still looks like a coherent swatch
+        sample = ["#cfd2d6" if c == "system" else c for c in palette]
+        for index, color in enumerate(sample):
+            x0 = index * slot
+            canvas.create_rectangle(
+                x0, 0, x0 + slot, height,
+                fill=color, outline="#888888", width=1,
+            )
+
+
+def _open_theme_preview(window, theme_name):
+    """Open a small sample window painted in ``theme_name``.
+
+    Sets the active theme first so the new window picks it up, then
+    reverts to whatever the main window was using so the running app
+    is not affected.
+    """
+    previous = sg.theme()
+    sg.theme(theme_name)
+    layout = [
+        [sg.TText(f"Preview -- {theme_name} theme", font=("Segoe UI", 10, "bold"))],
+        [sg.TText("Label / TText in this theme")],
+        [sg.TInput("Input field (TInput)", key="-PREV-IN-")],
+        [sg.TCheckbox("Checkbox option", key="-PREV-CB-"),
+         sg.TRadio("Radio A", "g", key="-PREV-R1-", default=True),
+         sg.TRadio("Radio B", "g", key="-PREV-R2-")],
+        [sg.TButton("Primary"), sg.TButton("Secondary"),
+         sg.TButton("Cancel")],
+        [sg.TProgressBar(100, current_value=42, size=(220, 14),
+                         key="-PREV-PB-")],
+        [sg.TStatusBar(f"Theme: {theme_name}", size=(30, 1))],
+    ]
+    try:
+        sg.Window(f"Preview -- {theme_name}", layout,
+                  finalize=True, modal=True, resizable=False)
+        log(f"opened preview window in {theme_name}", color="#1565c0")
+    finally:
+        # revert so the rest of the app keeps the user's chosen theme
+        sg.theme(previous)
+
+
 def _post_build(window):
+    # theme swatches on the Themes tab
+    _draw_theme_swatches(window)
     # tree nodes (icons + groups + summary rows)
     tree = window["-TREE-"]
     tree.insert_group("", "grp-fruit", "Fruit group")
@@ -948,6 +1041,24 @@ def on_theme(window, event, values):
     else:
         name = sg.theme(event)
     log(f"theme switched to {name} (applies to new windows)", color="#1565c0")
+
+
+# Themes tab: per-row Preview / Set as default buttons.
+_THEME_NAMES = ("System", "Slate", "Daylight", "Dusk", "Sage")
+
+
+@sg.bind_event([f"-PREVIEW-{n}-" for n in _THEME_NAMES])
+def on_theme_preview(window, event, values):
+    name = event.replace("-PREVIEW-", "").rstrip("-")
+    _open_theme_preview(window, name)
+
+
+@sg.bind_event([f"-SET-{n}-" for n in _THEME_NAMES])
+def on_theme_set_default(window, event, values):
+    name = event.replace("-SET-", "").rstrip("-")
+    applied = sg.theme(name)
+    log(f"default theme set to {applied} (next window will use it)",
+        color="#2e7d32")
 
 
 @sg.bind_event("-TOOL-NEW-")
