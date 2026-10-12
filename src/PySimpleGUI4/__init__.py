@@ -160,14 +160,35 @@ from .event import (
 from .window.window import Window as _WindowClass
 
 
+def bind_event(event_names):
+    """Register an ``on_*`` handler on the global default event manager.
+
+    The recommended way to wire events — no imports beyond ``sg``, no
+    explicit manager::
+
+        @sg.bind_event("OK")
+        def on_ok(window, values):
+            sg.popup(f"hi {values['-IN-']}")
+
+        sg.Window("Demo", layout).run()   # handler fires inside .run()
+
+    ``event_names`` is one key or a list of keys; the handler must be named
+    with an ``on_`` prefix. The same manager also accepts ``bind_event``
+    directly (``sg.default_app().bind_event``).
+    """
+    return default_app().bind_event(event_names)
+
+
+def on_event(event_names):
+    """Alias of :func:`bind_event` (reads naturally as a decorator)."""
+    return default_app().bind_event(event_names)
+
+
 def main_loop(window, app=None):
     """Run the single application event loop (user code never writes one).
 
-    Every event from every window is dispatched through the global event
-    manager (``@app.bind_event`` + ``on_*`` handlers) and window ``Action``
-    callbacks. The loop ends when the last window closes. The lighter form
-    is ``window.run()`` / ``sg.SystemTray(...).run()`` — same loop, called
-    on the root object itself.
+    The lighter form is ``window.run()`` / ``sg.SystemTray(...).run()`` —
+    same loop, called on the root object itself.
     """
     return run_application(window, app=app)
 
@@ -328,7 +349,7 @@ __all__ = [
     "RoundButton", "ImageButton", "TextProgressBar",
     "validate_integer", "validate_float", "validate_regex",
     "Window", "SystemTray", "PySimpleEvent", "singleton_window", "main_loop",
-    "default_app", "run_application",
+    "default_app", "run_application", "bind_event", "on_event",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "_", "translate", "set_translations", "add_translation",
     "clear_translations",

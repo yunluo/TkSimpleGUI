@@ -1554,6 +1554,21 @@ class TestRunEntry(unittest.TestCase):
         self.assertIs(sg.default_app(), sg.default_app())
         self.assertIsInstance(sg.default_app(), sg.PySimpleEvent)
 
+    def test_package_level_bind_event(self):
+        """@sg.bind_event wires handlers without any explicit manager import."""
+        fired = []
+
+        @sg.bind_event("-PKG-LEVEL-EVENT-")
+        def on_pkg_level(window, values):
+            fired.append(window.title)
+
+        window = sg.Window("one", [[sg.Text("x")]], finalize=True)
+        window.write_event_value("-PKG-LEVEL-EVENT-")
+        window.run()  # default_app must see the handler above
+        self.assertEqual(fired, ["one"])
+
+        sg.default_app()._event_handlers.pop("-PKG-LEVEL-EVENT-", None)
+
     def test_run_without_finalize_finalizes(self):
         app = sg.PySimpleEvent()
         window = sg.Window("one", [[sg.Text("x")]])  # NOT finalized

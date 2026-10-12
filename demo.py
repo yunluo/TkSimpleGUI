@@ -4,7 +4,7 @@
 
 演示**当前推荐写法**：
 - ``window.run()`` —— 根对象直接启动应用，用户零事件循环
-- ``@sg.default_app().bind_event`` + ``on_*`` 函数 —— 全局事件管理器分发
+- ``@sg.bind_event`` + ``on_*`` 函数 —— 库内默认事件管理器分发（零显式导入）
 - ``Action`` —— 菜单/工具栏/快捷键共享动作
 - ``parent=`` —— 窗口层级（子窗口演示，父关级联）
 - T 前缀命名、Toast、RoundButton、TextProgressBar、Slider 气泡等新能力
@@ -32,9 +32,6 @@ ICON16 = (
 _STOPWATCH = {"start": None}
 _TRAY = {"obj": None}
 _PREFS = sg.UserSettings("demo.json")
-
-# 全局事件管理器：所有 on_* handler 注册在这里（default_app 是 .run() 的默认分发器）
-app = sg.default_app()
 
 # 运行期共享状态（handler 之间通过这里传递）
 _state = {
@@ -339,7 +336,7 @@ def _post_build(window):
     # 每秒刷新状态栏时钟（TTimer 对标）
     window.every(1000, _tick_clock)
     log(f"欢迎使用 PySimpleGUI4 {sg.__version__} —— 七个标签页 + window.run() 零循环")
-    log("事件由 @app.bind_event 的 on_* 函数分发；Ctrl+O 打开、Ctrl+S 保存",
+    log("事件由 @sg.bind_event 的 on_* 函数分发；Ctrl+O 打开、Ctrl+S 保存",
         color="#2e7d32")
 
 
@@ -359,30 +356,30 @@ def _tick_clock():
 
 
 # ---------------------------------------------------------------- on_* 事件处理 --
-# 全部通过 @app.bind_event 注册；签名支持 (window, values) 组合。
+# 全部通过 @sg.bind_event 注册；签名支持 (window, values) 组合。
 
 # 输入页
-@app.bind_event("-IN-NUM-")
+@sg.bind_event("-IN-NUM-")
 def on_num_input(window, values):
     log(f"整数校验输入: {values['-IN-NUM-']!r}")
 
 
-@app.bind_event("-CB-SHOW-")
+@sg.bind_event("-CB-SHOW-")
 def on_show_password(window, values):
     window["-IN-PASS-"].set_password_char("" if values["-CB-SHOW-"] else "*")
 
 
-@app.bind_event("-SP-")
+@sg.bind_event("-SP-")
 def on_spin(window, values):
     log(f"Spin: {values['-SP-']}")
 
 
-@app.bind_event("-SL-")
+@sg.bind_event("-SL-")
 def on_slider(window, values):
     window["-PB-SL-"].update(current_value=values["-SL-"])
 
 
-@app.bind_event("-B-COLOR-")
+@sg.bind_event("-B-COLOR-")
 def on_color_print(window, values):
     ml = window["-ML-"]
     ml.print("信息：tk.Text 原生 tag 上色", text_color="#1565c0")
@@ -391,60 +388,60 @@ def on_color_print(window, values):
     ml.print("错误：这是红色错误", text_color="#c62828")
 
 
-@app.bind_event(["-B-UNDO-"])
+@sg.bind_event(["-B-UNDO-"])
 def on_undo(window, values):
     window["-ML-"].undo()
 
 
-@app.bind_event(["-B-REDO-"])
+@sg.bind_event(["-B-REDO-"])
 def on_redo(window, values):
     window["-ML-"].redo()
 
 
-@app.bind_event(["-B-CLEAR-ML-"])
+@sg.bind_event(["-B-CLEAR-ML-"])
 def on_clear_ml(window, values):
     window["-ML-"].clear()
 
 
-@app.bind_event("-B-FIND-")
+@sg.bind_event("-B-FIND-")
 def on_find(window, values):
     position = sg.popup_find(window["-ML-"])
     log(f"查找结果: {position}")
 
 
-@app.bind_event("-B-REPLACE-")
+@sg.bind_event("-B-REPLACE-")
 def on_replace(window, values):
     count = sg.popup_replace(window["-ML-"])
     log(f"替换完成，共 {count} 处")
 
 
-@app.bind_event("-SUBMIT-")
+@sg.bind_event("-SUBMIT-")
 def on_submit(window, values):
     log(f"表单提交：用户名={values.get('-IN-USER-')!r} 数字={values.get('-IN-NUM-')!r}",
         color="#2e7d32")
 
 
 # 选择页
-@app.bind_event(["-CMB-", "-OPT-", "-SP2-", "-LB-", "-CBA-", "-CBB-",
+@sg.bind_event(["-CMB-", "-OPT-", "-SP2-", "-LB-", "-CBA-", "-CBB-",
                  "-CKL-", "-R1-", "-R2-", "-R3-"])
 def on_selection(window, event, values):
     log(f"选择变化: {event} = {values.get(event)!r}")
 
 
-@app.bind_event("-B-CKALL-")
+@sg.bind_event("-B-CKALL-")
 def on_checklist_all(window, values):
     window["-CKL-"].check_all()
     log(f"勾选列表: {window['-CKL-'].get()}")
 
 
-@app.bind_event("-B-CKNONE-")
+@sg.bind_event("-B-CKNONE-")
 def on_checklist_none(window, values):
     window["-CKL-"].uncheck_all()
     log(f"勾选列表: {window['-CKL-'].get()}")
 
 
 # 数据页
-@app.bind_event("-TB-")
+@sg.bind_event("-TB-")
 def on_table_select(window, values):
     table = window["-TB-"]
     records = table.selected_records
@@ -452,7 +449,7 @@ def on_table_select(window, values):
     log(f"表格选中: {table.get()} 记录={records[0] if records else None}")
 
 
-@app.bind_event("-B-REBIND-")
+@sg.bind_event("-B-REBIND-")
 def on_rebind(window, values):
     window["-TB-"].bind([
         {"姓名": "新甲", "年龄": 21, "城市": "北京"},
@@ -461,7 +458,7 @@ def on_rebind(window, values):
     log("Table.bind 换数据完成（表头列自动同步）")
 
 
-@app.bind_event("-B-ADDGRP-")
+@sg.bind_event("-B-ADDGRP-")
 def on_tree_add_group(window, values):
     _state["tree_counter"] += 1
     key = f"grp-{_state['tree_counter']}"
@@ -469,7 +466,7 @@ def on_tree_add_group(window, values):
     log(f"树插入分组: {key}")
 
 
-@app.bind_event("-B-ADD-")
+@sg.bind_event("-B-ADD-")
 def on_tree_add(window, values):
     _state["tree_counter"] += 1
     name = f"节点 {_state['tree_counter']}"
@@ -478,7 +475,7 @@ def on_tree_add(window, values):
     log(f"树插入: {name}")
 
 
-@app.bind_event("-B-DEL-")
+@sg.bind_event("-B-DEL-")
 def on_tree_del(window, values):
     tree = window["-TREE-"]
     selection = tree.widget.selection()
@@ -489,13 +486,13 @@ def on_tree_del(window, values):
         sg.popup_notify("请先选中一个节点")
 
 
-@app.bind_event("-B-KVGET-")
+@sg.bind_event("-B-KVGET-")
 def on_kv_get(window, values):
     log(f"KeyValueEditor: {window['-KV-'].get()}")
 
 
 # 绘图页
-@app.bind_event("-GRAPH-")
+@sg.bind_event("-GRAPH-")
 def on_graph_click(window, values):
     graph = window["-GRAPH-"]
     log(f"画布点击，当前图元 {len(graph.widget.find_all())} 个")
@@ -516,22 +513,22 @@ def _draw(kind, window):
     log(f"绘制 {kind} -> 图元 id {figure_id}")
 
 
-@app.bind_event("-B-CIRCLE-")
+@sg.bind_event("-B-CIRCLE-")
 def on_draw_circle(window, values):
     _draw("circle", window)
 
 
-@app.bind_event("-B-RECT-")
+@sg.bind_event("-B-RECT-")
 def on_draw_rect(window, values):
     _draw("rect", window)
 
 
-@app.bind_event("-B-TEXT-")
+@sg.bind_event("-B-TEXT-")
 def on_draw_text(window, values):
     _draw("text", window)
 
 
-@app.bind_event("-B-MOVEF-")
+@sg.bind_event("-B-MOVEF-")
 def on_move_figure(window, values):
     figure = _state["figure_last"]
     if figure is not None:
@@ -539,7 +536,7 @@ def on_move_figure(window, values):
         log(f"移动图元 id {figure}")
 
 
-@app.bind_event("-B-DELF-")
+@sg.bind_event("-B-DELF-")
 def on_delete_figure(window, values):
     figure = _state["figure_last"]
     if figure is not None:
@@ -548,122 +545,122 @@ def on_delete_figure(window, values):
         _state["figure_last"] = None
 
 
-@app.bind_event("-B-CLEARG-")
+@sg.bind_event("-B-CLEARG-")
 def on_clear_graph(window, values):
     window["-GRAPH-"].erase()
     _state["figure_last"] = None
     log("画布已清空")
 
 
-@app.bind_event("-CAL-")
+@sg.bind_event("-CAL-")
 def on_calendar(window, values):
     log(f"日历选择: {values['-CAL-']}")
 
 
 # 炫彩页（战线 B 自绘控件）
-@app.bind_event(["-RB1-", "-RB2-", "-RB3-"])
+@sg.bind_event(["-RB1-", "-RB2-", "-RB3-"])
 def on_round_button(window, event, values):
     log(f"RoundButton 点击: {event}")
 
 
-@app.bind_event("-IB-")
+@sg.bind_event("-IB-")
 def on_image_button(window, values):
     log("ImageButton 点击（整图都是点击区）")
 
 
-@app.bind_event("-B-TPB-ADD-")
+@sg.bind_event("-B-TPB-ADD-")
 def on_tpb_add(window, values):
     bar = window["-TPB-"]
     bar.update(current_value=min(bar.max_value, bar.get() + 10))
     log(f"TextProgressBar: {bar.get()}%")
 
 
-@app.bind_event("-B-TPB-ZERO-")
+@sg.bind_event("-B-TPB-ZERO-")
 def on_tpb_zero(window, values):
     window["-TPB-"].update(current_value=0)
     log("TextProgressBar 清零")
 
 
 # 弹窗家族
-@app.bind_event("-P-MSG-")
+@sg.bind_event("-P-MSG-")
 def on_p_msg(window, values):
     log(f"popup 返回: {sg.popup('这是 popup 消息')!r}")
 
 
-@app.bind_event("-P-YN-")
+@sg.bind_event("-P-YN-")
 def on_p_yn(window, values):
     log(f"popup_yes_no 返回: {sg.popup_yes_no('确定继续？')!r}")
 
 
-@app.bind_event("-P-ERR-")
+@sg.bind_event("-P-ERR-")
 def on_p_err(window, values):
     sg.popup_error("出错了（演示）")
 
 
-@app.bind_event("-P-SCROLL-")
+@sg.bind_event("-P-SCROLL-")
 def on_p_scroll(window, values):
     sg.popup_scrolled(
         "\n".join(f"第 {i} 行内容" for i in range(1, 21)),
         title="滚动文本")
 
 
-@app.bind_event("-P-TEXT-")
+@sg.bind_event("-P-TEXT-")
 def on_p_text(window, values):
     log(f"popup_get_text 返回: {sg.popup_get_text('请输入一句话')!r}")
 
 
-@app.bind_event("-P-FILE-")
+@sg.bind_event("-P-FILE-")
 def on_p_file(window, values):
     log(f"选择的文件: {sg.popup_get_file('选个文件')!r}")
 
 
-@app.bind_event("-P-FOLDER-")
+@sg.bind_event("-P-FOLDER-")
 def on_p_folder(window, values):
     log(f"选择的目录: {sg.popup_get_folder('选个目录')!r}")
 
 
-@app.bind_event("-P-DATE-")
+@sg.bind_event("-P-DATE-")
 def on_p_date(window, values):
     log(f"选择的日期: {sg.popup_get_date()}")
 
 
-@app.bind_event("-P-FONT-")
+@sg.bind_event("-P-FONT-")
 def on_p_font(window, values):
     log(f"选择的字体: {sg.popup_get_font(include_bold_italic=True)}")
 
 
 # 窗口控制
-@app.bind_event("-W-CENTER-")
+@sg.bind_event("-W-CENTER-")
 def on_w_center(window, values):
     window.move_to_center()
 
 
-@app.bind_event("-W-MAX-")
+@sg.bind_event("-W-MAX-")
 def on_w_max(window, values):
     window.maximize()
 
 
-@app.bind_event("-W-MIN-")
+@sg.bind_event("-W-MIN-")
 def on_w_min(window, values):
     window.minimize()
 
 
-@app.bind_event("-W-NORM-")
+@sg.bind_event("-W-NORM-")
 def on_w_norm(window, values):
     window.normal()
 
 
-@app.bind_event("-W-ALPHA-")
+@sg.bind_event("-W-ALPHA-")
 def on_w_alpha(window, values):
     window.set_alpha_channel(0.5)
 
 
-@app.bind_event("-W-ALPHA1-")
+@sg.bind_event("-W-ALPHA1-")
 def on_w_alpha1(window, values):
     window.set_alpha_channel(1.0)
 
 
-@app.bind_event("-W-FADE-")
+@sg.bind_event("-W-FADE-")
 def on_w_fade(window, values):
     sg.fade_out(window, duration_ms=400, steps=8,
                 on_done=lambda: window.after(
@@ -671,20 +668,20 @@ def on_w_fade(window, values):
     log("淡出→淡入（after 链）")
 
 
-@app.bind_event("-W-SLIDE-")
+@sg.bind_event("-W-SLIDE-")
 def on_w_slide(window, values):
     start = window.current_location()
     sg.slide(window, (start[0] + 120, start[1]), duration_ms=400, steps=8,
              on_done=lambda: sg.slide(window, start, duration_ms=400, steps=8))
 
 
-@app.bind_event("-W-TOAST-")
+@sg.bind_event("-W-TOAST-")
 def on_w_toast(window, values):
     window.toast("操作已保存", title="Toast", duration_ms=2500)
     log("Toast 浮层已显示（右下角淡入淡出）")
 
 
-@app.bind_event("-W-WORK-")
+@sg.bind_event("-W-WORK-")
 def on_w_work(window, values):
     sg.animate_progress(window, "-PB-WORK-", 100,
                         duration_ms=1800, steps=18,
@@ -694,18 +691,18 @@ def on_w_work(window, values):
     log("后台线程已启动（期间界面可正常操作）")
 
 
-@app.bind_event("-WORK-DONE-")
+@sg.bind_event("-WORK-DONE-")
 def on_work_done(window, values):
     log("perform_long_operation 返回 -WORK-DONE-", color="#2e7d32")
 
 
-@app.bind_event("-W-TIMER-")
+@sg.bind_event("-W-TIMER-")
 def on_timer_on(window, values):
     _STOPWATCH["start"] = time.time()
     log("秒表已启动")
 
 
-@app.bind_event("-W-TIMEROFF-")
+@sg.bind_event("-W-TIMEROFF-")
 def on_timer_off(window, values):
     _STOPWATCH["start"] = None
     window["-T-ELAPSED-"].update("00:00")
@@ -713,7 +710,7 @@ def on_timer_off(window, values):
 
 
 # 窗口层级：在 parent= 的子窗口里放一个会发事件的按钮
-@app.bind_event("-W-CHILD-")
+@sg.bind_event("-W-CHILD-")
 def on_w_child(window, values):
     if _state["about_window"] is not None and not _state["about_window"].was_closed:
         _state["about_window"].bring_to_front()
@@ -729,13 +726,13 @@ def on_w_child(window, values):
     log("子窗口已打开（主窗口关闭时会级联关闭）", color="#2e7d32")
 
 
-@app.bind_event("-CHILD-PING-")
+@sg.bind_event("-CHILD-PING-")
 def on_child_ping(window, values):
     # window 参数是事件所属窗口——这里可能是子窗口也可能被主循环读到
     log(f"子窗口按钮点击（来自 {window.title}）")
 
 
-@app.bind_event("-CHILD-CLOSE-")
+@sg.bind_event("-CHILD-CLOSE-")
 def on_child_close(window, values):
     if _state["about_window"] is not None:
         _state["about_window"].close()
@@ -744,7 +741,7 @@ def on_child_close(window, values):
 
 
 # 系统集成
-@app.bind_event("-S-TRAY-")
+@sg.bind_event("-S-TRAY-")
 def on_tray_create(window, values):
     if _TRAY["obj"] is not None:
         sg.popup_notify("托盘已存在")
@@ -757,7 +754,7 @@ def on_tray_create(window, values):
         sg.popup_error(str(error))
 
 
-@app.bind_event("-S-NOTIFY-")
+@sg.bind_event("-S-NOTIFY-")
 def on_tray_notify(window, values):
     if _TRAY["obj"] is not None:
         _TRAY["obj"].ShowMessage("PySimpleGUI4", "这是托盘气泡通知")
@@ -765,7 +762,7 @@ def on_tray_notify(window, values):
         sg.popup_notify("先创建托盘")
 
 
-@app.bind_event("-S-TRAYOFF-")
+@sg.bind_event("-S-TRAYOFF-")
 def on_tray_off(window, values):
     if _TRAY["obj"] is not None:
         _TRAY["obj"].close()
@@ -773,18 +770,18 @@ def on_tray_off(window, values):
         log("托盘已关闭")
 
 
-@app.bind_event("-S-COPY-")
+@sg.bind_event("-S-COPY-")
 def on_copy(window, values):
     window.clipboard_set(f"PySimpleGUI4 剪贴板演示 {time.time()}")
     log("已写入剪贴板")
 
 
-@app.bind_event("-S-PASTE-")
+@sg.bind_event("-S-PASTE-")
 def on_paste(window, values):
     log(f"剪贴板内容: {window.clipboard_get()!r}")
 
 
-@app.bind_event("-S-SAVE-")
+@sg.bind_event("-S-SAVE-")
 def on_save_state(window, values):
     _PREFS.set("last_theme", sg.theme())
     _PREFS.set("last_seen", time.strftime("%Y-%m-%d %H:%M:%S"))
@@ -792,7 +789,7 @@ def on_save_state(window, values):
         f"last_seen={_PREFS.get('last_seen')}")
 
 
-@app.bind_event("-S-I18N-")
+@sg.bind_event("-S-I18N-")
 def on_i18n(window, values):
     sg.set_translations({"Open": "打开", "Save": "保存"})
     sample = [sg._("Open"), sg._("Save"), sg._("Unknown stays")]
@@ -801,25 +798,25 @@ def on_i18n(window, values):
 
 
 # 菜单/工具栏/右键共享
-@app.bind_event("-ACT-OPEN-")
+@sg.bind_event("-ACT-OPEN-")
 def on_open(window, values):
     path = sg.popup_get_file("打开（Ctrl+O）")
     log(f"Action 打开文件: {path!r}")
 
 
-@app.bind_event("-ACT-SAVE-")
+@sg.bind_event("-ACT-SAVE-")
 def on_save(window, values):
     path = sg.popup_get_file("保存（Ctrl+S）", save_as=True)
     log(f"Action 保存文件: {path!r}")
 
 
-@app.bind_event("-ACT-CLEAR-")
+@sg.bind_event("-ACT-CLEAR-")
 def on_clear_log(window, values):
     window["-LOG-"].clear()
     log("日志已清空")
 
 
-@app.bind_event("-ACT-ABOUT-")
+@sg.bind_event("-ACT-ABOUT-")
 def on_about(window, values):
     sg.popup_ok(
         f"PySimpleGUI4 {sg.__version__}\n\nOO 重写的 PySimpleGUI 4.x 分支\n"
@@ -827,13 +824,13 @@ def on_about(window, values):
         title="关于")
 
 
-@app.bind_event("复制日志")
+@sg.bind_event("复制日志")
 def on_copy_log(window, values):
     window.clipboard_set(window["-LOG-"].get())
     sg.popup_notify("日志已复制到剪贴板")
 
 
-@app.bind_event(["原生外观", "DarkBlue3 主题"])
+@sg.bind_event(["原生外观", "DarkBlue3 主题"])
 def on_theme(window, event, values):
     if event == "DarkBlue3 主题":
         name = sg.theme("DarkBlue3")
@@ -842,12 +839,12 @@ def on_theme(window, event, values):
     log(f"主题已切换为 {name}（对新建窗口生效，重开演示可见）", color="#1565c0")
 
 
-@app.bind_event("-TOOL-NEW-")
+@sg.bind_event("-TOOL-NEW-")
 def on_tool_new(window, values):
     log("工具栏: 新建")
 
 
-@app.bind_event("退出")
+@sg.bind_event("退出")
 def on_exit(window, values):
     if _TRAY["obj"] is not None:
         _TRAY["obj"].close()
