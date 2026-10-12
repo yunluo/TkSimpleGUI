@@ -62,8 +62,14 @@ class ThemeManager(object):
 
     @property
     def is_native(self):
-        """True when no custom theme has been applied."""
-        return self._name is None
+        """True when the current theme defers to the platform's native look.
+
+        This covers both "no theme applied" (``name is None``) and the
+        explicit ``System`` theme -- both leave every color override at
+        the ``COLOR_SYSTEM_DEFAULT`` sentinel, so the platform's defaults
+        show through.
+        """
+        return self._name is None or self._name == "System"
 
     def apply(self, name):
         """Apply a theme by name (case insensitive). Returns the canonical name."""
@@ -199,11 +205,11 @@ class ThemeManager(object):
         kwargs = {}
         if colors is not None:
             fg, bg = colors
-            if fg is not None:
+            if not _is_system_default(fg):
                 kwargs["foreground"] = fg
-            if bg is not None:
+            if not _is_system_default(bg):
                 kwargs["background"] = bg
-            if fg is not None or bg is not None:
+            if not _is_system_default(fg) or not _is_system_default(bg):
                 kwargs["activeforeground"] = fg
                 kwargs["activebackground"] = bg
         return kwargs

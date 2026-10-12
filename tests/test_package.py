@@ -28,15 +28,16 @@ class TestMeta(unittest.TestCase):
 
 class TestThemes(unittest.TestCase):
     def test_table_size(self):
-        self.assertGreater(len(sg.list_of_look_and_feel_values()), 150)
+        # 5 hand picked themes, see _theme_data.py
+        self.assertEqual(len(sg.list_of_look_and_feel_values()), 5)
 
     def test_native_by_default(self):
         self.assertIsNone(sg.theme())
 
     def test_apply_and_reset(self):
-        name = sg.theme("DarkBlue3")
-        self.assertEqual(name, "DarkBlue3")
-        self.assertEqual(sg.theme(), "DarkBlue3")
+        name = sg.theme("Slate")
+        self.assertEqual(name, "Slate")
+        self.assertEqual(sg.theme(), "Slate")
         self.assertIsNotNone(sg.theme_background_color())
         sg.theme(None)
         self.assertIsNone(sg.theme())
@@ -47,14 +48,61 @@ class TestThemes(unittest.TestCase):
             sg.theme("__No Such Theme__")
 
     def test_case_insensitive(self):
-        self.assertEqual(sg.theme("darkblue3"), "DarkBlue3")
+        self.assertEqual(sg.theme("slate"), "Slate")
         sg.theme(None)
 
     def test_add_new(self):
-        sg.theme_add_new("__TestTheme__", {"BACKGROUND": "#123456", "TEXT": "#ffffff"})
-        self.assertIn("__TestTheme__", sg.list_of_look_and_feel_values())
-        sg.theme("__TestTheme__")
-        self.assertEqual(sg.theme_background_color(), "#123456")
+        from TkSimpleGUI._theme_data import LOOK_AND_FEEL_TABLE
+        saved = dict(LOOK_AND_FEEL_TABLE)
+        try:
+            sg.theme_add_new(
+                "__TestTheme__", {"BACKGROUND": "#123456", "TEXT": "#ffffff"}
+            )
+            self.assertIn("__TestTheme__", sg.list_of_look_and_feel_values())
+            sg.theme("__TestTheme__")
+            self.assertEqual(sg.theme_background_color(), "#123456")
+            sg.theme(None)
+        finally:
+            LOOK_AND_FEEL_TABLE.clear()
+            LOOK_AND_FEEL_TABLE.update(saved)
+
+    def test_themed_themes_have_real_colors(self):
+        """Every non-System theme must expose a real color (not the sentinel)."""
+        from TkSimpleGUI.constants import COLOR_SYSTEM_DEFAULT
+        for name in ("Slate", "Daylight", "Dusk", "Sage"):
+            sg.theme(name)
+            self.assertEqual(sg.theme(), name)
+            for accessor in (
+                sg.theme_background_color,
+                sg.theme_text_color,
+            ):
+                value = accessor()
+                self.assertIsNotNone(
+                    value,
+                    msg=f"{name}: {accessor.__name__} returned None",
+                )
+                self.assertNotEqual(
+                    value, COLOR_SYSTEM_DEFAULT,
+                    msg=f"{name}: {accessor.__name__} returned the sentinel",
+                )
+            # and the button color tuple must have both parts as real colors
+            button = sg.theme_button_color()
+            self.assertIsNotNone(button)
+            for part in button:
+                if part is not None:
+                    self.assertNotEqual(part, COLOR_SYSTEM_DEFAULT)
+        sg.theme(None)
+
+    def test_system_theme_uses_sentinels(self):
+        """The System theme defers to platform colors (sentinel everywhere)."""
+        from TkSimpleGUI._theming import theme_manager
+        from TkSimpleGUI.constants import COLOR_SYSTEM_DEFAULT
+        sg.theme("System")
+        self.assertEqual(sg.theme_background_color(), COLOR_SYSTEM_DEFAULT)
+        self.assertEqual(sg.theme_text_color(), COLOR_SYSTEM_DEFAULT)
+        # is_native must report True even though a name is set, so
+        # configure_ttk short-circuits and leaves the platform look intact
+        self.assertTrue(theme_manager.is_native)
         sg.theme(None)
 
 
@@ -341,7 +389,7 @@ class TestElementOptions(unittest.TestCase):
     def test_themed_ttk_widgets(self):
         # regression: themed mode used to crash ttk.Entry/Checkbutton with
         # unknown "-background" options
-        sg.theme("DarkBlue3")
+        sg.theme("Slate")
         try:
             window = sg.Window(
                 "t",
@@ -1164,15 +1212,15 @@ class TestThirdBatch(unittest.TestCase):
         directory = tempfile.mkdtemp()
         try:
             prefs = sg.UserSettings("test.json", path=directory)
-            prefs.set("theme", "DarkBlue3")
+            prefs.set("theme", "Slate")
             prefs.set("window/size", "800x600")
-            self.assertEqual(prefs.get("theme"), "DarkBlue3")
+            self.assertEqual(prefs.get("theme"), "Slate")
             self.assertEqual(prefs.get("window/size"), "800x600")
             self.assertIn("theme", prefs)
             self.assertEqual(prefs["window/size"], "800x600")
             # a fresh instance reads the same file back
             again = sg.UserSettings("test.json", path=directory)
-            self.assertEqual(again.get("theme"), "DarkBlue3")
+            self.assertEqual(again.get("theme"), "Slate")
             again.delete("window/size")
             self.assertNotIn("window/size", again)
             self.assertIsNone(again.get("window/size"))
@@ -1292,7 +1340,10 @@ class TestThirdBatch(unittest.TestCase):
         buffer = io.StringIO()
         with redirect_stdout(buffer):
             sg.main(["--themes"])
-        self.assertGreater(len(buffer.getvalue().splitlines()), 150)
+        # 5 hand-picked themes, printed one per line
+        self.assertEqual(len(buffer.getvalue().splitlines()), 5)
+        for name in ("System", "Slate", "Daylight", "Dusk", "Sage"):
+            self.assertIn(name, buffer.getvalue())
 
     def test_dbg_returns_quickly(self):
         # dbg formats args and delegates to the quick popup

@@ -6,7 +6,7 @@ and every :meth:`~UserSettings.set` writes through to disk immediately::
 
     prefs = sg.UserSettings("myapp.json")
     prefs.set("window/size", "800x600")
-    prefs["theme"] = "DarkBlue3"
+    prefs["theme"] = "Slate"
     print(prefs.get("theme"))
 
 Keys may contain ``/`` to address nested sections ("window/size").

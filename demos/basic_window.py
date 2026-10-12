@@ -21,7 +21,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 import TkSimpleGUI as sg
 
-sg.theme("DefaultNoMoreNagging")
+sg.theme("System")
 
 app = sg.default_app()
 

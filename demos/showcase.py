@@ -337,7 +337,7 @@ def build_actions():
 def build_main_window():
     menu_def = [
         ["&File", ["Open file", "Save file", "---", "Exit"]],
-        ["&Theme", ["Native look", "DarkBlue3 theme"]],
+        ["&Theme", ["System (native)", "Slate", "Daylight", "Dusk", "Sage"]],
         ["&Help", ["About"]],
     ]
     toolbar = sg.TToolbar([
@@ -941,12 +941,12 @@ def on_copy_log(window, values):
     sg.popup_notify("Log copied to clipboard")
 
 
-@sg.bind_event(["Native look", "DarkBlue3 theme"])
+@sg.bind_event(["System (native)", "Slate", "Daylight", "Dusk", "Sage"])
 def on_theme(window, event, values):
-    if event == "DarkBlue3 theme":
-        name = sg.theme("DarkBlue3")
+    if event == "System (native)":
+        name = sg.theme("System")
     else:
-        name = sg.theme(None)
+        name = sg.theme(event)
     log(f"theme switched to {name} (applies to new windows)", color="#1565c0")
 
 
