@@ -123,7 +123,7 @@ class Window(object):
 
     def __init__(
         self,
-        title,
+        title=None,
         layout=None,
         size=(None, None),
         location=(None, None),
@@ -142,8 +142,52 @@ class Window(object):
         right_click_menu=None,
         actions=None,
         parent=None,
+        config=None,
     ):
-        self._title = title
+        # a WindowConfig dataclass can carry every option; explicit kwargs win
+        if config is not None:
+            from ..config import WindowConfig
+
+            if not isinstance(config, WindowConfig):
+                raise TypeError("config must be a WindowConfig instance")
+            resolved = config.as_kwargs(
+                title=title,
+                size=size if size != (None, None) else None,
+                location=location if location != (None, None) else None,
+                finalize=finalize or None,
+                keep_on_top=keep_on_top or None,
+                modal=modal or None,
+                no_titlebar=no_titlebar or None,
+                grab_anywhere=grab_anywhere or None,
+                return_keyboard_events=return_keyboard_events or None,
+                icon=icon,
+                background_color=background_color,
+                margins=margins,
+                resizable=resizable,
+                disable_close=disable_close or None,
+                element_justification=element_justification,
+                right_click_menu=right_click_menu,
+                parent=parent,
+            )
+            title = resolved.pop("title")
+            layout = layout if layout is not None else resolved.pop("layout", None)
+            size = resolved.pop("size")
+            location = resolved.pop("location")
+            finalize = bool(resolved.pop("finalize"))
+            keep_on_top = resolved.pop("keep_on_top")
+            modal = resolved.pop("modal")
+            no_titlebar = resolved.pop("no_titlebar")
+            grab_anywhere = resolved.pop("grab_anywhere")
+            return_keyboard_events = resolved.pop("return_keyboard_events")
+            icon = resolved.pop("icon")
+            background_color = resolved.pop("background_color")
+            margins = resolved.pop("margins")
+            resizable = resolved.pop("resizable")
+            disable_close = resolved.pop("disable_close")
+            element_justification = resolved.pop("element_justification")
+            right_click_menu = resolved.pop("right_click_menu")
+            parent = resolved.pop("parent")
+        self._title = title if title is not None else ""
         self._layout = _validate_layout(layout)
         self._tk_root = None  # ty: ignore[invalid-assignment]
         self._finalized = False

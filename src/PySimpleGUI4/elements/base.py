@@ -56,7 +56,33 @@ class ElementBaseMeta(ABCMeta):
                     if slot not in declared and slot not in inherited:
                         inherited.append(slot)
         namespace["__slots__"] = tuple(inherited) + tuple(declared)
-        return super().__new__(mcs, name, bases, namespace)
+        cls = super().__new__(mcs, name, bases, namespace)
+        # every concrete element gains a config= keyword without each of the
+        # 40 constructors having to declare it: the metaclass wraps __init__
+        # to expand an ElementOptions dataclass into the base keyword args
+        original_init = cls.__init__
+
+        def config_aware_init(self, *args, **kwargs):
+            config = kwargs.pop("config", None)
+            if config is not None:
+                from ..config import ElementOptions
+
+                if not isinstance(config, ElementOptions):
+                    raise TypeError("config must be an ElementOptions instance")
+                for name in (
+                    "key", "size", "tooltip", "visible", "pad", "expand_x",
+                    "expand_y", "justification", "right_click_menu", "metadata",
+                ):
+                    value = getattr(config, name)
+                    if value is not None and kwargs.get(name) is None:
+                        kwargs[name] = value
+                if config.disabled and not kwargs.get("disabled"):
+                    kwargs["disabled"] = True
+            original_init(self, *args, **kwargs)
+
+        config_aware_init.__doc__ = original_init.__doc__
+        cls.__init__ = config_aware_init  # ty: ignore[invalid-assignment]
+        return cls
 
 
 class Element(object, metaclass=ElementBaseMeta):

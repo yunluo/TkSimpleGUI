@@ -214,6 +214,9 @@ def main_loop(window, app=None):
 # --- actions ------------------------------------------------------------------------------
 from .actions import Action, ActionList
 
+# --- declarative config objects (dataclasses) ----------------------------------------------
+from .config import ElementOptions, WindowConfig
+
 # --- Windows desktop integration (no-op off Windows) ----------------------------------------
 from .hotkey import GlobalHotkeys, taskbar_progress
 
@@ -370,6 +373,7 @@ __all__ = [
     "Window", "SystemTray", "PySimpleEvent", "singleton_window", "main_loop",
     "default_app", "run_application", "bind_event", "on_event",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
+    "ElementOptions", "WindowConfig",
     "_", "translate", "set_translations", "add_translation",
     "clear_translations",
     "fade_in", "fade_out", "slide", "animate_progress", "dbg",

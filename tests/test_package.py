@@ -758,6 +758,61 @@ class TestTypedEnums(unittest.TestCase):
         window.close()
 
 
+class TestDataclassConfigs(unittest.TestCase):
+    """dataclass 配置对象：WindowConfig / ElementOptions。"""
+
+    def test_window_config(self):
+        cfg = sg.WindowConfig(title="Cfg", resizable=True, modal=True,
+                              keep_on_top=True)
+        window = sg.Window(layout=[[sg.Text("x")]], config=cfg, finalize=True)
+        self.assertEqual(window.title, "Cfg")
+        self.assertEqual(window.tk_root.resizable(), (True, True))
+        window.close()
+
+    def test_window_config_kwargs_override(self):
+        cfg = sg.WindowConfig(title="FromConfig", resizable=True)
+        window = sg.Window(config=cfg, title="Explicit", finalize=True)
+        self.assertEqual(window.title, "Explicit")  # explicit kwarg wins
+        window.close()
+
+    def test_window_config_requires_type(self):
+        with self.assertRaises(TypeError):
+            sg.Window(config={"title": "nope"})
+
+    def test_element_options_shared(self):
+        opts = sg.ElementOptions(
+            pad=(10, 4), expand_x=True,
+            right_click_menu=["&Menu", ["Refresh"]],
+            metadata={"tag": 1},
+        )
+        first = sg.Text("a", config=opts, key="-A-")
+        second = sg.Input("", config=opts, key="-B-")
+        window = sg.Window("t", [[first], [second]], finalize=True)
+        self.assertEqual(first.pad, (10, 4))
+        self.assertEqual(second.pad, (10, 4))
+        self.assertTrue(first.expand_x)
+        self.assertTrue(second.expand_x)
+        self.assertEqual(first.metadata, {"tag": 1})
+        self.assertIsNotNone(first._popup_menu)  # right-click menu attached
+        window.close()
+
+    def test_element_options_kwargs_win(self):
+        opts = sg.ElementOptions(expand_x=True, metadata="from-config")
+        element = sg.Text("a", config=opts, metadata="explicit")
+        self.assertEqual(element.metadata, "explicit")
+
+    def test_element_options_requires_type(self):
+        with self.assertRaises(TypeError):
+            sg.Text("a", config={"pad": 4})
+
+    def test_window_config_carry_layout(self):
+        cfg = sg.WindowConfig(title="LayoutInConfig",
+                              layout=[[sg.Text("from cfg", key="-T-")]])
+        window = sg.Window(config=cfg, finalize=True)
+        self.assertIn("-T-", window)
+        window.close()
+
+
 class TestFirstBatch(unittest.TestCase):
     """第一批：校验/日历/分栏/滚动容器/窗体右键/定时器/查找替换。"""
 
