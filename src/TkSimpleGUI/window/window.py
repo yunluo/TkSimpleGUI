@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """The :class:`Window` class: layout hosting, event loop and element lookup."""
 
@@ -1259,7 +1260,9 @@ class Window(object):
         The standard way to launch an application — no ``while True``, no
         explicit event manager::
 
-            @sg.default_app().bind_event("OK")
+            app = sg.default_app()
+
+            @app.bind_event("OK")
             def on_ok(window, values): ...
 
             sg.Window("Demo", layout).run()

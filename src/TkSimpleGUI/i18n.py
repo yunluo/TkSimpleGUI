@@ -1,10 +1,11 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Dictionary based internationalization (Qt ``tr()`` analog).
 
 Load a catalog (a flat ``{source: translated}`` dict or JSON file), then
 wrap every UI string with :func:`_`::
 
-    sg.set_translations({"Open": "打开", "Save": "保存"})
+    sg.set_translations({"Open": "Ouvert", "Save": "Sauve"})
     sg.Text(_("Open"))
 """
 

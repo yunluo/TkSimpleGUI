@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Miscellaneous elements: status bar, separators, sizegrip, menubutton, scrollbar."""
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Literal, cast
+from typing import cast
+from .._typing_compat import Literal
 
 from .base import Element
 from .. import _theming as theme_mod

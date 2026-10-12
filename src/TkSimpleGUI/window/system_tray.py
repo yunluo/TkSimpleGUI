@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """System tray support for TkSimpleGUI (Windows only).
 
@@ -110,11 +111,19 @@ class SystemTray(object):
         self._owns_root = False
         self._tk_root = None  # ty: ignore[invalid-assignment]
         self._events = queue.Queue()
+        self._ensure_pump_root()  # tk root must exist BEFORE the tray window
         self._register_and_show()
 
     # --- pump -----------------------------------------------------------------
     def _ensure_pump_root(self):
-        """Tray events ride the tk message pump; borrow or create a root."""
+        """Tray events ride the tk message pump; borrow or create a root.
+
+        On 32-bit Python 3.7 the Win32 tray message window must be created
+        AFTER any Tk root exists (creating ``tk.Tk()`` while a tray WndProc
+        window is already registered aborts the process), so the root is
+        set up eagerly in ``__init__`` — borrowed from an open window when
+        one exists, otherwise a private hidden ``tk.Tk()``.
+        """
         if self._tk_root is not None:
             return
         from .window import Window
@@ -349,11 +358,13 @@ class SystemTray(object):
         normally. The loop ends when the tray is removed (``close()``) and
         no windows are left::
 
-            @sg.default_app().bind_event("退出")
+            app = sg.default_app()
+
+            @app.bind_event("Exit")
             def on_exit(tray, values):
                 tray.close()
 
-            sg.SystemTray(menu=["显示", "退出"]).run()
+            sg.SystemTray(menu=["Show", "Exit"]).run()
         """
         from ..event import run_application
 

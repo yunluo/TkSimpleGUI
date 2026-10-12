@@ -1,5 +1,6 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
-"""Canvas-drawn widgets that Tk cannot do natively (战线 B).
+"""Canvas-drawn widgets that Tk cannot do natively.
 
 - :class:`RoundButton`  — rounded / circular button with hover state
 - :class:`ImageButton`  — an arbitrary image acting as a button
@@ -351,7 +352,7 @@ class ImageButton(_CanvasButton):
 
 
 class TextProgressBar(Element):
-    """A progress bar with centered percentage text (Canvas 自绘).
+    """A progress bar with centered percentage text (canvas-drawn).
 
     ttk.Progressbar cannot overlay text; this draws the bar and the label
     as canvas figures::

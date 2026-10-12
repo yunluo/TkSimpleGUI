@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """TkSimpleGUI - Python GUI Framework (object oriented, Python 3.7+).
 
@@ -260,31 +261,6 @@ from .popup import (
     MsgBox,
 )
 
-# --- convenience aliases (TkSimpleGUI style) ---------------------------------------------
-I = Input
-T = Text
-B = Button
-Btn = Button
-DD = Combo
-Drop = Combo
-Dropdown = Combo
-LB = Listbox
-CB = Checkbox
-Check = Checkbox
-Rad = Radio
-Sp = Spin
-ML = Multiline
-ProgBar = ProgressBar
-Progress = ProgressBar
-Col = Column
-SBar = StatusBar
-VS = VerticalSeparator
-HS = HorizontalSeparator
-FlexForm = Window
-RGB = rgb
-SetOptions = set_options
-PopUp = popup
-
 # --- T-prefixed aliases (uniform prefix rule) --------------------------------------------
 # Every widget is also importable by its own name with a "T" prefix
 # (TText = Text, TButton = Button, TRoundButton = RoundButton, ...) —
@@ -384,9 +360,6 @@ __all__ = [
     "popup_get_file", "popup_get_folder", "popup_get_date",
     "popup_get_font", "popup_find", "popup_replace",
     "popup_error_with_traceback", "MsgBox",
-    "I", "T", "B", "Btn", "DD", "Drop", "Dropdown", "LB", "CB", "Check",
-    "Rad", "Sp", "ML", "ProgBar", "Progress", "Col", "SBar", "VS", "HS",
-    "FlexForm", "RGB", "SetOptions", "PopUp",
     "TText", "TInput", "TInputText", "TCombo", "TOptionMenu", "TListbox",
     "TSpin", "TCheckbox", "TCheckList", "TRadio", "TSlider", "TMultiline",
     "TOutput", "TProgressBar", "TButton", "TSubmit", "TCloseButton",

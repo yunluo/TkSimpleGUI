@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Standard input and display widgets for TkSimpleGUI."""
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, Literal, cast, Optional, Tuple, Union
+from typing import Any, Dict, cast, Optional, Tuple, Union
+from .._typing_compat import Literal
 
 from .base import Element, InputElement
 from .. import constants as C

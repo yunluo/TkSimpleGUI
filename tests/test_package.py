@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """TkSimpleGUI OO package test suite (unittest, headless friendly)."""
 
@@ -119,12 +120,7 @@ class TestElementConstruction(unittest.TestCase):
             self.assertIsNotNone(element)
 
     def test_shortcuts(self):
-        self.assertIs(sg.T, sg.Text)
-        self.assertIs(sg.B, sg.Button)
         self.assertIs(sg.InputText, sg.Input)
-        self.assertIs(sg.DD, sg.Combo)
-        self.assertIs(sg.Col, sg.Column)
-        self.assertIs(sg.ProgBar, sg.ProgressBar)
 
     def test_t_prefixed_aliases(self):
         """Uniform T-prefix rule: T<Name> is the same class as <Name>."""
@@ -559,7 +555,7 @@ class TestTkIntegration(unittest.TestCase):
 
 
 class TestNativeCoverage(unittest.TestCase):
-    """逐控件核对 Tk/ttk 原生功能覆盖（本轮补齐的 passthrough API）。"""
+    """Per-widget coverage of the native Tk/ttk passthrough APIs."""
 
     def test_input_native_api(self):
         element = sg.Input("abc", justify="right", key="-IN-")
@@ -697,7 +693,7 @@ class TestNativeCoverage(unittest.TestCase):
 
 
 class TestTypedEnums(unittest.TestCase):
-    """IDE 亲和力：str 枚举替代 Tk 魔术字符串。"""
+    """IDE affinity: str enums replacing Tk magic strings."""
 
     def test_enum_values_are_tk_strings(self):
         self.assertIsInstance(sg.Anchor.CENTER, str)
@@ -709,7 +705,7 @@ class TestTypedEnums(unittest.TestCase):
         self.assertEqual(sg.Color.RED, "red")
 
     def test_enums_interchange_with_strings(self):
-        """枚举和裸字符串在控件参数上完全互换。"""
+        """Enums and raw strings are fully interchangeable in widget args."""
         window = sg.Window(
             "t",
             [
@@ -759,7 +755,7 @@ class TestTypedEnums(unittest.TestCase):
 
 
 class TestDataclassConfigs(unittest.TestCase):
-    """dataclass 配置对象：WindowConfig / ElementOptions。"""
+    """dataclass config objects: WindowConfig / ElementOptions."""
 
     def test_window_config(self):
         cfg = sg.WindowConfig(title="Cfg", resizable=True, modal=True,
@@ -814,7 +810,7 @@ class TestDataclassConfigs(unittest.TestCase):
 
 
 class TestFirstBatch(unittest.TestCase):
-    """第一批：校验/日历/分栏/滚动容器/窗体右键/定时器/查找替换。"""
+    """Batch 1: validation, calendar, splitter, scrollable column, timers, find/replace."""
 
     def test_input_validators(self):
         self.assertTrue(sg.validate_integer("123"))
@@ -957,7 +953,7 @@ class TestFirstBatch(unittest.TestCase):
 
 
 class TestSecondBatch(unittest.TestCase):
-    """第二批：CheckList/Toolbar/toggle/LabeledEdit/KV/FlowPanel/图标/编辑/Shape。"""
+    """Batch 2: CheckList, Toolbar, toggle, LabeledEdit, KV editor, FlowPanel, icons, editing, Shape."""
 
     def test_checklist(self):
         checklist = sg.CheckList(
@@ -1108,7 +1104,7 @@ class TestSecondBatch(unittest.TestCase):
 
 
 class TestThirdBatch(unittest.TestCase):
-    """第三批：Action/UserSettings/数据绑定/i18n/动画/托盘/CLI。"""
+    """Batch 3: Action, UserSettings, data binding, i18n, animation, tray, CLI."""
 
     def test_action_normalization_and_callback(self):
         fired = []
@@ -1209,15 +1205,15 @@ class TestThirdBatch(unittest.TestCase):
 
         directory = tempfile.mkdtemp()
         try:
-            catalog_path = f"{directory}zh.json"
+            catalog_path = f"{directory}fr.json"
             with open(catalog_path, "w") as handle:
-                json.dump({"Open": "打开", "Save": "保存"}, handle)
+                json.dump({"Open": "Ouvert", "Save": "Sauve"}, handle)
             sg.set_translations(catalog_path)
-            self.assertEqual(sg.translate("Open"), "打开")
-            self.assertEqual(sg._("Save"), "保存")
+            self.assertEqual(sg.translate("Open"), "Ouvert")
+            self.assertEqual(sg._("Save"), "Sauve")
             self.assertEqual(sg._("Unknown"), "Unknown")
-            sg.add_translation("Close", "关闭")
-            self.assertEqual(sg._("Close"), "关闭")
+            sg.add_translation("Close", "Ferme")
+            self.assertEqual(sg._("Close"), "Ferme")
             sg.clear_translations()
             self.assertEqual(sg._("Open"), "Open")
         finally:
@@ -1291,7 +1287,7 @@ class TestThirdBatch(unittest.TestCase):
 
 
 class TestLineA(unittest.TestCase):
-    """战线 A：Tk/ttk 原生 API 全覆盖。"""
+    """Line A: full coverage of the native Tk/ttk API surface."""
 
     def test_element_bind_and_unbind(self):
         element = sg.Text("click me", key="-T-")
@@ -1417,7 +1413,7 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_menubutton_element(self):
-        menu_button = sg.Menubutton("选项", ["One", "---", "Two"], key="-MB-")
+        menu_button = sg.Menubutton("Options", ["One", "---", "Two"], key="-MB-")
         window = sg.Window("t", [[menu_button]], finalize=True)
         self.assertEqual(menu_button.items, ["One", "---", "Two"])
         menu_button.update(items=["Alpha"])
@@ -1456,7 +1452,7 @@ class TestLineA(unittest.TestCase):
 
 
 class TestLineB(unittest.TestCase):
-    """战线 B：Tk 做不到的也要做（Canvas 自绘 / 合成 / ctypes）。"""
+    """Line B: what Tk cannot do (canvas-drawn, synthesized events, ctypes)."""
 
     def test_round_button(self):
         button = sg.RoundButton("Go", size=(90, 30), radius=14,
@@ -1608,13 +1604,13 @@ class TestLineB(unittest.TestCase):
 
 
 class TestUnifiedLoop(unittest.TestCase):
-    """单一事件循环：全局总线 + main_loop + 多窗口天然支持。"""
+    """Single event loop: global bus + main_loop, multi-window by design."""
 
     def tearDown(self):
         sg.Window.close_all()
 
     def test_cross_window_events(self):
-        """任何窗口的 read() 能收到其它窗口的事件（总线时间序）。"""
+        """Any window read() receives events from other windows (bus order)."""
         first = sg.Window("one", [[sg.Button("ping", key="-PING-")]], finalize=True)
         second = sg.Window("two", [[sg.Button("pong", key="-PONG-")]], finalize=True)
         first.write_event_value("-FROM-ONE-")
@@ -1722,7 +1718,7 @@ class TestUnifiedLoop(unittest.TestCase):
 
 
 class TestWindowHierarchy(unittest.TestCase):
-    """窗口层级：parent/children/ancestors + 级联关闭。"""
+    """Window hierarchy: parent/children/ancestors + cascading close."""
 
     def test_parent_link_and_query(self):
         main = sg.Window("main", [[sg.Text("m")]], finalize=True)
@@ -1773,7 +1769,7 @@ class TestWindowHierarchy(unittest.TestCase):
 
 
 class TestRunEntry(unittest.TestCase):
-    """根对象 .run() 启动：窗口根 / 托盘根 / 默认事件管理器。"""
+    """Root .run() entry: window root / tray root / default event manager."""
 
     def tearDown(self):
         sg.Window.close_all()
@@ -1789,12 +1785,14 @@ class TestRunEntry(unittest.TestCase):
             sg.Window.close_all()  # ends the loop
 
         window.write_event_value("-QUIT-")
-        window.run(app)  # 根对象直接启动
+        window.run(app)  # root object starts the loop directly
         self.assertEqual(seen, ["quit"])
         self.assertEqual(sg.Window.active_windows(), [])
 
     def test_window_run_uses_default_app(self):
-        @sg.default_app().bind_event("-RUN-EVENT-")
+        app = sg.default_app()
+
+        @app.bind_event("-RUN-EVENT-")
         def on_run_event(window, values):
             sg.Window.close_all()
 
@@ -1940,8 +1938,9 @@ class TestPy37Compatibility(unittest.TestCase):
                 with open(path, encoding="utf-8-sig") as handle:
                     tree = ast.parse(handle.read())
                 for node in ast.walk(tree):
-                    if isinstance(node, ast.NamedExpr):  # walrus := (3.8+)
-                        offenders.append(os.path.basename(path))
+                    named_expr = getattr(ast, "NamedExpr", None)  # 3.8+
+                    if named_expr is not None and isinstance(node, named_expr):
+                        offenders.append(os.path.basename(path))  # walrus :=
                     elif getattr(node, "posonlyargs", None):  # f(a, /, b) (3.8+)
                         offenders.append(os.path.basename(path))
         self.assertEqual(offenders, [])
@@ -1959,7 +1958,7 @@ class TestPy37Compatibility(unittest.TestCase):
                 path = os.path.join(root, name)
                 with open(path, encoding="utf-8-sig") as handle:
                     for lineno, line in enumerate(handle.read().splitlines(), 1):
-                        if "except ImportError" in line:
+                        if "except ImportError" in line and not name.startswith("_typing_compat"):
                             offenders.append(f"{name}:{lineno} typing-fallback")
                         elif re.search(r"super\(\w+, ?\w+\)", line):
                             offenders.append(f"{name}:{lineno} old-super")

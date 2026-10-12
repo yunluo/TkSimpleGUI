@@ -3,7 +3,8 @@
 
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser
-from typing import Literal, cast
+from typing import cast
+from .._typing_compat import Literal
 
 from .base import Element
 from .. import constants as C

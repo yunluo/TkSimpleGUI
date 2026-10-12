@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Declarative configuration objects (Python 3.7 dataclasses).
 

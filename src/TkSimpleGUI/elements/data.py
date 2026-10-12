@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Tabular data elements: Table and Tree (both ttk.Treeview based)."""
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Literal, Optional, cast
+from typing import Optional, cast
+from .._typing_compat import Literal
 
 from .base import Element
 from .. import constants as C
@@ -304,7 +306,7 @@ class Table(Element):
         if self._enable_events:
             self._widget.bind("<<TreeviewSelect>>", lambda _e: self._post_event())
         # Treeview has no native column-resize virtual event; synthesize one
-        # from the header separator ButtonRelease (战线 B 技法)
+        # from the header separator ButtonRelease
         self._widget.bind("<ButtonRelease-1>", self._on_header_release, add="+")
 
     def _on_header_release(self, event):

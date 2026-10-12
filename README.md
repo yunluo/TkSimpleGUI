@@ -21,8 +21,8 @@
   `window` / `event` / `values` 按参数名自动注入
 - **面向对象控件** — 每个控件都是真正的类实例，属性读写、方法直调，
   不再和 `window["-KEY-"].update(...)` 的字符串寻址缠斗
-- **三种命名风格** — 朴素（`sg.Text`）、短别名（`sg.T` / `sg.B`）、
-  统一 T 前缀（`sg.TText` / `sg.TInput` / `sg.TButton`）——同一个类，随你喜欢
+- **两种命名风格** — 朴素（`sg.Text`）与统一 T 前缀
+  （`sg.TText` / `sg.TInput` / `sg.TButton`）——同一个类，随你喜欢
 - **消灭魔术字符串** — Tk 的字符串选项全部类型化为枚举
   （`sg.Anchor.CENTER`、`sg.Justify.RIGHT`、`sg.EventType.DOUBLE_CLICK`、
   `sg.Color.NAVY`、`sg.Relief.SUNKEN`…），枚举值本身就是 Tk 字符串，裸字符串依旧可用
@@ -117,7 +117,7 @@ window.layout(layout).finalize()
 ```
 TkSimpleGUI/
 ├── src/TkSimpleGUI/            # 对象导向包（import TkSimpleGUI）
-│   ├── __init__.py             # 公开 API + 全部别名
+│   ├── __init__.py             # 公开 API + T 前缀别名
 │   ├── enums.py                # 13 类 Tk 字符串枚举（Anchor/Color/EventType…）
 │   ├── config.py               # WindowConfig / ElementOptions dataclass
 │   ├── _version.py             # 版本信息

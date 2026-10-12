@@ -1,9 +1,11 @@
+# -*- coding: utf-8 -*-
 #!/usr/bin/env python3
 """Container elements: Frame, Column, Tab, TabGroup and Menu."""
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from .._typing_compat import Literal
 
 from .base import ContainerElement, Element, _validate_layout
 from .widgets import Input, Text
