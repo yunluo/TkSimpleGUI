@@ -14,6 +14,8 @@ decorator based handlers::
 """
 
 import functools
+import time
+from typing import Optional
 
 from . import constants as C
 from .window.window import Window
@@ -128,6 +130,60 @@ class PySimpleEvent(object):
                 self.apply_event(window, event, values)
         finally:
             Window.close_all()
+
+
+# --- application-wide default event manager ------------------------------------
+# sg.Window(...).run() / sg.SystemTray(...).run() use this instance when no
+# explicit app is passed; @app.bind_event handlers registered on it are
+# picked up automatically.
+_default_app: Optional["PySimpleEvent"] = None
+
+
+def default_app() -> "PySimpleEvent":
+    """The global default event manager (created on first use)."""
+    global _default_app
+    if _default_app is None:
+        _default_app = PySimpleEvent()
+    return _default_app
+
+
+def run_application(anchor, app: Optional["PySimpleEvent"] = None, close_event=None):
+    """Run the application loop with ``anchor`` as the root object.
+
+    ``anchor`` is either a :class:`~PySimpleGUI4.window.Window` (a normal
+    main window) or a :class:`~PySimpleGUI4.window.SystemTray` (a tray-only
+    application). This is what ``.run()`` calls on both.
+    """
+    from .window.system_tray import SystemTray
+
+    manager = app if app is not None else default_app()
+    if isinstance(anchor, SystemTray):
+        # tray-only application: there is no window to finalize; the loop
+        # pumps the tk root (tray WndProc events + after timers) directly
+        anchor._ensure_pump_root()
+        try:
+            while True:
+                # pump tk with a bounded wait so after() timers fire even
+                # when no windows are open
+                if Window._open_windows:
+                    Window.read_all_windows(timeout=30)
+                else:
+                    anchor._tk_root.update()
+                    time.sleep(0.02)
+                # dispatch tray events through the same manager
+                if not anchor._created:
+                    break  # tray removed: application over
+                tray_event, _payload = anchor.read(timeout=0)
+                if tray_event not in (None, C.TIMEOUT_KEY):
+                    manager.apply_event(anchor, tray_event, {})
+                if not anchor._created:
+                    break
+        finally:
+            anchor.close()
+            Window.close_all()
+        return manager
+    # window-anchored application
+    return manager.run_event(anchor, close_event=close_event)
 
 
 def _handler_signature(func):

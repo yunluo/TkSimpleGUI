@@ -1205,6 +1205,25 @@ class Window(object):
         self.close()
         return False
 
+    def run(self, app=None, close_event=None):
+        """Start the application event loop with THIS window as the root.
+
+        The standard way to launch an application — no ``while True``, no
+        explicit event manager::
+
+            @sg.default_app().bind_event("OK")
+            def on_ok(window, values): ...
+
+            sg.Window("Demo", layout).run()
+
+        An explicit manager can be passed (``window.run(app)``); handlers
+        registered on it take precedence. Returns when the last window
+        closes.
+        """
+        from ..event import run_application
+
+        return run_application(self, app=app, close_event=close_event)
+
     def __repr__(self):
         return f"<Window {self._title!r} finalized={self._finalized} closed={self._closed}>"
 

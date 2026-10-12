@@ -1519,6 +1519,77 @@ class TestWindowHierarchy(unittest.TestCase):
         main.close()
 
 
+class TestRunEntry(unittest.TestCase):
+    """根对象 .run() 启动：窗口根 / 托盘根 / 默认事件管理器。"""
+
+    def tearDown(self):
+        sg.Window.close_all()
+
+    def test_window_run_with_explicit_app(self):
+        app = sg.PySimpleEvent()
+        window = sg.Window("one", [[sg.Button("quit", key="-QUIT-")]], finalize=True)
+        seen = []
+
+        @app.bind_event("-QUIT-")
+        def on_quit(window, values):
+            seen.append("quit")
+            sg.Window.close_all()  # ends the loop
+
+        window.write_event_value("-QUIT-")
+        window.run(app)  # 根对象直接启动
+        self.assertEqual(seen, ["quit"])
+        self.assertEqual(sg.Window.active_windows(), [])
+
+    def test_window_run_uses_default_app(self):
+        @sg.default_app().bind_event("-RUN-EVENT-")
+        def on_run_event(window, values):
+            sg.Window.close_all()
+
+        window = sg.Window("one", [[sg.Text("x")]], finalize=True)
+        window.write_event_value("-RUN-EVENT-")
+        window.run()  # no app: default_app() is used, handler above fires
+        self.assertEqual(sg.Window.active_windows(), [])
+
+    def test_default_app_is_singleton(self):
+        self.assertIs(sg.default_app(), sg.default_app())
+        self.assertIsInstance(sg.default_app(), sg.PySimpleEvent)
+
+    def test_run_without_finalize_finalizes(self):
+        app = sg.PySimpleEvent()
+        window = sg.Window("one", [[sg.Text("x")]])  # NOT finalized
+
+        @app.bind_event("-GO-")
+        def on_go(window, values):
+            sg.Window.close_all()
+
+        window.write_event_value("-GO-")
+        window.run(app)  # run() must finalize the anchor first
+        self.assertTrue(window.was_closed)
+
+    @unittest.skipUnless(sg.running_windows(), "SystemTray is Windows only")
+    def test_tray_run_lifecycle(self):
+        # tray.run() starts a tray-anchored loop; the handler closes the
+        # tray which ends the application
+        import subprocess
+
+        probe = os.path.join(
+            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+            "_split",
+            "_tray_run_probe.py",
+        )
+        result = subprocess.run(
+            [sys.executable, probe],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            timeout=60,
+        )
+        output = result.stdout.decode("utf-8", "replace")
+        self.assertEqual(
+            result.returncode, 0, output + result.stderr.decode("utf-8", "replace")
+        )
+        self.assertIn("TRAY RUN OK", output)
+
+
 class TestEventManager(unittest.TestCase):
     def setUp(self):
         self.app = sg.PySimpleEvent()

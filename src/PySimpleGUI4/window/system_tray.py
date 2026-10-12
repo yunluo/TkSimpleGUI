@@ -341,6 +341,24 @@ class SystemTray(object):
     ShowMsg = ShowMessage
     notify = ShowMessage
 
+    def run(self, app=None):
+        """Start a tray-only application loop with THIS tray icon as root.
+
+        The tray icon becomes the application: its menu items arrive as
+        ``on_*`` handler events, and windows opened by handlers participate
+        normally. The loop ends when the tray is removed (``close()``) and
+        no windows are left::
+
+            @sg.default_app().bind_event("退出")
+            def on_exit(tray, values):
+                tray.close()
+
+            sg.SystemTray(menu=["显示", "退出"]).run()
+        """
+        from ..event import run_application
+
+        return run_application(self, app=app)
+
 
 class _NotifyIconData(ctypes.Structure):
     _fields_ = [

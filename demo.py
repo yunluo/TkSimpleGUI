@@ -3,10 +3,10 @@
 """PySimpleGUI4 全功能演示（最新标准版）。
 
 演示**当前推荐写法**：
-- ``sg.main_loop(window, app)`` —— 用户零事件循环
-- ``@app.bind_event`` + ``on_*`` 函数 —— 全局事件管理器分发
+- ``window.run()`` —— 根对象直接启动应用，用户零事件循环
+- ``@sg.default_app().bind_event`` + ``on_*`` 函数 —— 全局事件管理器分发
 - ``Action`` —— 菜单/工具栏/快捷键共享动作
-- ``parent=`` —— 窗口层级（"关于"在独立子窗口里，父关级联）
+- ``parent=`` —— 窗口层级（子窗口演示，父关级联）
 - T 前缀命名、Toast、RoundButton、TextProgressBar、Slider 气泡等新能力
 
 运行::
@@ -33,8 +33,8 @@ _STOPWATCH = {"start": None}
 _TRAY = {"obj": None}
 _PREFS = sg.UserSettings("demo.json")
 
-# 全局事件管理器：所有 on_* handler 注册在这里
-app = sg.PySimpleEvent()
+# 全局事件管理器：所有 on_* handler 注册在这里（default_app 是 .run() 的默认分发器）
+app = sg.default_app()
 
 # 运行期共享状态（handler 之间通过这里传递）
 _state = {
@@ -338,7 +338,7 @@ def _post_build(window):
     _refresh_status()
     # 每秒刷新状态栏时钟（TTimer 对标）
     window.every(1000, _tick_clock)
-    log(f"欢迎使用 PySimpleGUI4 {sg.__version__} —— 七个标签页 + main_loop 零循环")
+    log(f"欢迎使用 PySimpleGUI4 {sg.__version__} —— 七个标签页 + window.run() 零循环")
     log("事件由 @app.bind_event 的 on_* 函数分发；Ctrl+O 打开、Ctrl+S 保存",
         color="#2e7d32")
 
@@ -873,8 +873,8 @@ def main(argv=None):
             window.close()
             print("SMOKE OK")
             return 0
-        # 用户零循环：main_loop 泵事件、分发到上面的 on_* 函数
-        sg.main_loop(window, app)
+        # 用户零循环：window.run() 启动应用（on_* 函数已注册在 default_app 上）
+        window.run()
     finally:
         if _TRAY["obj"] is not None:
             _TRAY["obj"].close()
