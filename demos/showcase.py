@@ -12,14 +12,17 @@ Demonstrates the **recommended style**:
 
 Run::
 
-    python demo.py            # interactive mode
-    python demo.py --smoke    # self-test: pump events ~2s, then exit
+    python demos/showcase.py            # interactive mode
+    python demos/showcase.py --smoke    # self-test: pump events ~2s, then exit
+
+Exit behaviour: the title bar X is *not* a hard quit -- it asks for
+confirmation first. The File > Exit menu entry is the hard-quit path.
 """
 import os
 import sys
 import time
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
 import TkSimpleGUI as sg  # noqa: E402
 
 # 16x16 badge (table row icons / tree node icons)
@@ -136,7 +139,8 @@ def tab_data():
     tree = sg.TTree(headings=["Node"], show_headings=False, num_rows=6, key="-TREE-")
     kv = sg.TKeyValueEditor([("Host", "localhost"), ("Port", "5432")], key="-KV-")
     band = sg.Column([
-        [sg.Column([[sg.TText("Table: click header sorts / double-click edits / row icons / drag separator")],
+        [sg.Column([[sg.TText("Table: click header sorts / double-click edits"
+                              " / row icons / drag separator")],
                     [table],
                     [sg.TButton("Rebind data", key="-B-REBIND-"),
                      sg.TText("Selected record:"),
@@ -277,21 +281,25 @@ def tab_system():
     return [
         [sg.Column([[sg.TText("Popup family")],
                     [sg.TButton("Message", key="-P-MSG-"), sg.TButton("Yes/No", key="-P-YN-"),
-                     sg.TButton("Error", key="-P-ERR-"), sg.TButton("Scrolled text", key="-P-SCROLL-"),
+                     sg.TButton("Error", key="-P-ERR-"),
+                             sg.TButton("Scrolled text", key="-P-SCROLL-"),
                      sg.TButton("Input", key="-P-TEXT-"), sg.TButton("File", key="-P-FILE-"),
                      sg.TButton("Folder", key="-P-FOLDER-"), sg.TButton("Date", key="-P-DATE-"),
                      sg.TButton("Font", key="-P-FONT-")]])],
         [sg.Column([[sg.TText("Window control (runtime API)")],
                     [sg.TButton("Center", key="-W-CENTER-"), sg.TButton("Maximize", key="-W-MAX-"),
                      sg.TButton("Minimize", key="-W-MIN-"), sg.TButton("Restore", key="-W-NORM-"),
-                     sg.TButton("Alpha 0.6", key="-W-ALPHA-"), sg.TButton("Alpha 1.0", key="-W-ALPHA1-"),
-                     sg.TButton("Fade out/in", key="-W-FADE-"), sg.TButton("Slide out/in", key="-W-SLIDE-")]])],
+                     sg.TButton("Alpha 0.6", key="-W-ALPHA-"),
+                             sg.TButton("Alpha 1.0", key="-W-ALPHA1-"),
+                     sg.TButton("Fade out/in", key="-W-FADE-"),
+                             sg.TButton("Slide out/in", key="-W-SLIDE-")]])],
         [sg.Column([[sg.TText("Toast / background task / timers")],
                     [sg.TButton("Toast", key="-W-TOAST-"),
                      sg.TButton("Background task (2s)", key="-W-WORK-"),
                      sg.TTextProgressBar(100, current_value=0, size=(20, 14),
                                          key="-PB-WORK-"),
-                     sg.TButton("Timer on", key="-W-TIMER-"), sg.TButton("Timer off", key="-W-TIMEROFF-"),
+                     sg.TButton("Timer on", key="-W-TIMER-"),
+                             sg.TButton("Timer off", key="-W-TIMEROFF-"),
                      sg.TText("00:00", key="-T-ELAPSED-", size=(8, 1))]])],
         [sg.Column([[sg.TText("LED numeric display (seven-segment)")],
                     [sg.TLED(0, digits=6, color="#ff3b30", key="-LED-COUNT-"),
@@ -301,10 +309,13 @@ def tab_system():
                      sg.VerticalSeparator(),
                      sg.TLED(-3.14, digits=6, color="#33aaff", key="-LED-NEG-")]])],
         [sg.Column([[sg.TText("System integration")],
-                    [sg.TButton("Tray: create", key="-S-TRAY-"), sg.TButton("Tray: notify", key="-S-NOTIFY-"),
+                    [sg.TButton("Tray: create", key="-S-TRAY-"),
+                            sg.TButton("Tray: notify", key="-S-NOTIFY-"),
                      sg.TButton("Tray: close", key="-S-TRAYOFF-"),
-                     sg.TButton("Clipboard set", key="-S-COPY-"), sg.TButton("Clipboard get", key="-S-PASTE-"),
-                     sg.TButton("Save prefs", key="-S-SAVE-"), sg.TButton("i18n demo", key="-S-I18N-")],
+                     sg.TButton("Clipboard set", key="-S-COPY-"),
+                             sg.TButton("Clipboard get", key="-S-PASTE-"),
+                     sg.TButton("Save prefs", key="-S-SAVE-"),
+                             sg.TButton("i18n demo", key="-S-I18N-")],
                     [sg.TText("Left/right click the tray icon; prefs persist via UserSettings.",
                              text_color="#888888")]])],
         [sg.Column([[sg.TText("Window hierarchy (parent)")],
@@ -357,10 +368,24 @@ def build_main_window():
         margins=(8, 6),
         actions=build_actions(),
         right_click_menu=["&Window", ["Clear log", "About"]],
+        on_close=_confirm_exit,
     )
     _state["window"] = window
     _post_build(window)
     return window
+
+
+def _confirm_exit(window):
+    """The main window's title bar X asks before quitting.
+
+    Returning True lets the close proceed (and tear down the app loop);
+    False keeps the window open. The hard-quit path stays File > Exit.
+    """
+    answer = sg.popup_yes_no(
+        "Quit the TkSimpleGUI feature showcase?",
+        title="Exit",
+    )
+    return answer == "Yes"
 
 
 def _post_build(window):

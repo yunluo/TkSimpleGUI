@@ -4,8 +4,9 @@
 
 # TkSimpleGUI
 
-**TkSimpleGUI** 是一个零第三方依赖、纯 Tkinter/ttk 的 Python GUI 框架。
-声明式布局、面向对象控件、全局事件总线、统一事件循环——用 Tk 也要有 Qt 的开发体验。
+**TkSimpleGUI** 是一个纯 Tkinter/ttk 的 Python GUI 框架：Python 3.8+ 零第三方依赖
+（3.7 需 `typing_extensions` 一个条件依赖）。声明式布局、面向对象控件、
+全局事件总线、统一事件循环——用 Tk 也要有 Qt 的开发体验。
 
 > 由 PySimpleGUI 4.x（GPLv3）分叉而来，现已是独立的框架：不再兼容上游 API，
 > 全面转向「零事件循环 + 事件装饰器」的现代写法。改名是为了避免与
@@ -34,7 +35,7 @@
 - **封装彻底** — `__slots__` 全覆盖、私有属性 + `@property`、
   主题与设置走单例而非模块全局
 - **系统原生外观** — 不调 `sg.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
-- **Python 3.7+** — 零第三方依赖，Tkinter/ttk + 标准库
+- **Python 3.7+** — 3.8+ 零第三方依赖（3.7 需 `typing_extensions`），Tkinter/ttk + 标准库
 
 ## 安装
 
@@ -146,7 +147,7 @@ TkSimpleGUI/
 │   └── window/
 │       ├── window.py           # Window：统一循环、层级、定时器、剪贴板
 │       └── system_tray.py      # SystemTray（托盘图标/菜单/气泡/事件）
-├── tests/test_package.py       # unittest 测试套件（163 项）
+├── tests/test_package.py       # 测试套件（181 项，pytest/unittest 均可跑）
 ├── demo.py                     # 全功能展示（七页签，--smoke 自检）
 ├── todo.md                     # 路线图
 ├── pyproject.toml
@@ -157,7 +158,8 @@ TkSimpleGUI/
 
 ```bash
 pip install -e .
-python -m unittest discover tests     # 163 项测试
+python -m pytest tests -q             # 181 项测试（每测试 30s 超时守护）
+python -m unittest discover tests     # 同一套测试的 unittest 跑法
 python tests/check_types.py           # ty 类型检查零诊断守卫
 python demo.py --smoke                # demo 冒烟自检
 ```

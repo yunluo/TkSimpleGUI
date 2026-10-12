@@ -4,20 +4,21 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, cast, Optional, Tuple, Union
+from typing import Any, Dict, cast, Optional
 from .._typing_compat import Literal
 
 from .base import Element, InputElement
 from .. import constants as C
+from .. import enums as E
 from .. import _theming as theme_mod
 
 
 
 _SELECT_MODE_MAP = {
-    C.SelectMode.SINGLE: tk.SINGLE,
-    C.SelectMode.BROWSE: tk.BROWSE,
-    C.SelectMode.MULTIPLE: tk.MULTIPLE,
-    C.SelectMode.EXTENDED: tk.EXTENDED,
+    E.SelectMode.SINGLE: tk.SINGLE,
+    E.SelectMode.BROWSE: tk.BROWSE,
+    E.SelectMode.MULTIPLE: tk.MULTIPLE,
+    E.SelectMode.EXTENDED: tk.EXTENDED,
     "single": tk.SINGLE,
     "browse": tk.BROWSE,
     "multiple": tk.MULTIPLE,
@@ -267,7 +268,8 @@ class Input(InputElement):
         # sg.Justify.RIGHT and "right" land here the same way
         # str-enum values compare equal to their Tk strings, so both
         # sg.Justify.RIGHT and "right" land here the same way
-        self._justify = str(justify).lower() if str(justify).lower() in ("left", "center", "right") else "left"
+        self._justify = str(justify).lower() if str(justify).lower() in ("left", "center",
+                "right") else "left"
         if validate is not None and validate_command is not None:
             if not callable(validate_command):
                 raise TypeError("validate_command must be a callable(text) -> bool")
@@ -521,14 +523,15 @@ class OptionMenu(Combo):
 class Listbox(InputElement):
     """Multi item selection list."""
 
-    __slots__ = ("_values", "_select_mode", "_enable_events", "_text_color", "_background_color", "_font")
+    __slots__ = ("_values", "_select_mode", "_enable_events",
+            "_text_color", "_background_color", "_font")
 
     def __init__(
         self,
         values=(),
         key=None,
         size=C.DEFAULT_LISTBOX_SIZE,
-        select_mode=C.SelectMode.BROWSE,
+        select_mode=E.SelectMode.BROWSE,
         enable_events=False,
         text_color=None,
         background_color=None,
@@ -698,8 +701,8 @@ class Spin(InputElement):
             self._values = list(range(low, high + 1, step))
         else:
             self._values = list(values)
-        self._initial_value = (
-            initial_value if initial_value is not None else (self._values[0] if self._values else "")
+        self._initial_value = initial_value if initial_value is not None else (
+            self._values[0] if self._values else ""
         )
         self._enable_events = enable_events
         self._variable = None  # ty: ignore[invalid-assignment]
@@ -786,7 +789,8 @@ class Spin(InputElement):
 class Checkbox(InputElement):
     """Checkbox with a boolean value."""
 
-    __slots__ = ("_text", "_default", "_enable_events", "_variable", "_text_color", "_background_color", "_font")
+    __slots__ = ("_text", "_default", "_enable_events", "_variable",
+            "_text_color", "_background_color", "_font")
 
     _variable: tk.BooleanVar
 
@@ -886,7 +890,8 @@ class Checkbox(InputElement):
 class Radio(InputElement):
     """Radio button sharing a value with every radio of the same group."""
 
-    __slots__ = ("_text", "_group_id", "_default", "_enable_events", "_text_color", "_background_color", "_font")
+    __slots__ = ("_text", "_group_id", "_default", "_enable_events",
+            "_text_color", "_background_color", "_font")
 
     def __init__(
         self,

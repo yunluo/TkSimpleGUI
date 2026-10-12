@@ -8,15 +8,6 @@ the Settings and ThemeManager singletons, never at module level.
 from enum import Enum
 
 
-class SelectMode(Enum):
-    """Selection modes shared by Listbox and Table."""
-
-    SINGLE = "single"
-    BROWSE = "browse"
-    MULTIPLE = "multiple"
-    EXTENDED = "extended"
-
-
 class ButtonType(Enum):
     """Internal classification of button behaviours."""
 
@@ -101,4 +92,7 @@ DEFAULT_BASE64_ICON_SMALL = (
     b"iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABZElEQVR42sWXsSuEcRjHv3+CGRFyESJEdC7X6bpSUlJSSkpKISJdXaEulyiDMhiUwWBQBoMyGAzKYFAGg8Ff8tXd8Oae7v1d7/fu3nvqM/4+z2f8PYBjkme/rAYIMlMnP6wlzuWJ42+GQcnl8ewXw6Ro+eTRJ+uBFxA7+KAflYzLm8cLmMi8049KpiGSostdWB5Nv9FFpQHl/Bjff2U58iKLXeRHOTfGdl+oYANUD0Z3nqlgA1QPRraeqGADVA+GNx6pYANUD4bWH6hgA1QPBtfuqWADVA8GVu+oYANUD/pXbqlgA1QP+pZvqGADVA96l66pYANUD3oWr6hgA1QPuhcuqWADVA+65i+oYANUDyJz51SwAaoHnbOnVLABqgcdMzkq2ADVU/gVtU9nGRQboDi8P2Fb6pAK/38+ynsvoDWZYT0oug1aEmmGScnrqDm+xzBw3odNsW3WkkCXcmN0k9XAteMPYerEZsUTu/0AAAAASUVORK5CYII="
 )
 DEFAULT_WINDOW_ICON = DEFAULT_BASE64_ICON
-BLANK_BASE64 = b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+# 1x1 transparent PNG
+BLANK_BASE64 = (
+    b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="
+)

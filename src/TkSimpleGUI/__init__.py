@@ -32,7 +32,7 @@ from .enums import (
     State,
     WrapMode,
     ProgressMode,
-    SelectMode as EnumSelectMode,
+    SelectMode,
     Cursor,
     EventType,
     Color,
@@ -48,7 +48,6 @@ from .constants import (
     EVENT_TIMER,
     THIS_ROW,
     WRITE_ONLY_KEY,
-    SelectMode,
     ButtonType,
     Location,
     DEFAULT_ELEMENT_SIZE,
@@ -180,7 +179,6 @@ from .event import (
     default_app,
     run_application,
 )
-from .window.window import Window as _WindowClass
 
 
 def bind_event(event_names):
@@ -377,7 +375,7 @@ __all__ = [
     "THorizontalSeparator", "TSizegrip", "TMenubutton", "TScrollbar",
     "TRoundButton", "TImageButton", "TTextProgressBar", "TLED", "TChart",
     "Anchor", "LabelAnchor", "Justify", "Relief", "Orientation", "Compound",
-    "State", "WrapMode", "ProgressMode", "EnumSelectMode", "Cursor",
+    "State", "WrapMode", "ProgressMode", "SelectMode", "Cursor",
     "EventType", "Color",
 ]
 

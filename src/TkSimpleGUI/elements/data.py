@@ -9,14 +9,15 @@ from .._typing_compat import Literal
 
 from .base import Element
 from .. import constants as C
+from .. import enums as E
 
 
 
 _SELECT_MODE_MAP = {
-    C.SelectMode.BROWSE: "browse",
-    C.SelectMode.EXTENDED: "extended",
-    C.SelectMode.MULTIPLE: "multiple",
-    C.SelectMode.SINGLE: "none",
+    E.SelectMode.BROWSE: "browse",
+    E.SelectMode.EXTENDED: "extended",
+    E.SelectMode.MULTIPLE: "multiple",
+    E.SelectMode.SINGLE: "none",
     "browse": "browse",
     "extended": "extended",
     "multiple": "multiple",
@@ -60,7 +61,7 @@ class Table(Element):
         values=(),
         headings=(),
         key=None,
-        select_mode=C.SelectMode.EXTENDED,
+        select_mode=E.SelectMode.EXTENDED,
         num_rows=C.DEFAULT_TABLE_NUM_ROWS,
         col_widths=None,
         enable_events=True,
@@ -576,7 +577,8 @@ class Tree(Element):
         if self._enable_events:
             self._widget.bind("<<TreeviewSelect>>", lambda _e: self._post_event())
 
-    def insert(self, parent, key, display_text=None, values=None, image_data=None, image_filename=None):
+    def insert(self, parent, key, display_text=None, values=None,
+            image_data=None, image_filename=None):
         """Insert an item; ``parent`` is "" for roots. Returns the item id."""
         kwargs = {}
         if image_data is not None or image_filename is not None:

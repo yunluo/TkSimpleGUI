@@ -16,8 +16,8 @@ or building layouts from data::
     sg.Window(layout=layout, config=cfg)
 """
 
-from dataclasses import dataclass, field
-from typing import Any, List, Optional, Tuple
+from dataclasses import dataclass
+from typing import Any, Optional, Tuple
 
 from .elements.base import Element
 
@@ -93,6 +93,7 @@ class WindowConfig:
     element_justification: Optional[str] = None
     right_click_menu: Optional[list] = None
     parent: Optional[Any] = None
+    on_close: Optional[Any] = None
 
     def as_kwargs(self, **overrides) -> dict:
         """The resolved kwargs for ``Window``: config values with explicit
@@ -105,7 +106,7 @@ class WindowConfig:
                 "return_keyboard_events", "icon", "background_color",
                 "margins", "resizable", "disable_close", "disable_esc",
                 "system_block", "element_justification", "right_click_menu",
-                "parent",
+                "parent", "on_close",
             )
         )
         for name, value in overrides.items():

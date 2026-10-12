@@ -11,7 +11,19 @@ theme from :data:`LOOK_AND_FEEL_TABLE` switches to TkSimpleGUI colors.
 import tkinter as tk
 from tkinter import ttk
 
+from . import constants as C
 from ._theme_data import LOOK_AND_FEEL_TABLE
+
+
+def _is_system_default(value):
+    """True when ``value`` is the ``COLOR_SYSTEM_DEFAULT`` sentinel.
+
+    Several built-in themes encode "use the platform default color" as the
+    literal string ``COLOR_SYSTEM_DEFAULT`` (= ``"1234567890"``). Those
+    values must be filtered out before passing them to Tk, otherwise the
+    user gets ``TclError: unknown color name "1234567890"``.
+    """
+    return value is None or value == C.COLOR_SYSTEM_DEFAULT
 
 
 
@@ -148,7 +160,7 @@ class ThemeManager(object):
     # --- tk kwargs helpers --------------------------------------------------
     def window_kwargs(self):
         """tk kwargs for the window background (empty dict when native)."""
-        if self.is_native or self.background_color is None:
+        if self.is_native or _is_system_default(self.background_color):
             return {}
         return {"background": self.background_color}
 
@@ -157,9 +169,9 @@ class ThemeManager(object):
         kwargs = {}
         bg = background_color if background_color is not None else self.background_color
         fg = color if color is not None else self.text_color
-        if bg is not None:
+        if not _is_system_default(bg):
             kwargs["background"] = bg
-        if fg is not None:
+        if not _is_system_default(fg):
             kwargs["foreground"] = fg
         return kwargs
 
@@ -172,10 +184,11 @@ class ThemeManager(object):
             else self.input_background_color
         )
         fg = text_color if text_color is not None else self.input_text_color
-        if bg is not None:
+        if not _is_system_default(bg):
             kwargs["background"] = bg
-            kwargs["insertbackground"] = fg if fg is not None else bg
-        if fg is not None:
+            if not _is_system_default(fg):
+                kwargs["insertbackground"] = fg
+        if not _is_system_default(fg):
             kwargs["foreground"] = fg
             kwargs["insertbackground"] = fg
         return kwargs

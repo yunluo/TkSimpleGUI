@@ -226,7 +226,8 @@ class TestWindow(unittest.TestCase):
     def test_tab_group(self):
         window = sg.Window(
             "t",
-            [[sg.TabGroup([[sg.Tab("one", [[sg.Text("1", key="-1-")]]), sg.Tab("two", [[sg.Text("2", key="-2-")]])]])]],
+            [[sg.TabGroup([[sg.Tab("one", [[sg.Text("1", key="-1-")]]),
+                    sg.Tab("two", [[sg.Text("2", key="-2-")]])]])]],
             finalize=True,
         )
         self.assertIsNotNone(window["-1-"].widget)
@@ -345,9 +346,11 @@ class TestElementOptions(unittest.TestCase):
             window = sg.Window(
                 "t",
                 [
-                    [sg.Input("", key="-IN-"), sg.Combo(["a"], key="-CB-"), sg.Checkbox("c", key="-CK-")],
+                    [sg.Input("", key="-IN-"), sg.Combo(["a"],
+                            key="-CB-"), sg.Checkbox("c", key="-CK-")],
                     [sg.Button("B", key="-B-"), sg.Radio("r", 1, key="-R-"), sg.Slider((0, 10))],
-                    [sg.Table([["a"]], headings=["H"], key="-TB-"), sg.Tree(headings=["H"], key="-TR-")],
+                    [sg.Table([["a"]], headings=["H"], key="-TB-"),
+                            sg.Tree(headings=["H"], key="-TR-")],
                 ],
                 finalize=True,
             )
@@ -963,7 +966,8 @@ class TestFirstBatch(unittest.TestCase):
 
 
 class TestSecondBatch(unittest.TestCase):
-    """Batch 2: CheckList, Toolbar, toggle, LabeledEdit, KV editor, FlowPanel, icons, editing, Shape."""
+    """Batch 2: CheckList, Toolbar, toggle, LabeledEdit, KV editor,
+            FlowPanel, icons, editing, Shape."""
 
     def test_checklist(self):
         checklist = sg.CheckList(
@@ -2032,6 +2036,134 @@ class TestRunEntry(unittest.TestCase):
         window.write_event_value("-GO-")
         window.run(app)  # run() must finalize the anchor first
         self.assertTrue(window.was_closed)
+
+    def test_on_close_callback_blocks_close(self):
+        """on_close=False keeps the window open; on_close=True closes it."""
+        decisions = [False, True]
+        window = sg.Window(
+            "guarded",
+            [[sg.Text("x")]],
+            finalize=True,
+            on_close=lambda w: decisions.pop(0),
+        )
+        try:
+            # False -> no WIN_CLOSED posted, window stays open
+            window._handle_on_close()
+            self.assertFalse(window.was_closed)
+            self.assertEqual(sg.Window._event_bus.qsize(), 0)
+            # True -> WIN_CLOSED lands on the bus, then read() drains & closes
+            window._handle_on_close()
+            self.assertEqual(sg.Window._event_bus.qsize(), 1)
+            _event_window, event, _values = sg.Window.read_all_windows()
+            self.assertIs(event, sg.WIN_CLOSED)
+            self.assertIs(_event_window, window)
+            self.assertTrue(window.was_closed)
+        finally:
+            if not window.was_closed:
+                window.close()
+
+    def test_on_close_runtime_setter(self):
+        """Setting on_close after construction wires the WM_DELETE_WINDOW hook."""
+        window = sg.Window("late", [[sg.Text("y")]], finalize=True)
+        try:
+            self.assertIsNone(window._on_close)
+            window.on_close = lambda w: True
+            self.assertIsNotNone(window._on_close)
+            window._handle_on_close()
+            # bus has the WIN_CLOSED; drain it and confirm close
+            self.assertEqual(sg.Window._event_bus.qsize(), 1)
+            _event_window, _event, _values = sg.Window.read_all_windows()
+            self.assertIs(_event_window, window)
+            self.assertTrue(window.was_closed)
+        finally:
+            if not window.was_closed:
+                window.close()
+            window.on_close = None  # restore
+
+    def test_demos_basic_window_imports(self):
+        """``demos/basic_window.py`` loads without errors and exposes main()."""
+        import importlib.util
+        import os
+
+        path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..", "demos", "basic_window.py",
+        )
+        spec = importlib.util.spec_from_file_location("_basic_window_demo", path)
+        module = importlib.util.module_from_spec(spec)
+        # the demo prepends src/ to sys.path before importing TkSimpleGUI
+        src = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src")
+        added = src not in sys.path
+        if added:
+            sys.path.insert(0, src)
+        try:
+            spec.loader.exec_module(module)
+        finally:
+            if added:
+                sys.path.remove(src)
+        self.assertTrue(callable(getattr(module, "main", None)))
+        self.assertTrue(callable(getattr(module, "make_main_window", None)))
+
+    def test_demos_showcase_smoke(self):
+        """``demos/showcase.py`` builds its main window in --smoke mode."""
+        import os
+        import subprocess
+
+        path = os.path.join(
+            os.path.dirname(os.path.abspath(__file__)),
+            "..", "demos", "showcase.py",
+        )
+        # run as a subprocess so the GUI event loop is isolated from the
+        # test runner (the showcase creates real tk roots on import)
+        result = subprocess.run(
+            [sys.executable, path, "--smoke"],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        self.assertEqual(
+            result.returncode, 0,
+            msg=f"showcase --smoke failed:\nstdout={result.stdout}\n"
+                f"stderr={result.stderr}",
+        )
+        self.assertIn("SMOKE OK", result.stdout)
+
+    def test_popup_uses_closable_x(self):
+        """The shared popup helper must NOT disable the title bar X.
+
+        Even when the popup grabs focus (``modal=True``), the X button
+        must close the window so the user has a fallback close affordance.
+        """
+        from TkSimpleGUI import popup as _popup_fn
+        import sys
+
+        popup_module = sys.modules["TkSimpleGUI.popup"]
+        captured = []
+
+        class SpyWindow(object):
+            def __init__(self, title, rows, **kwargs):
+                captured.append({"title": title, "kwargs": kwargs})
+
+            def read(self, timeout=None, close=False, timeout_key=sg.TIMEOUT_KEY):
+                # simulate the OK button press so the popup returns
+                return "OK", {}
+
+        original = popup_module.Window
+        popup_module.Window = SpyWindow
+        try:
+            _popup_fn("hi from test")
+        finally:
+            popup_module.Window = original
+
+        self.assertEqual(len(captured), 1, "popup must build exactly one window")
+        kwargs = captured[0]["kwargs"]
+        self.assertTrue(kwargs.get("finalize"))
+        self.assertTrue(kwargs.get("modal"))
+        self.assertFalse(
+            kwargs.get("disable_close"),
+            "popup must allow X-close (modal is about grab, not close)",
+        )
+
 
     @unittest.skipUnless(sg.running_windows(), "SystemTray is Windows only")
     def test_tray_run_lifecycle(self):

@@ -4,7 +4,7 @@
 
 import base64
 import tkinter as tk
-from typing import List, Optional, Tuple, Union
+from typing import Optional, Tuple, Union
 
 from .base import Element
 from .. import _theming as theme_mod
@@ -95,7 +95,8 @@ class Image(Element):
             if zx != 1 or zy != 1:
                 photo = photo.zoom(int(zx), int(zy))
         if self._subsample is not None and self._subsample != 1:
-            sx, sy = self._subsample if isinstance(self._subsample, tuple) else (self._subsample, self._subsample)
+            sx, sy = self._subsample if isinstance(self._subsample,
+                    tuple) else (self._subsample, self._subsample)
             if sx != 1 or sy != 1:
                 photo = photo.subsample(int(sx), int(sy))
         return photo
@@ -393,7 +394,8 @@ class Graph(Canvas):
         return (x, y)
 
     # --- drawing API -----------------------------------------------------------
-    def draw_circle(self, center_location, radius, fill_color=None, line_color="black", line_width=1):
+    def draw_circle(self, center_location, radius, fill_color=None,
+            line_color="black", line_width=1):
         """Draw a circle; returns the canvas item id."""
         cx, cy = self._to_canvas(center_location)
         r = radius * self._x_scale
@@ -416,7 +418,8 @@ class Graph(Canvas):
             x - r, y - r, x + r, y + r, fill=color, outline=color
         )
 
-    def draw_rectangle(self, top_left, bottom_right, fill_color=None, line_color="black", line_width=1):
+    def draw_rectangle(self, top_left, bottom_right, fill_color=None,
+            line_color="black", line_width=1):
         """Draw a rectangle; returns the canvas item id."""
         x1, y1 = self._to_canvas(top_left)
         x2, y2 = self._to_canvas(bottom_right)
@@ -432,7 +435,8 @@ class Graph(Canvas):
             x1, y1, x2, y2, fill=fill_color, outline=line_color, width=line_width
         )
 
-    def draw_arc(self, top_left, bottom_right, start_angle=0, extent=90, style="arc", fill_color=None, line_color="black", line_width=1):
+    def draw_arc(self, top_left, bottom_right, start_angle=0, extent=90, style="arc",
+            fill_color=None, line_color="black", line_width=1):
         """Draw an arc/pieslice/chord; ``style`` in ("arc", "chord", "pieslice")."""
         x1, y1 = self._to_canvas(top_left)
         x2, y2 = self._to_canvas(bottom_right)

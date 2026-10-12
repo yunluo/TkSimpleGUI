@@ -1,27 +1,45 @@
 #!/usr/bin/env python3
 """Type-check gate: run ty over the package and fail on any diagnostic.
 
-Usage: `python tests/check_types.py` (or wire into CI). Exits 0 when ty
-reports zero errors/warnings.
+Usage: ``python tests/check_types.py`` (or wire into CI). Exits 0 when ty
+reports zero errors/warnings, non-zero when ty is missing or finds issues —
+a missing checker must FAIL the gate, never silently skip it.
 """
+import os
+import shutil
 import subprocess
 import sys
 
-TY = r"D:\bin\ty.exe"
+# explicit override wins, then PATH, then the known local install
+TY_CANDIDATES = [
+    os.environ.get("TY_BIN"),
+    shutil.which("ty"),
+    r"D:\bin\ty.exe",
+]
+
+
+def resolve_ty():
+    for candidate in TY_CANDIDATES:
+        if candidate and os.path.isfile(candidate):
+            return candidate
+    return None
 
 
 def main():
-    try:
-        run = subprocess.run(
-            [TY, "check", "src", "--python-version", "3.7"],
-            capture_output=True,
-            text=True,
-            encoding="utf-8",
-            errors="replace",
+    ty = resolve_ty()
+    if ty is None:
+        print(
+            "FAIL: ty checker not found (set TY_BIN or put 'ty' on PATH). "
+            "The type gate cannot pass without running the checker."
         )
-    except FileNotFoundError:
-        print("SKIP: ty not found at", TY)
-        return 0
+        return 2
+    run = subprocess.run(
+        [ty, "check", "src", "--python-version", "3.7"],
+        capture_output=True,
+        text=True,
+        encoding="utf-8",
+        errors="replace",
+    )
     output = (run.stdout or "") + (run.stderr or "")
     if "All checks passed" in output:
         print("TYPES OK: ty reported zero diagnostics")

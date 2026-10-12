@@ -1,8 +1,8 @@
 # TkSimpleGUI 路线图 / TODO
 
 > **项目总目标（2026-10-11 定）：Tk/ttk 能实现的全覆盖，Tk/ttk 实现不了的也要实现。**
-> 底线：Python 3.7、零第三方依赖、Tkinter/ttk 原生实现、OO 封装。
-> 完成项打勾并注明 commit；每批完成后跑 `python -m unittest discover tests` + `python tests/check_types.py`（ty 零诊断）+ `python demo.py --smoke`。
+> 底线：Python 3.7、零第三方依赖（3.8+；3.7 需 `typing_extensions` 条件依赖）、Tkinter/ttk 原生实现、OO 封装。
+> 完成项打勾并注明 commit；每批完成后跑 `python -m pytest tests -q`（30s 超时守护）+ `python tests/check_types.py`（ty 零诊断）+ `ruff check src tests demo.py` + `python demo.py --smoke`。
 
 ## ✅ 已完成
 
@@ -106,7 +106,9 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m unittest discover tests`（163 个，含全部批次回归；托盘测试以子进程隔离运行，探针在 `tests/probes/`）
-- 类型：`python tests/check_types.py`（ty 零诊断守卫）
+- 测试：`python -m pytest tests -q`（181 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 类型：`python tests/check_types.py`（ty 零诊断守卫；找不到 ty 时返回非零）
+- Lint：`ruff check src tests demo.py`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）
+- 语法：`python tests/check_syntax.py`（用当前解释器 ast 全量解析；3.7 结论需在 3.7 下运行）
 - 冒烟：`python demo.py --smoke`（3.8+ 语法扫描与现代风格守卫已内置于测试套件 TestPy37Compatibility）
-- 每批提交后：compileall + 上述三项 + git commit（中文 + fix:/feat:/refactor: 前缀）
+- 每批提交后：compileall + 上述五项 + git commit（中文 + fix:/feat:/refactor: 前缀）

@@ -16,7 +16,7 @@ cross-platform.
 import ctypes
 import ctypes.wintypes
 import threading
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, Tuple
 
 WM_HOTKEY = 0x0312
 MOD_ALT = 0x0001

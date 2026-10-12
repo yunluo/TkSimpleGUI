@@ -18,7 +18,7 @@ use ``add_series(label, [(name, value), ...])``.
 """
 
 import math
-from typing import Any, List, Optional, Tuple
+from typing import List, Optional, Tuple
 
 from .media import Graph
 
@@ -174,9 +174,9 @@ class Chart(Graph):
         for series in self._series:
             if series.name == series_name:
                 if self._chart_type == ChartType.PIE:
-                    pairs = [(str(l), float(v)) for l, v in values]
-                    series.values = [v for _l, v in pairs]
-                    series.labels = [l for l, _v in pairs]
+                    pairs = [(str(label), float(value)) for label, value in values]
+                    series.values = [value for _label, value in pairs]
+                    series.labels = [label for label, _value in pairs]
                 else:
                     series.values = list(values)
                     if labels is not None:

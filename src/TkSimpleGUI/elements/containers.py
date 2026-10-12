@@ -4,7 +4,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, List, cast
 from .._typing_compat import Literal
 
 from .base import ContainerElement, Element, _validate_layout

@@ -14,10 +14,9 @@ shared Element options, and keep their figure ids alive on the element.
 import base64
 import math
 import tkinter as tk
-from typing import Any, Callable, List, Optional, Tuple, Union
+from typing import Callable, Optional, Tuple
 
 from .base import Element
-from .. import _theming as theme_mod
 
 # A Tk color string ("#rrggbb" or a name); "" means transparent.
 Color = str

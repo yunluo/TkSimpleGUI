@@ -167,7 +167,8 @@ class Menubutton(Element):
         # narrow the direction to the literal set ttk.Menubutton accepts
         direction = cast(
             Literal["above", "below", "left", "right", "flush"],
-            self._direction if self._direction in ("above", "below", "left", "right", "flush") else "below",
+            self._direction if self._direction in ("above", "below",
+                    "left", "right", "flush") else "below",
         )
         button = ttk.Menubutton(
             master, text=self._text, direction=direction, menu=self._menu

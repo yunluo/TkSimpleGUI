@@ -1,5 +1,11 @@
 #!/usr/bin/env python3
-"""Parse every project .py with the running interpreter's ast (3.7 compat gate)."""
+"""Syntax gate: parse every project .py with the RUNNING interpreter's ast.
+
+The value of this gate depends on the interpreter that runs it: executed
+under 3.7 it proves 3.7 parseability (the project floor); under newer
+interpreters it only catches generic syntax errors. CI therefore runs it
+on both 3.7 and the newest Python (see .github/workflows).
+"""
 import ast
 import os
 import pathlib
@@ -22,4 +28,8 @@ for p in files:
 if bad:
     print("\n".join(bad))
     sys.exit(1)
-print("ALL %d FILES PARSE OK on %s" % (len(files), sys.version.split()[0]))
+print(
+    "ALL %d FILES PARSE OK on %s%s"
+    % (len(files), sys.version.split()[0],
+       " (project floor - authoritative)" if sys.version_info[:2] == (3, 7) else "")
+)

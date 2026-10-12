@@ -26,6 +26,14 @@ dependencies = [
 ]
 keywords = ["tkinter", "ttk", "gui", "ui", "event-driven", "declarative"]
 
+[project.optional-dependencies]
+dev = [
+    "pytest>=7",
+    "pytest-timeout>=2",
+    "ruff>=0.4",
+    "typing_extensions; python_version < '3.8'",
+]
+
 [project.urls]
 Homepage = "https://github.com/yunluo/TkSimpleGUI"
 Repository = "https://github.com/yunluo/TkSimpleGUI"
@@ -49,6 +57,36 @@ python_functions = ["test_*"]
 # hard-killing the interpreter)
 timeout = 30
 timeout_method = "thread"
+
+[tool.ruff]
+target-version = "py37"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "W"]
+ignore = [
+    # Literal["a","b"] strings are flagged as forward references because ruff
+    # cannot resolve the _typing_compat conditional import chain (33 false
+    # positives across elements/*); the ty gate covers real typing errors.
+    "F722",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# package-root __init__ intentionally imports after function definitions
+# (module-shadowing rule: exported names shadow same-named submodules)
+"src/TkSimpleGUI/__init__.py" = ["E402"]
+"tests/*" = ["E402"]
+# generated theme table: one theme dict per line, pure data
+"src/TkSimpleGUI/_theme_data.py" = ["E501"]
+# Literal[...] option strings (ttk option values) are flagged as undefined
+# forward references because ruff cannot resolve the _typing_compat
+# conditional import; only these four files use typed Literal options and
+# the ty gate covers real typing errors in them
+"src/TkSimpleGUI/elements/buttons.py" = ["F821"]
+"src/TkSimpleGUI/elements/containers.py" = ["F821"]
+"src/TkSimpleGUI/elements/data.py" = ["F821"]
+"src/TkSimpleGUI/elements/misc.py" = ["F821"]
+"src/TkSimpleGUI/elements/widgets.py" = ["F821"]
 
 [tool.coverage.run]
 source = ["TkSimpleGUI"]

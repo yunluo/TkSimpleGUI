@@ -19,7 +19,7 @@ thousands of downstream call sites narrow.
 """
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Callable, Optional, Tuple, Union
+from typing import Any, Optional, Tuple, Union
 
 import tkinter as tk
 

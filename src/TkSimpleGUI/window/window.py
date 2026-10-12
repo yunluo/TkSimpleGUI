@@ -68,6 +68,7 @@ class Window(object):
         "_element_justification",
         "_right_click_menu",
         "_popup_menu",
+        "_on_close",
         "_action_by_key",
         "_action_by_text",
         "_event_binds",
@@ -152,6 +153,7 @@ class Window(object):
         actions=None,
         parent=None,
         config=None,
+        on_close=None,
     ):
         # a WindowConfig dataclass can carry every option; explicit kwargs win
         if config is not None:
@@ -229,6 +231,7 @@ class Window(object):
         self._element_justification = element_justification
         self._right_click_menu = right_click_menu
         self._popup_menu = None
+        self._on_close = on_close
         self._action_by_key = {}
         self._action_by_text = {}
         self._event_binds = []
@@ -421,7 +424,9 @@ class Window(object):
                 self._background_color
                 or theme_mod.theme_manager.background_color
             )
-            if bg is not None:
+            # the system default sentinel ("1234567890") is *not* a real
+            # color -- skip it so Tk does not raise on unknown color names
+            if bg is not None and bg != C.COLOR_SYSTEM_DEFAULT:
                 content.configure(background=bg)
             margins = self._margins
             self._tk_root.rowconfigure(0, weight=1)
@@ -508,7 +513,9 @@ class Window(object):
             )
             root.bind("<Button-3>", self._show_popup_menu)
         # a forced-modal window must not be closable from the frame either
-        if self._disable_close or self._modal:
+        if self._on_close is not None:
+            root.protocol("WM_DELETE_WINDOW", self._handle_on_close)
+        elif self._disable_close or self._modal:
             root.protocol("WM_DELETE_WINDOW", lambda: None)
         else:
             root.protocol("WM_DELETE_WINDOW", lambda: self._post_event(C.WIN_CLOSED))
@@ -1311,6 +1318,50 @@ class Window(object):
     def __exit__(self, exc_type, exc_value, traceback):
         self.close()
         return False
+
+    # --- on_close callback ------------------------------------------------------
+    def _handle_on_close(self):
+        """WM_DELETE_WINDOW hook for the ``on_close`` callback path.
+
+        The callback decides whether the close is allowed: a truthy return
+        (True / "Yes" / non-empty string / non-empty tuple / etc.) means
+        "proceed"; a falsy return means "stay open". Exceptions are logged
+        and the window stays open (the framework must not kill a window
+        because of a buggy user hook).
+        """
+        hook = self._on_close
+        if hook is None:
+            return
+        try:
+            allowed = hook(self)
+        except Exception as error:
+            print(f"TkSimpleGUI on_close error: {error}")
+            return
+        if allowed:
+            self._post_event(C.WIN_CLOSED)
+
+    @property
+    def on_close(self):
+        """The current ``on_close`` callback (or None)."""
+        return self._on_close
+
+    @on_close.setter
+    def on_close(self, value):
+        """Install or replace the ``on_close`` callback at runtime.
+
+        When set, the window's title-bar close (X) button is rerouted
+        through the callback instead of posting ``WIN_CLOSED`` directly.
+        Calling with ``None`` restores the default close behaviour.
+        """
+        self._on_close = value
+        if self._root_alive():
+            if value is not None:
+                self._tk_root.protocol("WM_DELETE_WINDOW", self._handle_on_close)
+            elif self._disable_close or self._modal:
+                self._tk_root.protocol("WM_DELETE_WINDOW", lambda: None)
+            else:
+                self._tk_root.protocol("WM_DELETE_WINDOW",
+                                       lambda: self._post_event(C.WIN_CLOSED))
 
     def run(self, app=None, close_event=None):
         """Start the application event loop with THIS window as the root.
