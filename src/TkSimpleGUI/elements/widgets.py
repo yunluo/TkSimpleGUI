@@ -13,7 +13,10 @@ from .. import _theming as theme_mod
 
 
 
-_SELECT_MODE_MAP = {
+# Listbox selectmode accepts tk constants SINGLE/BROWSE/MULTIPLE/EXTENDED.
+# Bare strings ("single" / "browse" / ...) are accepted alongside the enum
+# so callers can pass either.
+_LISTBOX_SELECT_MODE_MAP = {
     E.SelectMode.SINGLE: tk.SINGLE,
     E.SelectMode.BROWSE: tk.BROWSE,
     E.SelectMode.MULTIPLE: tk.MULTIPLE,
@@ -576,7 +579,7 @@ class Listbox(InputElement):
             kwargs["height"] = height
         if self._font is not None:
             kwargs["font"] = self._font
-        mode = _SELECT_MODE_MAP.get(self._select_mode, tk.BROWSE)
+        mode = _LISTBOX_SELECT_MODE_MAP.get(self._select_mode, tk.BROWSE)
         listbox = tk.Listbox(master, selectmode=mode, **kwargs)
         for value in self._values:
             listbox.insert("end", str(value))

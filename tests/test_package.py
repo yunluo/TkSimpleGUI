@@ -405,6 +405,29 @@ class TestElementOptions(unittest.TestCase):
         finally:
             sg.theme(None)
 
+    def test_select_mode_maps_are_module_scoped(self):
+        """The two ``_SELECT_MODE_MAP`` constants are renamed to module-specific
+        names so a future cross-import cannot accidentally swap one for the
+        other. The Treeview map must also clamp MULTIPLE to a valid ttk
+        selectmode (ttk.Treeview rejects the bare string ``"multiple"``).
+        """
+        from TkSimpleGUI.elements.widgets import _LISTBOX_SELECT_MODE_MAP
+        from TkSimpleGUI.elements.data import _TREEVIEW_SELECT_MODE_MAP
+
+        # the old generic name must be gone from both modules
+        from TkSimpleGUI.elements import data, widgets
+        self.assertFalse(hasattr(widgets, "_SELECT_MODE_MAP"))
+        self.assertFalse(hasattr(data, "_SELECT_MODE_MAP"))
+        # Listbox map returns tk constants; Treeview map returns strings.
+        self.assertEqual(_LISTBOX_SELECT_MODE_MAP[sg.SelectMode.SINGLE], "single")
+        self.assertEqual(_LISTBOX_SELECT_MODE_MAP[sg.SelectMode.MULTIPLE], "multiple")
+        self.assertEqual(_TREEVIEW_SELECT_MODE_MAP[sg.SelectMode.SINGLE], "none")
+        # ttk.Treeview's selectmode does not support MULTIPLE; the
+        # nearest valid equivalent is "extended" (Ctrl/Shift multi-select).
+        self.assertEqual(
+            _TREEVIEW_SELECT_MODE_MAP[sg.SelectMode.MULTIPLE], "extended"
+        )
+
 
 class TestWindowManagement(unittest.TestCase):
     def test_expand_weights(self):
@@ -2302,6 +2325,30 @@ class TestEventManager(unittest.TestCase):
         second = make_window("single")
         self.assertIs(first, second)
         first.close()
+
+    def test_singleton_window_evicts_closed(self):
+        """Closed windows must not pin memory in the registry."""
+        import gc
+
+        @sg.singleton_window
+        def make_window(title):
+            return sg.Window(title, [[sg.Text("x")]], finalize=True)
+
+        first = make_window("evict")
+        # closure cells: [0] = original func, [1] = instances dict
+        instances = make_window.__closure__[1].cell_contents
+        self.assertEqual(len(instances), 1)
+        first.close()
+        # the next call must evict the stale entry and allocate fresh
+        second = make_window("evict")
+        self.assertIsNot(first, second)
+        self.assertFalse(second.was_closed)
+        # only the new live window should remain for that key
+        self.assertEqual(len(instances), 1)
+        self.assertIs(list(instances.values())[0], second)
+        second.close()
+        del first, second
+        gc.collect()
 
 
 class TestPy37Compatibility(unittest.TestCase):

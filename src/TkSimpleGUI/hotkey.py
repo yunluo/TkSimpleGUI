@@ -158,10 +158,6 @@ class GlobalHotkeys:
         return list(self._id_by_combo)
 
 
-# hotkey modifier aliases (module level so parse() can read them)
-_MOD_ALIASES = _MOD_ALIASES
-
-
 class _TaskbarProgress:
     """ITaskbarList3 wrapper for the Windows task bar progress overlay."""
 

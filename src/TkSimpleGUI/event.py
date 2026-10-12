@@ -205,13 +205,18 @@ def singleton_window(func):
     """Decorator making a window-creating function return a single instance.
 
     Repeated calls bring the existing window to the front instead of creating
-    a second one, until it has been closed.
+    a second one, until it has been closed. Stale entries (windows the user
+    has since closed) are evicted on every call so long-running apps do
+    not grow the registry unbounded.
     """
     instances = {}
 
     @functools.wraps(func)
     def wrapper(*args, **kwargs):
         key = f"{str(func.__name__)}_{str(args)}_{str(kwargs)}"
+        # evict any closed window for this key
+        if instances.get(key) is not None and instances[key].was_closed:
+            del instances[key]
         if key in instances:
             window = instances[key]
             if not window.was_closed:

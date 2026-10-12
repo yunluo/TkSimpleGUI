@@ -12,15 +12,20 @@ from .. import enums as E
 
 
 
-_SELECT_MODE_MAP = {
+# ttk.Treeview's ``selectmode`` only accepts three string values:
+# ``"browse"``, ``"extended"`` and ``"none"`` (Tk 8.6+). MULTIPLE is
+# mapped to ``"extended"`` because Ctrl/Shift-click multi-selection is
+# the closest semantic match; SINGLE has no Treeview equivalent and is
+# mapped to ``"none"`` (no selection allowed).
+_TREEVIEW_SELECT_MODE_MAP = {
     E.SelectMode.BROWSE: "browse",
     E.SelectMode.EXTENDED: "extended",
-    E.SelectMode.MULTIPLE: "multiple",
+    E.SelectMode.MULTIPLE: "extended",
     E.SelectMode.SINGLE: "none",
     "browse": "browse",
     "extended": "extended",
-    "multiple": "multiple",
-    "none": "none",
+    "multiple": "extended",
+    "single": "none",
 }
 
 
@@ -114,7 +119,7 @@ class Table(Element):
         # the stub narrows selectmode to these three literals
         mode = cast(
             Literal["extended", "browse", "none"],
-            _SELECT_MODE_MAP.get(self._select_mode, "extended"),
+            _TREEVIEW_SELECT_MODE_MAP.get(self._select_mode, "extended"),
         )
         columns = [f"col{i}" for i in range(len(self._headings))]
         # item images render in the #0 tree column, which "headings" mode
