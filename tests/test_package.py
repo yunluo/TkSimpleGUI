@@ -1823,19 +1823,47 @@ class TestForcedModal(unittest.TestCase):
             "t", [[sg.Text("x")]], finalize=True, system_block=True
         )
         self.assertTrue(window._system_block)
+        self.assertTrue(window._want_system_block)
         window.close()
         self.assertFalse(window._system_block)
-        self.assertIsNone(sg.__dict__.get("_blocker")) or None
+        self.assertFalse(window._want_system_block)
 
-    def test_system_block_non_windows_degrades(self):
-        # the import path is Windows-guarded; on non-Windows _start_system_block
-        # flips the flag off instead of raising
-        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
-        window._system_block = True
-        window._start_system_block()
-        if not hasattr(ctypes, "windll"):
-            self.assertFalse(window._system_block)
+    def test_system_block_hide_releases_and_unhide_rearms(self):
+        window = sg.Window(
+            "t", [[sg.Text("x")]], finalize=True, system_block=True
+        )
+        self.assertTrue(window._system_block)
+        window.hide()
+        self.assertFalse(window._system_block)  # released while hidden
+        window.unhide()
+        self.assertTrue(window._system_block)  # re-armed on show
         window.close()
+
+    def test_system_block_refcount_two_windows(self):
+        # two blocking windows stack: closing one must not release the
+        # other's hooks (refcount) — only the last close tears them down
+        first = sg.Window("a", [[sg.Text("x")]], finalize=True, system_block=True)
+        second = sg.Window("b", [[sg.Text("x")]], finalize=True, system_block=True)
+        self.assertTrue(first._system_block and second._system_block)
+        first.close()
+        self.assertFalse(first._system_block)
+        self.assertTrue(second._system_block)
+        second.close()
+        self.assertFalse(second._system_block)
+
+    def test_input_blocker_refcount_direct(self):
+        # direct acquire/release stacking on the blocker object
+        from TkSimpleGUI.input_blocker import block_input, unblock_input
+
+        if not hasattr(ctypes, "windll"):
+            self.assertRaises(ImportError, block_input)
+            return
+        blocker = block_input()
+        block_input()  # nested acquire bumps the count
+        unblock_input()  # first release: hooks stay up
+        self.assertGreaterEqual(blocker._count, 1)
+        unblock_input()  # second release: hooks come down
+        self.assertEqual(blocker._count, 0)
 
     def test_window_config_forced_fields(self):
         cfg = sg.WindowConfig(

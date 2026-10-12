@@ -64,6 +64,7 @@ class Window(object):
         "_disable_close",
         "_disable_esc",
         "_system_block",
+        "_want_system_block",
         "_element_justification",
         "_right_click_menu",
         "_popup_menu",
@@ -112,6 +113,7 @@ class Window(object):
     _disable_close: bool
     _disable_esc: bool
     _system_block: bool
+    _want_system_block: bool
     _element_justification: Optional[str]
     _right_click_menu: Optional[list]
     _popup_menu: Optional[tk.Menu]
@@ -222,7 +224,8 @@ class Window(object):
         self._resizable = resizable
         self._disable_close = bool(disable_close)
         self._disable_esc = bool(disable_esc)
-        self._system_block = bool(system_block)
+        self._system_block = False
+        self._want_system_block = bool(system_block)
         self._element_justification = element_justification
         self._right_click_menu = right_click_menu
         self._popup_menu = None
@@ -539,7 +542,8 @@ class Window(object):
         if self._modal:
             root.grab_set()
             root.focus_force()
-        if self._system_block:
+        if self._want_system_block:
+            self._system_block = True
             self._start_system_block()
 
     # --- drag when grab_anywhere ------------------------------------------------
@@ -985,15 +989,25 @@ class Window(object):
         return self
 
     def hide(self):
-        """Withdraw the window (it keeps running, just not shown)."""
+        """Withdraw the window (it keeps running, just not shown).
+
+        A ``system_block`` window releases the desktop-wide input hooks
+        while hidden — blocking the desktop with no visible window would
+        leave it unusable.
+        """
         if self._root_alive():
             self._tk_root.withdraw()
+        if self._system_block:
+            self.stop_system_block()
         return self
 
     def unhide(self):
-        """Show a hidden window again."""
+        """Show a hidden window again (re-arms ``system_block``)."""
         if self._root_alive():
             self._tk_root.deiconify()
+        if self._want_system_block and not self._system_block:
+            self._system_block = True
+            self._start_system_block()
         return self
 
     def set_icon(self, icon):
@@ -1243,6 +1257,7 @@ class Window(object):
             return self
         if self._system_block:
             self.stop_system_block()
+        self._want_system_block = False
         for child in self.children:
             child.close()
         if self._parent is not None:
@@ -1260,6 +1275,7 @@ class Window(object):
             block_input()
         except (ImportError, RuntimeError):
             self._system_block = False
+            self._want_system_block = False
 
     def stop_system_block(self):
         """Release the system-wide input hooks (safe when not blocking)."""
