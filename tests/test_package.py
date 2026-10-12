@@ -1453,6 +1453,74 @@ class TestLineA(unittest.TestCase):
         window.close()
 
 
+class TestChart(unittest.TestCase):
+    """TChart: line/bar/hbar/scatter/area/pie on the Graph coordinate system."""
+
+    def _chart(self, kind):
+        chart = sg.TChart((300, 180), chart_type=kind, key="-C-",
+                          background_color="#ffffff")
+        window = sg.Window("t", [[chart]], finalize=True)
+        self.addCleanup(window.close)
+        return chart
+
+    def test_invalid_type_rejected(self):
+        with self.assertRaises(ValueError):
+            sg.TChart(chart_type="radar")
+
+    def test_line_two_series(self):
+        chart = self._chart("line")
+        chart.add_series("A", [3, 7, 2, 9], labels=["a", "b", "c", "d"])
+        chart.add_series("B", [5, 4, 8, 3])
+        chart.redraw()
+        # markers (4+4 ovals) + 1 polyline + axes(2) + grid + ticks + legend
+        figures = chart.widget.find_all()
+        self.assertGreater(len(figures), 10)
+        self.assertEqual(chart.series_names, ["A", "B"])
+
+    def test_bar_grouped(self):
+        chart = self._chart("bar")
+        chart.add_series("E", [12, 30, 8], labels=["x", "y", "z"])
+        chart.add_series("W", [9, 24, 16])
+        chart.redraw()
+        # 2 series x 3 bars = 6 rectangles + axes/grid/ticks/legend
+        figures = chart.widget.find_all()
+        self.assertGreater(len(figures), 8)
+
+    def test_pie_slices_and_legend(self):
+        chart = self._chart("pie")
+        chart.add_series("share", [("alpha", 30), ("beta", 20), ("gamma", 50)])
+        chart.redraw()
+        figures = chart.widget.find_all()
+        # 3 pieslices + 3 legend swatches + 3 legend texts
+        self.assertGreaterEqual(len(figures), 9)
+
+    def test_update_data_and_refcount(self):
+        chart = self._chart("pie")
+        chart.add_series("share", [("a", 1), ("b", 2)])
+        chart.update_data("share", [("a", 5), ("b", 5), ("c", 5)])
+        self.assertEqual(chart._series[0].values, [5.0, 5.0, 5.0])
+        self.assertEqual(chart._series[0].labels, ["a", "b", "c"])
+        with self.assertRaises(KeyError):
+            chart.update_data("missing", [1])
+
+    def test_all_types_render(self):
+        for kind in sg.ChartType.ALL:
+            chart = self._chart(kind)
+            if kind == "pie":
+                chart.add_series("s", [("a", 1), ("b", 2)])
+            else:
+                chart.add_series("s", [1, 3, 2], labels=["a", "b", "c"])
+            chart.redraw()
+            self.assertGreater(
+                len(chart.widget.find_all()), 3, msg="kind=%s" % kind
+            )
+
+    def test_redraw_before_finalize_is_safe(self):
+        chart = sg.TChart((200, 150), chart_type="line")
+        chart.add_series("A", [1, 2, 3])
+        chart.redraw()  # no widget yet: must be a no-op, no raise
+
+
 class TestLineB(unittest.TestCase):
     """Line B: what Tk cannot do (canvas-drawn, synthesized events, ctypes)."""
 

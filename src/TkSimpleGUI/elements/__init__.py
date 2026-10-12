@@ -37,6 +37,7 @@ from .containers import (
     Toolbar,
 )
 from .calendar import Calendar
+from .chart import Chart, ChartType
 from .data import Table, Tree
 from .fancy import ImageButton, RoundButton, TextProgressBar
 from .misc import (
@@ -82,6 +83,8 @@ __all__ = [
     "KeyValueEditor",
     "FlowPanel",
     "Calendar",
+    "Chart",
+    "ChartType",
     "Tab",
     "TabGroup",
     "Menu",

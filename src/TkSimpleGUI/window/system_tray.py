@@ -202,8 +202,7 @@ class SystemTray(object):
         notify_data.uFlags = NIF_MESSAGE | NIF_ICON | NIF_TIP
         notify_data.uCallbackMessage = WM_TRAY_EVENT
         notify_data.hIcon = self._icon_handle
-        tip = self._tooltip[:127].encode("utf-16-le") + b"\x00\x00"
-        ctypes.memmove(notify_data.szTip, tip, min(len(tip), 256))
+        _copy_utf16(notify_data.szTip, self._tooltip, 127)
         shell32.Shell_NotifyIconW(NIM_ADD, ctypes.byref(notify_data))
         self._created = True
 
@@ -267,10 +266,8 @@ class SystemTray(object):
         notify_data.uFlags = NIF_INFO
         notify_data.uTimeout = 3000
         notify_data.dwInfoFlags = messageicon
-        title_bytes = title[:63].encode("utf-16-le") + b"\x00\x00"
-        body_bytes = message[:255].encode("utf-16-le") + b"\x00\x00"
-        ctypes.memmove(notify_data.szInfoTitle, title_bytes, min(len(title_bytes), 128))
-        ctypes.memmove(notify_data.szInfo, body_bytes, min(len(body_bytes), 512))
+        _copy_utf16(notify_data.szInfoTitle, title, 63)
+        _copy_utf16(notify_data.szInfo, message, 255)
         shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notify_data))
         return self
 
@@ -287,8 +284,7 @@ class SystemTray(object):
             notify_data.uID = 1
             notify_data.uFlags = NIF_ICON | NIF_TIP
             notify_data.hIcon = self._icon_from_data()
-            tip = self._tooltip[:127].encode("utf-16-le") + b"\x00\x00"
-            ctypes.memmove(notify_data.szTip, tip, min(len(tip), 256))
+            _copy_utf16(notify_data.szTip, self._tooltip, 127)
             shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notify_data))
         return self
 
@@ -369,6 +365,20 @@ class SystemTray(object):
         from ..event import run_application
 
         return run_application(self, app=app)
+
+
+
+def _copy_utf16(char_array, text, limit_chars):
+    """Copy ``text`` into a ``c_wchar * N`` field, UTF-16 with NUL pad.
+
+    ctypes.memmove rejects bytes containing embedded NULs on Python 3.7,
+    so element-wise assignment is used instead (portable everywhere).
+    """
+    data = (text[:limit_chars] + "\x00")[: limit_chars + 1]
+    for index, character in enumerate(data):
+        if index >= len(char_array):
+            break
+        char_array[index] = character
 
 
 class _NotifyIconData(ctypes.Structure):

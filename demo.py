@@ -156,7 +156,45 @@ def tab_data():
 def tab_graphics():
     graph = sg.TGraph((320, 160), (0, 0), (100, 54), key="-GRAPH-",
                       enable_events=True, background_color="#ffffff")
+    # --- new: TChart gallery (six chart types, one data model) ---------------
+    charts = {}
+    specs = [
+        ("-CH-LINE-", "line", "Line", "Revenue"),
+        ("-CH-BAR-", "bar", "Bar", "Units"),
+        ("-CH-AREA-", "area", "Area", "Trend"),
+        ("-CH-SCATTER-", "scatter", "Scatter", "Samples"),
+        ("-CH-HBAR-", "hbar", "HBar", "Speed"),
+        ("-CH-PIE-", "pie", "Pie", "Share"),
+    ]
+    for key, kind, label, title in specs:
+        chart = sg.TChart((300, 190), chart_type=kind, title=title,
+                          legend=(kind != "pie"), key=key,
+                          enable_events=True, background_color="#ffffff")
+        charts[key] = chart
+    charts["-CH-LINE-"].add_series("2024", [12, 34, 28, 41, 26, 38],
+                                   labels=["Jan", "Feb", "Mar", "Apr", "May", "Jun"])
+    charts["-CH-LINE-"].add_series("2025", [22, 30, 38, 35, 31, 44])
+    charts["-CH-BAR-"].add_series("East", [12, 30, 8, 24],
+                                  labels=["Q1", "Q2", "Q3", "Q4"])
+    charts["-CH-BAR-"].add_series("West", [9, 24, 16, 20])
+    charts["-CH-AREA-"].add_series("load", [4, 6, 5, 9, 7, 11, 8])
+    charts["-CH-SCATTER-"].add_series("pts", [1, 5, 3, 8, 2, 7, 4, 9])
+    charts["-CH-HBAR-"].add_series("speed", [40, 65, 30, 80],
+                                   labels=["a", "b", "c", "d"])
+    charts["-CH-PIE-"].add_series("share",
+                                  [("alpha", 30), ("beta", 20), ("gamma", 50)])
+    for chart in charts.values():
+        chart.redraw()
     return [
+        [sg.Column([[sg.TText("TChart -- line / bar / area / scatter / hbar / pie"
+                              " (click the buttons to live-update)")],
+                    [sg.TButton("Update line data", key="-B-CHUPD-"),
+                     sg.TButton("Add bar series", key="-B-CHADD-"),
+                     sg.TButton("Reseed pie", key="-B-CHPIE-")],
+                    [charts["-CH-LINE-"], charts["-CH-BAR-"],
+                     charts["-CH-AREA-"]],
+                    [charts["-CH-SCATTER-"], charts["-CH-HBAR-"],
+                     charts["-CH-PIE-"]]])],
         [sg.Column([[sg.TText("TGraph (user coords + figure handles) -- click the canvas")],
                     [graph],
                     [sg.TButton("Circle", key="-B-CIRCLE-"),
@@ -497,6 +535,44 @@ def on_kv_get(window, values):
 def on_graph_click(window, values):
     graph = window["-GRAPH-"]
     log(f"canvas click, {len(graph.widget.find_all())} figures")
+
+
+@sg.bind_event(["-CH-LINE-", "-CH-BAR-", "-CH-AREA-",
+                "-CH-SCATTER-", "-CH-HBAR-", "-CH-PIE-"])
+def on_chart_click(window, event):
+    chart = window[event]
+    log(f"chart {event} clicked, {len(chart.widget.find_all())} figures")
+
+
+@sg.bind_event("-B-CHUPD-")
+def on_chart_update(window, values):
+    import random
+
+    chart = window["-CH-LINE-"]
+    chart.update_data("2025", [random.randint(20, 45) for _ in range(6)])
+    log("line chart '2025' series updated")
+
+
+@sg.bind_event("-B-CHADD-")
+def on_chart_add(window, values):
+    import random
+
+    chart = window["-CH-BAR-"]
+    name = f"Team {len(chart.series_names) + 1}"
+    chart.add_series(name, [random.randint(5, 30) for _ in range(4)])
+    chart.redraw()
+    log(f"bar series '{name}' added ({chart.series_names})")
+
+
+@sg.bind_event("-B-CHPIE-")
+def on_chart_pie(window, values):
+    import random
+
+    chart = window["-CH-PIE-"]
+    names = ["alpha", "beta", "gamma", "delta"]
+    pairs = [(n, random.randint(5, 60)) for n in names[: random.randint(2, 4)]]
+    chart.update_data("share", pairs)
+    log(f"pie reseeded: {pairs}")
 
 
 def _draw(kind, window):
@@ -881,4 +957,4 @@ def main(argv=None):
 
 
 if __name__ == "__main__":
-    sys.exit(main())
+    main()

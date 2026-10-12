@@ -1,0 +1,5 @@
+imported
+created hwnd=26217724
+read -> ('__TIMEOUT__', None)
+closed
+DONE
