@@ -341,3 +341,86 @@ class CloseButton(Button):
     def _on_click(self):
         if self._window is not None:
             self._window._post_event(C.WIN_CLOSED)
+
+
+class Menubutton(Element):
+    """A standalone ttk dropdown button (Toolbar uses these internally).
+
+    Selecting a menu item posts the item's label into the window queue.
+    """
+
+    __slots__ = ("_text", "_items", "_menu", "_direction")
+
+    _menu: tk.Menu
+
+    def __init__(
+        self,
+        text,
+        items,
+        key=None,
+        direction="below",
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super().__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._text = str(text)
+        self._items = list(items)
+        self._menu = None  # ty: ignore[invalid-assignment]
+        self._direction = direction
+
+    def _create_widget(self, master):
+        self._menu = tk.Menu(master, tearoff=False)
+        for item in self._items:
+            if item == C.MENU_SEPARATOR_LINE:
+                self._menu.add_separator()
+                continue
+            label = str(item).replace(C.MENU_SHORTCUT_CHARACTER, "")
+            self._menu.add_command(
+                label=label, command=lambda t=label: self._post_event(t)
+            )
+        # narrow the direction to the literal set ttk.Menubutton accepts
+        direction = cast(
+            Literal["above", "below", "left", "right", "flush"],
+            self._direction if self._direction in ("above", "below",
+                    "left", "right", "flush") else "below",
+        )
+        return ttk.Menubutton(
+            master, text=self._text, direction=direction, menu=self._menu
+        )
+
+    @property
+    def items(self):
+        return list(self._items)
+
+    def update(self, text=None, items=None, visible=None):
+        if text is not None:
+            self._text = str(text)
+            self._widget.configure(text=self._text)
+        if items is not None:
+            self._items = list(items)
+            self._menu.delete(0, "end")
+            for item in self._items:
+                if item == C.MENU_SEPARATOR_LINE:
+                    self._menu.add_separator()
+                    continue
+                label = str(item).replace(C.MENU_SHORTCUT_CHARACTER, "")
+                self._menu.add_command(
+                    label=label, command=lambda t=label: self._post_event(t)
+                )
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self

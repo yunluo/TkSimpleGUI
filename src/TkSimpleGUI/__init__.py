@@ -76,6 +76,12 @@ from .constants import (
 from .utils import (
     rgb,
     Timer,
+    Translator,
+    _,
+    translate,
+    set_translations,
+    add_translation,
+    clear_translations,
     timer_start,
     timer_stop,
     formatted_datetime_now,
@@ -223,15 +229,8 @@ from .config import ElementOptions, WindowConfig
 from .hotkey import GlobalHotkeys, taskbar_progress
 from .input_blocker import block_input, unblock_input
 
-# --- user settings / i18n / animation --------------------------------------------------------
+# --- user settings / animation --------------------------------------------------------
 from .user_settings import UserSettings
-from .i18n import (
-    _,
-    translate,
-    set_translations,
-    add_translation,
-    clear_translations,
-)
 from .animation import fade_in, fade_out, slide, animate_progress
 
 # --- popups ------------------------------------------------------------------------------
@@ -355,7 +354,7 @@ __all__ = [
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "block_input", "unblock_input",
     "ElementOptions", "WindowConfig",
-    "_", "translate", "set_translations", "add_translation",
+    "Translator", "_", "translate", "set_translations", "add_translation",
     "clear_translations",
     "fade_in", "fade_out", "slide", "animate_progress", "dbg",
     "popup", "popup_ok", "popup_yes_no", "popup_ok_cancel", "popup_cancel",

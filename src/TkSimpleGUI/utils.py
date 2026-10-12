@@ -1,6 +1,14 @@
 #!/usr/bin/env python3
-"""TkSimpleGUI utility helpers."""
+"""TkSimpleGUI utility helpers.
 
+A grab-bag of small standalone utilities the package itself leans on:
+``Timer`` (stopwatch), ``Translator`` (i18n), platform probes, font
+helpers, rgb conversion, etc. The class and free functions are all
+re-exported from the package root, so callers should keep using
+``sg.Translator``, ``sg._`` and so on.
+"""
+
+import json
 import os
 import socket
 import sys
@@ -198,3 +206,73 @@ def running_trinket():
 def running_replit():
     """True when running on Replit."""
     return "REPL_OWNER" in os.environ and sys.platform.startswith("linux")
+
+
+# --- i18n (inlined from the former i18n.py) ------------------------------------
+class Translator:
+    """A replaceable string catalog; unknown strings pass through.
+
+    Build a flat ``{source: translated}`` dict (or point ``set_catalog``
+    at a JSON file with the same shape) and then wrap every UI string
+    with :func:`_`::
+
+        sg.set_translations({"Open": "Ouvert", "Save": "Sauve"})
+        sg.Text(_("Open"))
+    """
+
+    __slots__ = ("_catalog",)
+
+    def __init__(self, catalog=None):
+        self._catalog = dict(catalog) if catalog else {}
+
+    def set_catalog(self, catalog):
+        """Replace the whole catalog (dict or JSON filename). Returns self."""
+        self._catalog = self._load_catalog(catalog)
+        return self
+
+    def add(self, source, translated):
+        """Add or override one translation. Returns self."""
+        self._catalog[str(source)] = str(translated)
+        return self
+
+    def _load_catalog(self, catalog):
+        if isinstance(catalog, str):
+            with open(catalog) as handle:
+                loaded = json.load(handle)
+            return dict(loaded)
+        return dict(catalog)
+
+    def __call__(self, text):
+        return self._catalog.get(text, text)
+
+    def __repr__(self):
+        return f"<Translator {len(self._catalog)} entries>"
+
+
+_translator = Translator()
+
+
+def _(text):
+    """Translate ``text`` through the global catalog (identity when absent)."""
+    return _translator(text)
+
+
+def translate(text):
+    """Alias of :func:`_` (for code that shadows ``_``)."""
+    return _translator(text)
+
+
+def set_translations(catalog):
+    """Install a new global catalog (dict or JSON filename). Returns self."""
+    _translator.set_catalog(catalog)
+    return _translator
+
+
+def add_translation(source, translated):
+    """Add one entry to the global catalog."""
+    _translator.add(source, translated)
+
+
+def clear_translations():
+    """Remove every global translation (identity mapping again)."""
+    _translator.set_catalog({})

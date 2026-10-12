@@ -16,38 +16,35 @@ from .widgets import (
     Radio,
     Slider,
     Spin,
+    StatusBar,
     Text,
     validate_float,
     validate_integer,
     validate_regex,
 )
-from .buttons import Button, CloseButton, Submit
+from .buttons import Button, CloseButton, Menubutton, Submit
 from .media import Canvas, Graph, Image, Shape
 from .containers import (
     Column,
     FlowPanel,
     Frame,
+    HorizontalSeparator,
     KeyValueEditor,
     LabeledEdit,
     Menu,
     ScrollableColumn,
+    Scrollbar,
+    Sizegrip,
     Splitter,
     Tab,
     TabGroup,
     Toolbar,
+    VerticalSeparator,
 )
 from .calendar import Calendar
 from .chart import Chart, ChartType
 from .data import Table, Tree
 from .fancy import ImageButton, LED, RoundButton, TextProgressBar
-from .misc import (
-    HorizontalSeparator,
-    Menubutton,
-    Scrollbar,
-    Sizegrip,
-    StatusBar,
-    VerticalSeparator,
-)
 
 __all__ = [
     "Element",

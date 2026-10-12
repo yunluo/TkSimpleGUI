@@ -201,6 +201,65 @@ class Text(Element):
         return self
 
 
+class StatusBar(Element):
+    """Sunken label typically placed at the bottom of a window."""
+
+    __slots__ = ("_text", "_text_color", "_background_color", "_font")
+
+    def __init__(
+        self,
+        text="",
+        key=None,
+        text_color=None,
+        background_color=None,
+        font=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        justification=None,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super().__init__(
+            key=key,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            justification=justification,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._text = text
+        self._text_color = text_color
+        self._background_color = background_color
+        self._font = font
+
+    def _create_widget(self, master):
+        kwargs = theme_mod.theme_manager.text_kwargs(
+            color=self._text_color, background_color=self._background_color
+        )
+        kwargs.setdefault("relief", tk.SUNKEN)
+        kwargs.setdefault("anchor", "w")
+        if self._font is not None:
+            kwargs["font"] = self._font
+        return tk.Label(master, text=self._text, **kwargs)
+
+    def get(self):
+        return self._text
+
+    def update(self, value=None, visible=None):
+        if value is not None:
+            self._text = str(value)
+            self._widget.configure(text=self._text)
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+
 class Input(InputElement):
     """Single line text entry (ttk based for a native look)."""
 
