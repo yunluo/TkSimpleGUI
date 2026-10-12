@@ -5,12 +5,14 @@
 - :class:`RoundButton`  — rounded / circular button with hover state
 - :class:`ImageButton`  — an arbitrary image acting as a button
 - :class:`TextProgressBar` — progress bar with centered percentage text
+- :class:`LED` — seven-segment numeric display
 
 All of them post events through the regular window queue, support the
 shared Element options, and keep their figure ids alive on the element.
 """
 
 import base64
+import math
 import tkinter as tk
 from typing import Any, Callable, List, Optional, Tuple, Union
 
@@ -20,6 +22,22 @@ from .. import _theming as theme_mod
 # A Tk color string ("#rrggbb" or a name); "" means transparent.
 Color = str
 Point = Tuple[float, float]
+
+
+def _mix_color(color: str, other: str, weight: float) -> str:
+    """Blend two #rrggbb colors (weight = share of ``other``)."""
+    try:
+        a = color.lstrip("#")
+        b = other.lstrip("#")
+        if len(a) != 6 or len(b) != 6:
+            return color
+        mixed = [
+            int(int(a[i:i + 2], 16) * (1 - weight) + int(b[i:i + 2], 16) * weight)
+            for i in (0, 2, 4)
+        ]
+        return f"#{mixed[0]:02x}{mixed[1]:02x}{mixed[2]:02x}"
+    except (ValueError, AttributeError):
+        return color
 
 
 def _rounded_polygon(canvas, x0, y0, x1, y1, radius, **kwargs):
@@ -421,7 +439,7 @@ class TextProgressBar(Element):
         canvas = tk.Canvas(
             master, width=width, height=height, highlightthickness=0, bd=0
         )
-        trough = self._trough_color or self._mix(self._bar_color, "#222222", 0.75)
+        trough = self._trough_color or _mix_color(self._bar_color, "#222222", 0.75)
         self._trough_id = canvas.create_rectangle(
             0, 0, width, height, fill=trough, outline=""
         )
@@ -452,20 +470,6 @@ class TextProgressBar(Element):
         if self._label_id is not None:
             self._widget.itemconfigure(self._label_id, text=self._label_text())
 
-    @staticmethod
-    def _mix(color: str, other: str, weight: float) -> str:
-        try:
-            a = color.lstrip("#")
-            b = other.lstrip("#")
-            if len(a) != 6 or len(b) != 6:
-                return color
-            mixed = [
-                int(int(a[i:i + 2], 16) * (1 - weight) + int(b[i:i + 2], 16) * weight)
-                for i in (0, 2, 4)
-            ]
-            return f"#{mixed[0]:02x}{mixed[1]:02x}{mixed[2]:02x}"
-        except (ValueError, AttributeError):
-            return color
 
     @property
     def max_value(self):
@@ -488,3 +492,238 @@ class TextProgressBar(Element):
     def update_bar(self, current_value, max_value=None):
         """TkSimpleGUI compatibility alias for :meth:`update`."""
         return self.update(current_value=current_value, max_value=max_value)
+
+
+class LED(Element):
+    """A seven-segment LED display for numbers (canvas-drawn).
+
+    Classic calculator/clock rendering: digits are built from seven
+    segments with dark "off" segments visible behind, giving the look of
+    a real LED unit. Supports a leading minus sign, decimal points and a
+    blinking-clock colon separator. The digit size scales to fit the
+    configured digit count::
+
+        led = sg.TLED(42, digits=4, color="#ff3b30", key="-LED-")
+        led.update(1997)          # -> "_199" style zero padding? no: right-aligned
+        clock.update("12:34")     # colon supported when allow_colon=True
+    """
+
+    __slots__ = (
+        "_value",
+        "_digits",
+        "_color",
+        "_off_color",
+        "_background",
+        "_digit_width",
+        "_allow_colon",
+        "_segment_ids",
+        "_last_text",
+    )
+
+    # segment layout per character: (a, b, c, d, e, f, g)
+    #        a
+    #       ---
+    #    f |   | b
+    #       -g-
+    #    e |   | c
+    #       ---
+    #        d
+    _SEGMENTS = {
+        "0": (1, 1, 1, 1, 1, 1, 0),
+        "1": (0, 1, 1, 0, 0, 0, 0),
+        "2": (1, 1, 0, 1, 1, 0, 1),
+        "3": (1, 1, 1, 1, 0, 0, 1),
+        "4": (0, 1, 1, 0, 0, 1, 1),
+        "5": (1, 0, 0, 1, 1, 1, 1),
+        "6": (1, 0, 0, 1, 1, 1, 1)[:6] + (1,),
+        "7": (1, 1, 1, 0, 0, 0, 0),
+        "8": (1, 1, 1, 1, 1, 1, 1),
+        "9": (1, 1, 1, 1, 0, 1, 1),
+        "-": (0, 0, 0, 0, 0, 0, 1),
+        " ": (0, 0, 0, 0, 0, 0, 0),
+        ":": (0, 0, 0, 0, 0, 0, 0),  # special-cased (two dots)
+        ".": (0, 0, 0, 0, 0, 0, 0),  # special-cased (one dot)
+    }
+
+    def __init__(
+        self,
+        value=0,
+        digits=4,
+        size=(120, 36),
+        color="#ff3b30",
+        off_color=None,
+        background="#1a1a1a",
+        allow_colon=False,
+        key=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super().__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        self._digits = max(int(digits), 1)
+        self._value = value
+        self._color = color
+        self._off_color = off_color or _mix_color(color, "#111111", 0.82)
+        self._background = background
+        self._allow_colon = bool(allow_colon)
+        self._digit_width = int(size[1] or 36) * 0.52
+        self._segment_ids = []
+        self._last_text = self._format(value)
+
+    # --- text shaping ------------------------------------------------------------
+    def _format(self, value):
+        """Value -> display string of supported characters."""
+        if isinstance(value, str):
+            text = value
+        elif float(value) < 0:
+            text = str(int(math.ceil(value))) if float(value).is_integer() else ("%.2f" % value)
+        else:
+            text = str(int(value)) if float(value).is_integer() else ("%.2f" % value)
+        allowed = "0123456789-." + (":" if self._allow_colon else "")
+        cleaned = "".join(ch for ch in text if ch in allowed)
+        return cleaned[-self._digits:].rjust(self._digits)
+
+    # --- geometry ------------------------------------------------------------
+    def _layout(self):
+        """Pixel geometry for every glyph slot -> list of (char, segments)."""
+        width = int(self._size[0] or 120)
+        height = int(self._size[1] or 36)
+        slots = len(self._last_text)
+        slot_width = width / float(slots)
+        digit_w = min(self._digit_width, slot_width * 0.66)
+        digit_h = height * 0.7
+        thickness = max(digit_h * 0.14, 2.0)
+        gap = digit_w * 0.12
+        out = []
+        for index, char in enumerate(self._last_text):
+            cx = slot_width * index + slot_width / 2.0
+            cy = height / 2.0
+            x0 = cx - digit_w / 2
+            x1 = cx + digit_w / 2
+            y0 = cy - digit_h / 2
+            y1 = cy + digit_h / 2
+            out.append((char, digit_w, digit_h, thickness, gap, x0, x1, y0, y1))
+        return out
+
+    def _segment_rects(self, digit_w, digit_h, thickness, gap, x0, x1, y0, y1):
+        """The seven segment rectangles: a b c d e f g (horizontal bars)."""
+        mid_y = (y0 + y1) / 2
+        return [
+            (x0 + gap, y0, x1 - gap, y0 + thickness),            # a (top)
+            (x1 - thickness, y0 + gap, x1, mid_y - gap / 2),      # b (top right)
+            (x1 - thickness, mid_y + gap / 2, x1, y1 - gap),      # c (bottom right)
+            (x0 + gap, y1 - thickness, x1 - gap, y1),             # d (bottom)
+            (x0, mid_y + gap / 2, x0 + thickness, y1 - gap),      # e (bottom left)
+            (x0, y0 + gap, x0 + thickness, mid_y - gap / 2),      # f (top left)
+            (x0 + gap, mid_y - thickness / 2, x1 - gap, mid_y + thickness / 2),  # g
+        ]
+
+    # --- rendering ------------------------------------------------------------
+    def _create_widget(self, master):
+        width = int(self._size[0] or 120)
+        height = int(self._size[1] or 36)
+        canvas = tk.Canvas(
+            master, width=width, height=height, highlightthickness=0,
+            bd=0, background=self._background,
+        )
+        self._segment_ids = []
+        for char, digit_w, digit_h, thickness, gap, x0, x1, y0, y1 in self._layout():
+            if char == ":":
+                dot = max(thickness * 0.9, 2.0)
+                cy = (y0 + y1) / 2
+                for dy in (-digit_h * 0.22, digit_h * 0.22):
+                    canvas.create_oval(
+                        (x0 + x1) / 2 - dot / 2, cy + dy - dot / 2,
+                        (x0 + x1) / 2 + dot / 2, cy + dy + dot / 2,
+                        fill=self._color, outline="",
+                    )
+                continue
+            if char == ".":
+                dot = max(thickness * 0.9, 2.0)
+                canvas.create_oval(
+                    x1 - dot, y1 - dot, x1, y1,
+                    fill=self._color, outline="",
+                )
+                continue
+            on = self._SEGMENTS.get(char, self._SEGMENTS[" "])
+            rects = self._segment_rects(digit_w, digit_h, thickness, gap, x0, x1, y0, y1)
+            slot_ids = []
+            for segment_index, (rx0, ry0, rx1, ry1) in enumerate(rects):
+                slot_ids.append(canvas.create_rectangle(
+                    rx0, ry0, rx1, ry1,
+                    fill=self._color if on[segment_index] else self._off_color,
+                    outline="",
+                ))
+            self._segment_ids.append(slot_ids)
+        return canvas
+
+    def _redraw(self):
+        if self._widget is None:
+            return
+        widget = self._widget
+        widget.delete("all")
+        self._segment_ids = []
+        for char, digit_w, digit_h, thickness, gap, x0, x1, y0, y1 in self._layout():
+            if char == ":":
+                dot = max(thickness * 0.9, 2.0)
+                cy = (y0 + y1) / 2
+                for dy in (-digit_h * 0.22, digit_h * 0.22):
+                    widget.create_oval(
+                        (x0 + x1) / 2 - dot / 2, cy + dy - dot / 2,
+                        (x0 + x1) / 2 + dot / 2, cy + dy + dot / 2,
+                        fill=self._color, outline="",
+                    )
+                continue
+            if char == ".":
+                dot = max(thickness * 0.9, 2.0)
+                widget.create_oval(
+                    x1 - dot, y1 - dot, x1, y1,
+                    fill=self._color, outline="",
+                )
+                continue
+            on = self._SEGMENTS.get(char, self._SEGMENTS[" "])
+            rects = self._segment_rects(digit_w, digit_h, thickness, gap, x0, x1, y0, y1)
+            slot_ids = []
+            for segment_index, (rx0, ry0, rx1, ry1) in enumerate(rects):
+                slot_ids.append(widget.create_rectangle(
+                    rx0, ry0, rx1, ry1,
+                    fill=self._color if on[segment_index] else self._off_color,
+                    outline="",
+                ))
+            self._segment_ids.append(slot_ids)
+
+    def get(self):
+        return self._value
+
+    @property
+    def digits(self):
+        return self._digits
+
+    def update(self, value=None, color=None, visible=None, **kwargs):
+        if color is not None:
+            self._color = color
+            self._off_color = _mix_color(color, "#111111", 0.82)
+        if value is not None:
+            self._value = value
+            self._last_text = self._format(value)
+        if (value is not None or color is not None) and self._widget is not None:
+            if color is not None:
+                self._widget.configure(background=self._background)
+            self._redraw()
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self

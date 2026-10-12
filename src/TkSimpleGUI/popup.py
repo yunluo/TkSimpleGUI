@@ -33,7 +33,7 @@ def _popup_window(
     rows: List[ElementRow] = [[Text(line)] for line in lines]
     if not no_buttons and buttons:
         rows.append([Button(label, key=label) for label in buttons])
-    window = Window(title, rows, size=size, finalize=True)
+    window = Window(title, rows, size=size, finalize=True, modal=True)
     if no_buttons:
         duration = (
             auto_close_duration
@@ -131,7 +131,7 @@ def popup_auto_close(*args, title="", auto_close_duration=None, buttons=("OK",))
     lines = _message_lines(args)
     rows: List[ElementRow] = [[Text(line)] for line in lines]
     rows.append([Button(label, key=label) for label in buttons])
-    window = Window(title, rows, finalize=True)
+    window = Window(title, rows, finalize=True, modal=True)
     event, _values = window.read(timeout=int(duration * 1000), close=True)
     if event == C.TIMEOUT_KEY:
         return buttons[0] if buttons else ""
@@ -160,7 +160,7 @@ def popup_scrolled(*args, title="", size=(80, 20)):
     """Show a scrollable message; returns the text (or None on cancel)."""
     rows: List[ElementRow] = [[Multiline("\n".join(_message_lines(args)), size=size, key="-ML-")]]
     rows.append([Button("OK", key="OK"), Button("Cancel", key="Cancel")])
-    window = Window(title, rows, finalize=True)
+    window = Window(title, rows, finalize=True, modal=True)
     window["-ML-"].widget.configure(state="disabled")
     event, _values = window.read(close=True)
     if event == "Cancel":
@@ -180,7 +180,7 @@ def popup_get_text(message, title="", default_text=""):
         [Input(default_text, key="-IN-", size=(50, 1))],
         [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
     ]
-    window = Window(title, rows, finalize=True)
+    window = Window(title, rows, finalize=True, modal=True)
     window["-IN-"].widget.bind("<Return>", lambda _e: window._post_event("OK"))
     window["-IN-"].widget.focus_set()
     event, values = window.read(close=True)
@@ -244,7 +244,7 @@ def popup_get_date(message="Choose a date", title="", default_date=None, datefor
         [Calendar(default_date=default_date, dateformat=dateformat, key="-CAL-")],
         [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
     ]
-    window = Window(title, rows, finalize=True)
+    window = Window(title, rows, finalize=True, modal=True)
     while True:
         event, _values = window.read()
         if event in (C.WIN_CLOSED, "Cancel"):
@@ -310,7 +310,7 @@ def popup_find(multiline, title="Find Text", case_sensitive=False):
         [Input("", key="-IN-", size=(40, 1))],
         [Button("Find", key="Find"), Button("Cancel", key="Cancel")],
     ]
-    window = Window(title, rows, finalize=True)
+    window = Window(title, rows, finalize=True, modal=True)
     window["-IN-"].widget.focus_set()
     event, values = window.read(close=True)
     if event != "Find":
@@ -339,7 +339,7 @@ def popup_replace(multiline, title="Replace", case_sensitive=False):
         [Text("Replace with:"), Input("", key="-REP-", size=(30, 1))],
         [Button("Replace All", key="RA"), Button("Cancel", key="Cancel")],
     ]
-    window = Window(title, rows, finalize=True)
+    window = Window(title, rows, finalize=True, modal=True)
     window["-IN-"].widget.focus_set()
     event, values = window.read(close=True)
     if event != "RA":
@@ -390,7 +390,7 @@ def popup_get_font(
         [Column(picker_column), Column(option_rows)],
         [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
     ]
-    window = Window(title, rows, finalize=True)
+    window = Window(title, rows, finalize=True, modal=True)
     families = sorted(tkfont.families(root=window.tk_root))
     listbox = window["-FONTS-"]
     listbox.update(values=families)

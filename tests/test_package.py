@@ -424,6 +424,14 @@ class TestWindowManagement(unittest.TestCase):
         self.assertGreater(width, 0)
         self.assertGreater(height, 0)
 
+    def test_window_min_size_floor(self):
+        # every window enforces a size floor so the title-bar buttons
+        # (minimize / maximize / close) remain visible and clickable
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True, size=(10, 10))
+        window.tk_root.update()
+        self.assertGreaterEqual(window.tk_root.winfo_width(), 140)
+        window.close()
+
     def test_disable_close(self):
         window = sg.Window("t", [[sg.Text("x")]], finalize=True, disable_close=True)
         window.tk_root.protocol("WM_DELETE_WINDOW")  # handler exists, no crash
@@ -2004,6 +2012,7 @@ class TestRunEntry(unittest.TestCase):
         @sg.bind_event("-PKG-LEVEL-EVENT-")
         def on_pkg_level(window, values):
             fired.append(window.title)
+            sg.Window.close_all()  # ends the loop
 
         window = sg.Window("one", [[sg.Text("x")]], finalize=True)
         window.write_event_value("-PKG-LEVEL-EVENT-")

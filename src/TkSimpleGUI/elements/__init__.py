@@ -39,7 +39,7 @@ from .containers import (
 from .calendar import Calendar
 from .chart import Chart, ChartType
 from .data import Table, Tree
-from .fancy import ImageButton, RoundButton, TextProgressBar
+from .fancy import ImageButton, LED, RoundButton, TextProgressBar
 from .misc import (
     HorizontalSeparator,
     Menubutton,
@@ -99,6 +99,7 @@ __all__ = [
     "RoundButton",
     "ImageButton",
     "TextProgressBar",
+    "LED",
     "validate_integer",
     "validate_float",
     "validate_regex",

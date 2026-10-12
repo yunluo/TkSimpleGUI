@@ -44,6 +44,11 @@ testpaths = ["tests"]
 python_files = ["test_*.py"]
 python_classes = ["Test*"]
 python_functions = ["test_*"]
+# hard per-test timeout: a hung modal dialog fails the test instead of
+# stalling the whole suite ("thread" method marks it failed without
+# hard-killing the interpreter)
+timeout = 30
+timeout_method = "thread"
 
 [tool.coverage.run]
 source = ["TkSimpleGUI"]

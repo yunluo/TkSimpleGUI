@@ -59,6 +59,10 @@ DEFAULT_TOOLTIP_OFFSET = (0, -20)
 DEFAULT_PROGRESS_BAR_SIZE = (20, 20)
 DEFAULT_TABLE_NUM_ROWS = 10
 DEFAULT_LISTBOX_SIZE = (20, 6)
+# every window keeps the title-bar buttons (minimize/maximize/close)
+# visible and clickable even when the user shrinks it hard
+WINDOW_MIN_WIDTH = 140
+WINDOW_MIN_HEIGHT = 60
 
 COLOR_SYSTEM_DEFAULT = "1234567890"
 

@@ -104,6 +104,7 @@ class InputBlocker(object):
         self._running = False
         self._ref: tuple = ()  # keep the HOOKPROC objects alive
         self._ready = threading.Event()
+        self._stopped = threading.Event()
         self._count = 0
         self._lock = threading.Lock()
 
@@ -176,6 +177,7 @@ class InputBlocker(object):
             if self._count > 0 or not self._running:
                 return self
             self._running = False
+            self._stopped.clear()
         # outside the lock: hooks are installed (ready was set), unhook now
         if self._thread_id:
             user32.PostThreadMessageW(self._thread_id, 0x0012, 0, 0)  # WM_QUIT
@@ -184,6 +186,10 @@ class InputBlocker(object):
         self._thread = None
         self._thread_id = None
         self._ref = ()  # drop the HOOKPROC references
+        # block until the pump thread confirmed it unhooked everything —
+        # returning earlier let the interpreter tear Tcl down while a hook
+        # callback was still flying (access violation at next update call)
+        self._stopped.wait(timeout=2)
         return self
 
     def _pump(self):
@@ -213,6 +219,7 @@ class InputBlocker(object):
         for handle in self._hooks:
             user32.UnhookWindowsHookEx(handle)
         self._hooks = []
+        self._stopped.set()
 
 
 _blocker = None

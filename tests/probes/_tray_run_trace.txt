@@ -1,0 +1,6 @@
+start
+tray created
+entering tray.run()
+after fired: posting Exit
+handler: Exit received (owner=SystemTray)
+run returned

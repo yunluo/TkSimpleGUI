@@ -396,14 +396,15 @@ class Window(object):
         borrowed = None
         if cls._open_windows and cls._open_windows[0]._root_alive():
             borrowed = cls._open_windows[0]._tk_root
+        if borrowed is None and cls._main_root is not None and cls._main_root.winfo_exists():
+            borrowed = cls._main_root
         if borrowed is not None:
             return (borrowed.winfo_screenwidth(), borrowed.winfo_screenheight())
-        temporary = tk.Tk()
-        temporary.withdraw()
-        try:
-            return (temporary.winfo_screenwidth(), temporary.winfo_screenheight())
-        finally:
-            temporary.destroy()
+        # no interpreter alive at all: create (and keep) the hidden master
+        # root rather than a throwaway Tk — a second tk.Tk() in one process
+        # can collide with the existing Tcl interpreter
+        main_root = cls._ensure_hidden_main_root()
+        return (main_root.winfo_screenwidth(), main_root.winfo_screenheight())
 
     # --- construction -------------------------------------------------------------
     def finalize(self):
@@ -481,6 +482,9 @@ class Window(object):
         width, height = self._size
         if width is not None and height is not None:
             root.geometry(f"{int(width)}x{int(height)}")
+        # a floor small enough that the title bar buttons (minimize /
+        # maximize / close) always stay visible and clickable
+        root.minsize(C.WINDOW_MIN_WIDTH, C.WINDOW_MIN_HEIGHT)
         x, y = self._location
         if x is not None and y is not None:
             current = root.geometry().split("+", 1)[0]

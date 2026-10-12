@@ -162,6 +162,7 @@ from .elements import (
     RoundButton,
     ImageButton,
     TextProgressBar,
+    LED,
     Chart,
     ChartType,
     validate_integer,
@@ -313,6 +314,7 @@ TScrollbar = Scrollbar
 TRoundButton = RoundButton
 TImageButton = ImageButton
 TTextProgressBar = TextProgressBar
+TLED = LED
 TChart = Chart
 
 __all__ = [
@@ -348,7 +350,7 @@ __all__ = [
     "Tab", "TabGroup", "Menu", "Table", "Tree",
     "StatusBar", "VerticalSeparator", "HorizontalSeparator", "Sizegrip",
     "Menubutton", "Scrollbar",
-    "RoundButton", "ImageButton", "TextProgressBar", "Chart", "ChartType",
+    "RoundButton", "ImageButton", "TextProgressBar", "LED", "Chart", "ChartType",
     "validate_integer", "validate_float", "validate_regex",
     "Window", "SystemTray", "TkSimpleEvent", "singleton_window", "main_loop",
     "default_app", "run_application", "bind_event", "on_event",
@@ -373,7 +375,7 @@ __all__ = [
     "TKeyValueEditor", "TFlowPanel", "TCalendar", "TTab", "TTabGroup",
     "TMenu", "TTable", "TTree", "TStatusBar", "TVerticalSeparator",
     "THorizontalSeparator", "TSizegrip", "TMenubutton", "TScrollbar",
-    "TRoundButton", "TImageButton", "TTextProgressBar", "TChart",
+    "TRoundButton", "TImageButton", "TTextProgressBar", "TLED", "TChart",
     "Anchor", "LabelAnchor", "Justify", "Relief", "Orientation", "Compound",
     "State", "WrapMode", "ProgressMode", "EnumSelectMode", "Cursor",
     "EventType", "Color",

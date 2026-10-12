@@ -293,6 +293,13 @@ def tab_system():
                                          key="-PB-WORK-"),
                      sg.TButton("Timer on", key="-W-TIMER-"), sg.TButton("Timer off", key="-W-TIMEROFF-"),
                      sg.TText("00:00", key="-T-ELAPSED-", size=(8, 1))]])],
+        [sg.Column([[sg.TText("LED numeric display (seven-segment)")],
+                    [sg.TLED(0, digits=6, color="#ff3b30", key="-LED-COUNT-"),
+                     sg.VerticalSeparator(),
+                     sg.TLED("00:00", digits=5, allow_colon=True,
+                             color="#33cc66", key="-LED-CLOCK-"),
+                     sg.VerticalSeparator(),
+                     sg.TLED(-3.14, digits=6, color="#33aaff", key="-LED-NEG-")]])],
         [sg.Column([[sg.TText("System integration")],
                     [sg.TButton("Tray: create", key="-S-TRAY-"), sg.TButton("Tray: notify", key="-S-NOTIFY-"),
                      sg.TButton("Tray: close", key="-S-TRAYOFF-"),
@@ -391,6 +398,8 @@ def _tick_clock():
     if _STOPWATCH["start"] is not None:
         elapsed = int(time.time() - _STOPWATCH["start"])
         window["-T-ELAPSED-"].update(f"{elapsed // 60:02d}:{elapsed % 60:02d}")
+        window["-LED-CLOCK-"].update(f"{elapsed // 60:02d}:{elapsed % 60:02d}")
+        window["-LED-COUNT-"].update(elapsed)
     _refresh_status()
 
 
