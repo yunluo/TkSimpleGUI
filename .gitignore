@@ -173,8 +173,15 @@ cython_debug/
 # PyPI configuration file
 .pypirc
 
-# _split toolchain throwaway reports
-_split/*.txt
+# IDE files
+.idea/
 
-# _split throwaway images (logo previews, demo acceptance shots)
-_split/_*.png
+# throwaway probe scripts and temp artifacts (kept out of the repo)
+/*.tmp
+/_split/
+/_out.txt
+/_ls*.txt
+/_st*.txt
+
+# _split throwaway reports (legacy, directory removed)
+_split/*.txt

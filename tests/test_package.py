@@ -1255,9 +1255,7 @@ class TestThirdBatch(unittest.TestCase):
         import subprocess
 
         probe = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "_split",
-            "_tray_probe.py",
+            os.path.dirname(os.path.abspath(__file__)), "probes", "_tray_probe.py"
         )
         result = subprocess.run(
             [sys.executable, probe],
@@ -1843,8 +1841,8 @@ class TestRunEntry(unittest.TestCase):
         import subprocess
 
         probe = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-            "_split",
+            os.path.dirname(os.path.abspath(__file__)),
+            "probes",
             "_tray_run_probe.py",
         )
         result = subprocess.run(

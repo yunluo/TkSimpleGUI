@@ -3,7 +3,7 @@
 import sys
 import os
 
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "src"))
+sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
 import TkSimpleGUI as sg
 
 LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_tray_run_trace.txt")

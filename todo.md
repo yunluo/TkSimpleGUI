@@ -2,13 +2,13 @@
 
 > **项目总目标（2026-10-11 定）：Tk/ttk 能实现的全覆盖，Tk/ttk 实现不了的也要实现。**
 > 底线：Python 3.7、零第三方依赖、Tkinter/ttk 原生实现、OO 封装。
-> 完成项打勾并注明 commit；每批完成后跑 `python -m unittest tests.test_package` + `python _split/oo_smoke.py`。
+> 完成项打勾并注明 commit；每批完成后跑 `python -m unittest discover tests` + `python tests/check_types.py`（ty 零诊断）+ `python demo.py --smoke`。
 
 ## ✅ 已完成
 
 - [x] 全新 OO 重写（5c0f61d）：Element ABC/模板方法、ThemeManager 单例、原生默认外观、160 主题
 - [x] P0 能力补齐（c6e4431）：metadata / pad / expand_x / expand_y / justification / right_click_menu / disabled 构造参数；颜色字体参数全覆盖 + ttk 派生样式；Window 运行时 API（maximize/minimize/normal/restore/alpha/size/move_to_center/hide/set_icon…）；perform_long_operation；右键菜单
-- [x] tk/ttk 深挖 + 默认 logo（8beed18）：Graph 图元句柄（oval/arc/polygon/image + delete/move/relocate/bring/send/get_figures_at_location）、Table 表头排序、Multiline 原生 undo/redo/彩色 print/clear、Button 图片+compound、剪贴板、set_min_size、set_dpi_awareness、P4 字标双尺寸 iconphoto（生成器 `_split/gen_logo.py`）
+- [x] tk/ttk 深挖 + 默认 logo（8beed18）：Graph 图元句柄（oval/arc/polygon/image + delete/move/relocate/bring/send/get_figures_at_location）、Table 表头排序、Multiline 原生 undo/redo/彩色 print/clear、Button 图片+compound、剪贴板、set_min_size、set_dpi_awareness、Tk 字标双尺寸 iconphoto（`DEFAULT_BASE64_ICON`，默认已改为跟随解释器图标）
 - [x] 第一批（70412d5）：Entry 校验、Calendar、Splitter、ScrollableColumn、窗体级右键、popup_get_font、after/every 定时器、popup_find/replace
 - [x] 第二批（0cb9bd1）：CheckList、Toolbar、toggle Button、LabeledEdit、KeyValueEditor、FlowPanel、Tree/Table 行图标、Table 单元格编辑、Shape
 - [x] 第三批（41d7801）：ActionList、UserSettings、Table.bind、i18n、动画、SystemTray 托盘菜单、CLI+dbg
@@ -106,7 +106,7 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m unittest tests.test_package`（117 个，含全部批次回归；托盘测试以子进程隔离运行）
+- 测试：`python -m unittest discover tests`（163 个，含全部批次回归；托盘测试以子进程隔离运行，探针在 `tests/probes/`）
 - 类型：`python tests/check_types.py`（ty 零诊断守卫）
-- 冒烟：`python _split/oo_smoke.py`（32+ 项，含 3.8+ 语法扫描与现代风格守卫）+ `python demo.py --smoke`
-- 每批提交后：compileall + 上述四项 + git commit（中文 + fix:/feat:/refactor: 前缀）
+- 冒烟：`python demo.py --smoke`（3.8+ 语法扫描与现代风格守卫已内置于测试套件 TestPy37Compatibility）
+- 每批提交后：compileall + 上述三项 + git commit（中文 + fix:/feat:/refactor: 前缀）
