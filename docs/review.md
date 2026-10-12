@@ -271,11 +271,11 @@ ruff **不在 `todo.md` 的回归基线内**，因此这笔债既不可见也不
 python -m unittest discover tests      # 181 项
 python tests/check_types.py            # ty 零诊断守卫
 python tests/check_syntax.py           # 逐文件 ast 解析
-python demo.py --smoke                 # demo 冒烟
+python demos/showcase.py --smoke        # showcase 冒烟
 python -m compileall -q src
 
 # lint
-python -m ruff check src tests demo.py --statistics
+python -m ruff check src tests --statistics
 
 # 示例 API 引用核对（检出 sg.* 中不存在的名字）
 python - <<'PY'
@@ -283,7 +283,7 @@ import pathlib, re, sys
 sys.path.insert(0, "src")
 import TkSimpleGUI as sg
 names = set()
-for p in ["demo.py"] + [str(x) for x in pathlib.Path("demos").rglob("*.py")]:
+for p in [str(x) for x in pathlib.Path("demos").rglob("*.py")]:
     names |= set(re.findall(r"\bsg\.([A-Za-z_]\w*)", pathlib.Path(p).read_text(encoding="utf-8")))
 print("MISSING:", sorted(n for n in names if not hasattr(sg, n)))
 PY

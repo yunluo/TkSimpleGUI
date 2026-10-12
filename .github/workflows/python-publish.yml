@@ -40,9 +40,9 @@ jobs:
       - name: Lint gate (ruff)
         run: |
           pip install ruff
-          ruff check src tests demo.py
+          ruff check src tests
       - name: Demo smoke
-        run: python demo.py --smoke
+        run: python demos/showcase.py --smoke
 
   deploy:
     needs: test

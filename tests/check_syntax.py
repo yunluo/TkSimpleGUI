@@ -14,9 +14,11 @@ import sys
 root = pathlib.Path(os.environ.get("TKSIMPLEGUI_ROOT", os.getcwd()))
 files = list((root / "src").rglob("*.py"))
 files += list((root / "tests").rglob("*.py"))
-demo = root / "demo.py"
-if demo.exists():
-    files.append(demo)
+# demo / example scripts (they live in demos/, not src/, but should still
+# be parse-checked on the project floor)
+demos_dir = root / "demos"
+if demos_dir.exists():
+    files += list(demos_dir.glob("*.py"))
 
 bad = []
 for p in files:
