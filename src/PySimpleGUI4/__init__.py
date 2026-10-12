@@ -18,6 +18,25 @@ from ._version import __version__, version, __author__, __email__, __license__, 
 
 from . import constants as C  # noqa: F401
 
+# --- typed enums (kill the magic strings) -----------------------------------------------
+# sg.Anchor.CENTER instead of "center", sg.EventType.DOUBLE_CLICK instead of
+# "<Double-1>" ... every enum's value IS the Tk string, so mixing styles works.
+from .enums import (
+    Anchor,
+    LabelAnchor,
+    Justify,
+    Relief,
+    Orientation,
+    Compound,
+    State,
+    WrapMode,
+    ProgressMode,
+    SelectMode as EnumSelectMode,
+    Cursor,
+    EventType,
+    Color,
+)
+
 # --- constants ---------------------------------------------------------------
 from .constants import (
     WIN_CLOSED,
@@ -373,6 +392,9 @@ __all__ = [
     "TMenu", "TTable", "TTree", "TStatusBar", "TVerticalSeparator",
     "THorizontalSeparator", "TSizegrip", "TMenubutton", "TScrollbar",
     "TRoundButton", "TImageButton", "TTextProgressBar",
+    "Anchor", "LabelAnchor", "Justify", "Relief", "Orientation", "Compound",
+    "State", "WrapMode", "ProgressMode", "EnumSelectMode", "Cursor",
+    "EventType", "Color",
 ]
 
 

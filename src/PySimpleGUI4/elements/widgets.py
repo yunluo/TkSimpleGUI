@@ -261,7 +261,11 @@ class Input(InputElement):
         self._validate = validate
         self._validate_command = validate_command
         self._invalid_command = invalid_command
-        self._justify = justify if justify in ("left", "center", "right") else "left"
+        # str-enum values compare equal to their Tk strings, so both
+        # sg.Justify.RIGHT and "right" land here the same way
+        # str-enum values compare equal to their Tk strings, so both
+        # sg.Justify.RIGHT and "right" land here the same way
+        self._justify = str(justify).lower() if str(justify).lower() in ("left", "center", "right") else "left"
         if validate is not None and validate_command is not None:
             if not callable(validate_command):
                 raise TypeError("validate_command must be a callable(text) -> bool")
@@ -1210,7 +1214,8 @@ class Multiline(InputElement):
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
-        self._wrap = wrap if wrap in ("word", "char", "none") else "word"
+        # str-enum WrapMode values compare equal to the tk strings
+        self._wrap = str(wrap) if str(wrap) in ("word", "char", "none") else "word"
         self._scroll_y = bool(scroll_y)
         self._text = None  # ty: ignore[invalid-assignment]
 

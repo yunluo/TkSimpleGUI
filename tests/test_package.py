@@ -696,6 +696,68 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
 
+class TestTypedEnums(unittest.TestCase):
+    """IDE 亲和力：str 枚举替代 Tk 魔术字符串。"""
+
+    def test_enum_values_are_tk_strings(self):
+        self.assertIsInstance(sg.Anchor.CENTER, str)
+        self.assertEqual(sg.Anchor.CENTER, "center")
+        self.assertEqual(str(sg.Justify.RIGHT), "right")
+        self.assertEqual(sg.Relief.SUNKEN, "sunken")
+        self.assertEqual(sg.Orientation.HORIZONTAL, "horizontal")
+        self.assertEqual(sg.EventType.DOUBLE_CLICK, "<Double-1>")
+        self.assertEqual(sg.Color.RED, "red")
+
+    def test_enums_interchange_with_strings(self):
+        """枚举和裸字符串在控件参数上完全互换。"""
+        window = sg.Window(
+            "t",
+            [
+                [sg.Text("a", justification=sg.Justify.CENTER)],
+                [sg.Input("", justify=sg.Justify.RIGHT, key="-IN-")],
+                [sg.Frame("F", [[sg.Text("x")]], label_anchor=sg.LabelAnchor.SE,
+                          key="-FRAME-")],
+                [sg.Multiline("", wrap=sg.WrapMode.NONE, key="-ML-")],
+            ],
+            finalize=True,
+        )
+        self.assertEqual(str(window["-IN-"].widget.cget("justify")), "right")
+        self.assertEqual(str(window["-ML-"]._text.cget("wrap")), "none")
+        self.assertEqual(str(window["-FRAME-"].widget.cget("labelanchor")), "se")
+        window.close()
+
+    def test_event_type_helpers(self):
+        self.assertEqual(sg.EventType.control("o"), "<Control-o>")
+        self.assertEqual(sg.EventType.shift("F5"), "<Shift-F5>")
+        self.assertEqual(sg.EventType.alt("q"), "<Alt-q>")
+        self.assertEqual(sg.EventType.key("F5"), "<F5>")
+
+    def test_bind_with_event_type_enum(self):
+        element = sg.Text("click", key="-T-")
+        window = sg.Window("t", [[element]], finalize=True)
+        element.bind(sg.EventType.RIGHT_CLICK)  # enum instead of "<Button-3>"
+        element.widget.event_generate("<Button-3>", when="tail")
+        window.tk_root.update()
+        event, _values = window.read(timeout=500)
+        self.assertEqual(event, "-T-")
+        window.close()
+
+    def test_color_enum_in_widget(self):
+        text = sg.Text("colored", text_color=sg.Color.RED,
+                       background_color=sg.Color.NAVY)
+        window = sg.Window("t", [[text]], finalize=True)
+        self.assertEqual(str(text.widget.cget("foreground")), "red")
+        window.close()
+
+    def test_anchor_enum_in_text(self):
+        text = sg.Text("anchored")
+        window = sg.Window("t", [[text]], finalize=True)
+        # anchor flows through theme kwargs; verify the enum is a valid value
+        text.widget.configure(anchor=sg.Anchor.CENTER)
+        self.assertEqual(str(text.widget.cget("anchor")), "center")
+        window.close()
+
+
 class TestFirstBatch(unittest.TestCase):
     """第一批：校验/日历/分栏/滚动容器/窗体右键/定时器/查找替换。"""
 

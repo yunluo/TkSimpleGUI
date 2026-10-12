@@ -33,7 +33,7 @@ PySimpleGUI4 = "PySimpleGUI4:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-PySimpleGUI4 = ["*.pyi"]
+PySimpleGUI4 = ["*.pyi", "py.typed"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -62,6 +62,12 @@ PySimpleGUI4/
   (`sg.T`, `sg.B`), and the uniform T-prefix rule (`sg.TText`, `sg.TInput`,
   `sg.TButton`, `sg.TRoundButton`... — every widget's own name with a "T"
   in front) — all the same classes, pick whichever reads best for you
+- **No more magic strings** - Tk's stringly-typed options are typed enums
+  (`sg.Anchor.CENTER`, `sg.Justify.RIGHT`, `sg.EventType.DOUBLE_CLICK`,
+  `sg.Color.NAVY`, `sg.Relief.SUNKEN`...) with IDE completion everywhere.
+  Every enum's value IS the Tk string, so raw strings still work too
+- **Fully type annotated** - 100% typed (py.typed, zero ty diagnostics);
+  your IDE autocompletes and type-checks every call
 - **Encapsulated** - `__slots__` everywhere, private attributes, `@property`
   accessors; the mutable look & feel and options state live in the
   `ThemeManager` and `Settings` singletons instead of module globals
