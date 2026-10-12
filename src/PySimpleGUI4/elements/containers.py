@@ -3,7 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Literal, Optional, Tuple, Union, cast
 
 from .base import ContainerElement, Element, _validate_layout
 from .widgets import Input, Text
@@ -13,9 +13,13 @@ from .. import _theming as theme_mod
 
 
 class Frame(ContainerElement):
-    """A labelled frame holding a nested layout."""
+    """A labelled frame holding a nested layout.
 
-    __slots__ = ("_title",)
+    ``label_anchor`` places the title ("nw", "n", "ne", "en", "e", "es",
+    "se", "s", "sw", "wn", "w", "ws") — the native ttk.Labelframe option.
+    """
+
+    __slots__ = ("_title", "_label_anchor")
 
     def __init__(
         self,
@@ -23,6 +27,7 @@ class Frame(ContainerElement):
         layout,
         key=None,
         size=(None, None),
+        label_anchor="nw",
         tooltip=None,
         visible=True,
         pad=None,
@@ -46,6 +51,7 @@ class Frame(ContainerElement):
             metadata=metadata,
         )
         self._title = title
+        self._label_anchor = label_anchor
 
     @property
     def title(self):
@@ -56,7 +62,13 @@ class Frame(ContainerElement):
         width = self._size[0] if self._size else None
         if width is not None:
             kwargs["width"] = int(width)
-        frame = ttk.Labelframe(master, text=self._title, **kwargs)
+        anchor = cast(
+            Literal["nw", "n", "ne", "en", "e", "es", "se", "s", "sw", "wn", "w", "ws"],
+            str(self._label_anchor).lower(),
+        )
+        frame = ttk.Labelframe(
+            master, text=self._title, labelanchor=anchor, **kwargs
+        )
         return frame
 
     def update(self, value=None, visible=None):

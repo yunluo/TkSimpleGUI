@@ -3,7 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import cast, Optional, Tuple, Union
+from typing import Any, Dict, Literal, cast, Optional, Tuple, Union
 
 from .base import Element, InputElement
 from .. import constants as C
@@ -82,9 +82,19 @@ def validate_regex(pattern, flags=0):
 
 
 class Text(Element):
-    """A static label."""
+    """A static label (optionally with an inline image and text wrapping)."""
 
-    __slots__ = ("_text", "_text_color", "_background_color", "_font", "_enable_events")
+    __slots__ = (
+        "_text",
+        "_text_color",
+        "_background_color",
+        "_font",
+        "_enable_events",
+        "_image_data",
+        "_image_filename",
+        "_photo",
+        "_wrap_length",
+    )
 
     def __init__(
         self,
@@ -96,6 +106,9 @@ class Text(Element):
         font=None,
         justification=None,
         enable_events=False,
+        image_data=None,
+        image_filename=None,
+        wrap_length=None,
         tooltip=None,
         visible=True,
         pad=None,
@@ -122,6 +135,10 @@ class Text(Element):
         self._justification = justification or "left"
         self._font = font
         self._enable_events = enable_events
+        self._image_data = image_data
+        self._image_filename = image_filename
+        self._photo = None
+        self._wrap_length = wrap_length
 
     @property
     def text(self):
@@ -138,7 +155,22 @@ class Text(Element):
             kwargs["width"] = width
         if self._font is not None:
             kwargs["font"] = self._font
+        if self._wrap_length is not None:
+            kwargs["wraplength"] = int(self._wrap_length)
         label = ttk.Label(master, **kwargs)
+        if self._image_data is not None or self._image_filename is not None:
+            try:
+                if self._image_data is not None:
+                    self._photo = tk.PhotoImage(
+                        data=self._image_data, master=label
+                    )
+                else:
+                    self._photo = tk.PhotoImage(
+                        file=str(self._image_filename), master=label
+                    )
+                label.configure(image=self._photo, compound="left")
+            except tk.TclError:
+                self._photo = None
         return label
 
     def _bind_events(self):
@@ -178,6 +210,7 @@ class Input(InputElement):
         "_validate",
         "_validate_command",
         "_invalid_command",
+        "_justify",
     )
 
     # created in _create_widget before any accessor runs
@@ -197,6 +230,7 @@ class Input(InputElement):
         validate=None,
         validate_command=None,
         invalid_command=None,
+        justify="left",
         tooltip=None,
         visible=True,
         pad=None,
@@ -227,6 +261,7 @@ class Input(InputElement):
         self._validate = validate
         self._validate_command = validate_command
         self._invalid_command = invalid_command
+        self._justify = justify if justify in ("left", "center", "right") else "left"
         if validate is not None and validate_command is not None:
             if not callable(validate_command):
                 raise TypeError("validate_command must be a callable(text) -> bool")
@@ -242,7 +277,10 @@ class Input(InputElement):
             fieldbackground=self._background_color,
             font=self._font,
         )
-        kwargs = {"style": style_name}
+        kwargs: Dict[str, Any] = {
+            "style": style_name,
+            "justify": cast(Literal["left", "center", "right"], self._justify),
+        }
         width = _char_width(self._size)
         if width is not None:
             kwargs["width"] = width
@@ -300,6 +338,41 @@ class Input(InputElement):
         """Show ``char`` instead of the typed characters (masking)."""
         self._password_char = char
         self._widget.configure(show=char)
+        return self
+
+    # --- native tk.Entry API passthrough ---------------------------------------
+    def set(self, value):
+        """Replace the text (native ``StringVar.set``)."""
+        self._textvariable.set("" if value is None else str(value))
+        return self
+
+    def insert(self, index, text):
+        """Insert ``text`` at character ``index`` (native ``Entry.insert``)."""
+        self._widget.insert(int(index), str(text))
+        return self
+
+    def delete(self, first, last=None):
+        """Delete characters ``first``..``last`` (native ``Entry.delete``)."""
+        self._widget.delete(int(first), None if last is None else int(last))
+        return self
+
+    def get_position(self):
+        """The insertion cursor's character index."""
+        return self._widget.index("insert")
+
+    def set_position(self, index):
+        """Move the insertion cursor to character ``index``."""
+        self._widget.icursor(int(index))
+        return self
+
+    def select_range(self, first=0, last=None):
+        """Select a character range (``last=None`` means end)."""
+        self._widget.select_range(int(first), "end" if last is None else int(last))
+        return self
+
+    def clear_selection(self):
+        """Deselect any selected text."""
+        self._widget.select_clear()
         return self
 
 
@@ -399,6 +472,18 @@ class Combo(InputElement):
     def get(self):
         """Currently selected/entered text."""
         return self._variable.get()
+
+    def set(self, value):
+        """Set the text (native ``StringVar.set``)."""
+        self._variable.set("" if value is None else str(value))
+        return self
+
+    def current(self, index=None):
+        """Get or set the selected index (native ``Combobox.current``)."""
+        if index is None:
+            return self._widget.current()
+        self._widget.current(int(index))
+        return self
 
     def update(self, value=None, values=None, disabled=None, visible=None):
         if values is not None:
@@ -511,6 +596,15 @@ class Listbox(InputElement):
     def selected_indices(self):
         return list(self._widget.curselection())
 
+    def see(self, index):
+        """Scroll so ``index`` is visible (native Listbox.see)."""
+        self._widget.see(int(index))
+        return self
+
+    def size(self):
+        """The number of items (native Listbox.size)."""
+        return self._widget.size()
+
     def update(self, values=None, set_to_index=None, select_rows=None, disabled=None, visible=None):
         if values is not None:
             self._values = list(values)
@@ -534,7 +628,12 @@ class Listbox(InputElement):
 
 
 class Spin(InputElement):
-    """Spinbox with a fixed set of values."""
+    """Spinbox with a fixed set of values — or a numeric range.
+
+    Pass ``values=[...]`` for a fixed list, or ``range_=(lo, hi)`` with
+    ``increment`` for a native numeric spinbox (with ``wrap`` rollover)::
+        sg.Spin(range_=(0, 100), increment=5, initial_value=10)
+    """
 
     __slots__ = (
         "_values",
@@ -544,6 +643,9 @@ class Spin(InputElement):
         "_text_color",
         "_background_color",
         "_font",
+        "_range_",
+        "_increment",
+        "_wrap",
     )
 
     _variable: tk.StringVar
@@ -555,6 +657,9 @@ class Spin(InputElement):
         key=None,
         size=(None, None),
         enable_events=False,
+        range_=None,
+        increment=1,
+        wrap=False,
         text_color=None,
         background_color=None,
         font=None,
@@ -579,15 +684,25 @@ class Spin(InputElement):
             right_click_menu=right_click_menu,
             metadata=metadata,
         )
-        self._values = list(values)
+        if range_ is not None and values:
+            raise ValueError("give either values= or range_=, not both")
+        if range_ is not None:
+            low, high = int(range_[0]), int(range_[1])
+            step = max(1, int(increment))
+            self._values = list(range(low, high + 1, step))
+        else:
+            self._values = list(values)
         self._initial_value = (
-            initial_value if initial_value is not None else (values[0] if values else "")
+            initial_value if initial_value is not None else (self._values[0] if self._values else "")
         )
         self._enable_events = enable_events
         self._variable = None  # ty: ignore[invalid-assignment]
         self._text_color = text_color
         self._background_color = background_color
         self._font = font
+        self._range_ = range_
+        self._increment = increment
+        self._wrap = bool(wrap)
 
     def _create_widget(self, master):
         self._variable = tk.StringVar(value=str(self._initial_value))
@@ -603,6 +718,22 @@ class Spin(InputElement):
         if width is not None:
             kwargs["width"] = width
         state = "disabled" if self._disabled else "readonly"
+        if self._range_ is not None:
+            # native numeric mode: from/to/increment/wrap
+            low = int(self._range_[0])
+            high = int(self._range_[1])
+            spin = ttk.Spinbox(
+                master,
+                from_=low,
+                to=high,
+                increment=max(1, int(self._increment)),
+                wrap=self._wrap,
+                textvariable=self._variable,
+                state=state,
+                **kwargs
+            )
+            self._variable.set(str(self._initial_value))
+            return spin
         spin = ttk.Spinbox(
             master,
             values=[str(v) for v in self._values],
@@ -622,6 +753,15 @@ class Spin(InputElement):
 
     def get(self):
         return self._variable.get()
+
+    @property
+    def values(self):
+        return list(self._values)
+
+    def set(self, value):
+        """Set the value (native ``StringVar.set``)."""
+        self._variable.set("" if value is None else str(value))
+        return self
 
     def update(self, value=None, values=None, disabled=None, visible=None):
         if values is not None:
@@ -721,6 +861,21 @@ class Checkbox(InputElement):
             self.unhide() if visible else self.hide()
         return self
 
+    def toggle(self):
+        """Flip the checked state (native BooleanVar flip)."""
+        self._variable.set(not self._variable.get())
+        return self
+
+    def select(self):
+        """Check the box."""
+        self._variable.set(True)
+        return self
+
+    def deselect(self):
+        """Uncheck the box."""
+        self._variable.set(False)
+        return self
+
 
 class Radio(InputElement):
     """Radio button sharing a value with every radio of the same group."""
@@ -810,6 +965,20 @@ class Radio(InputElement):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
+
+    def select(self):
+        """Make this radio the selected one in its group."""
+        self._window.radio_group_variable(self._group_id).set(self._text)
+        return self
+
+    def deselect(self):
+        """Clear the group selection (no radio selected)."""
+        self._window.radio_group_variable(self._group_id).set("")
+        return self
+
+    def group_value(self):
+        """The raw shared group value (the selected radio's text, or "")."""
+        return self._window.radio_group_variable(self._group_id).get()
 
 
 class Slider(InputElement):
@@ -1199,6 +1368,26 @@ class Multiline(InputElement):
             pass
         return self
 
+    # --- native tk.Text API passthrough -----------------------------------------
+    def insert(self, index, text, tags=None):
+        """Insert at a tk.Text index ("1.0", "end", ...) — native passthrough."""
+        self._text.configure(state="normal")
+        self._text.insert(str(index), str(text), tags or ())
+        self._text.configure(state=self._end_state())
+        return self
+
+    def delete(self, first="1.0", last=None):
+        """Delete a range ("1.0".."end") — native passthrough."""
+        self._text.configure(state="normal")
+        self._text.delete(str(first), "end" if last is None else str(last))
+        self._text.configure(state=self._end_state())
+        return self
+
+    def see(self, index):
+        """Scroll so ``index`` ("end", "1.0", ...) is visible — native passthrough."""
+        self._text.see(str(index))
+        return self
+
     def update(self, value=None, append=False, disabled=None, visible=None):
         if value is not None:
             self._text.configure(state="normal")
@@ -1229,9 +1418,14 @@ class Output(Multiline):
 
 
 class ProgressBar(Element):
-    """Progress bar (ttk native)."""
+    """Progress bar (ttk native), determinate or indeterminate.
 
-    __slots__ = ("_max_value", "_orientation", "_current")
+    ``start_indeterminate()`` runs the native marquee animation until
+    ``stop_indeterminate()`` — the ttk "indeterminate" mode that a plain
+    value-driven bar cannot show.
+    """
+
+    __slots__ = ("_max_value", "_orientation", "_current", "_indeterminate_job")
 
     def __init__(
         self,
@@ -1262,6 +1456,7 @@ class ProgressBar(Element):
         self._max_value = max_value
         self._orientation = orientation
         self._current = current_value
+        self._indeterminate_job = None
 
     def _create_widget(self, master):
         orient = (
@@ -1273,6 +1468,23 @@ class ProgressBar(Element):
             master, orient=orient, maximum=self._max_value, value=self._current
         )
         return bar
+
+    # --- indeterminate (marquee) mode ---------------------------------------------
+    def start_indeterminate(self, interval_ms=50):
+        """Run the native marquee animation (stop with stop_indeterminate)."""
+        if self._indeterminate_job is not None:
+            return self
+        self._widget.configure(mode="indeterminate")
+        self._widget.start(int(interval_ms))
+        return self
+
+    def stop_indeterminate(self):
+        """Stop the marquee and return to determinate mode."""
+        if self._indeterminate_job is None:
+            pass  # stop is idempotent regardless
+        self._widget.stop()
+        self._widget.configure(mode="determinate")
+        return self
 
     @property
     def max_value(self):

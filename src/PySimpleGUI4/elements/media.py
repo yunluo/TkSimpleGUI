@@ -192,6 +192,35 @@ class Image(Element):
     def get(self):
         return self._filename
 
+    @property
+    def photo(self):
+        """The current :class:`tk.PhotoImage` (None before finalize)."""
+        return self._photo
+
+    def zoom(self, factor):
+        """Re-render the image enlarged by ``factor`` (native PhotoImage.zoom)."""
+        self._zoom = factor
+        if self._widget is not None:
+            self._apply_image(self._widget)
+        return self
+
+    def subsample(self, factor):
+        """Re-render the image shrunk by ``factor`` (native subsample)."""
+        self._subsample = factor
+        if self._widget is not None:
+            self._apply_image(self._widget)
+        return self
+
+    @property
+    def width(self):
+        """Current image width in pixels (0 before finalize)."""
+        return self._photo.width() if self._photo is not None else 0
+
+    @property
+    def height(self):
+        """Current image height in pixels (0 before finalize)."""
+        return self._photo.height() if self._photo is not None else 0
+
 
 class Canvas(Element):
     """A plain drawing canvas."""
@@ -249,6 +278,50 @@ class Canvas(Element):
 
     def get(self):
         return (self._widget.winfo_width(), self._widget.winfo_height())
+
+    # --- native tk.Canvas API passthrough ----------------------------------------
+    def itemconfigure(self, item_id, **options):
+        """Native ``Canvas.itemconfigure`` — restyle any drawn item."""
+        self._widget.itemconfigure(item_id, **options)
+        return self
+
+    def itemconfig(self, item_id, **options):
+        """Alias of :meth:`itemconfigure`."""
+        return self.itemconfigure(item_id, **options)
+
+    def create_window(self, position, window_element=None, widget=None, anchor="nw", **options):
+        """Embed a widget (an element's or a raw tk widget) in the canvas.
+
+        Accepts either a PySimpleGUI4 element (its widget is used; the
+        element should be built in the same window) or a raw tk widget.
+        Returns the canvas window item id. ``position`` is in graph
+        coordinates on a Graph, raw canvas pixels on a plain Canvas.
+        """
+        target = widget if widget is not None else getattr(window_element, "widget", None)
+        if target is None:
+            raise TypeError("create_window needs a widget or an element with one")
+        if isinstance(self, Graph):
+            x, y = self._to_canvas(position)
+        else:
+            x, y = position
+        return self._widget.create_window(x, y, window=target, anchor=anchor, **options)
+
+    def itembbox(self, item_id):
+        """The bounding box ``(x, y, w, h)`` of a canvas item."""
+        return self._widget.bbox(item_id)
+
+    def coords(self, item_id):
+        """The current canvas coordinates of an item."""
+        return self._widget.coords(item_id)
+
+    def tag_bind(self, item_id, event_pattern, callback):
+        """Bind an event to one drawn item (native ``tag_bind``).
+
+        ``callback(event)`` receives the tk event; combine with
+        :meth:`get_figures_at_location` for click-on-figure workflows.
+        """
+        self._widget.tag_bind(item_id, event_pattern, callback)
+        return self
 
 
 class Graph(Canvas):

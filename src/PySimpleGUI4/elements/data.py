@@ -329,6 +329,13 @@ class Table(Element):
         self._widget.column(f"col{index}", width=int(width))
         return self
 
+    def see(self, row_index):
+        """Scroll so row ``row_index`` is visible (native Treeview.see)."""
+        children = self._widget.get_children()
+        if 0 <= row_index < len(children):
+            self._widget.see(children[row_index])
+        return self
+
     @property
     def headings(self):
         return list(self._headings)
@@ -556,6 +563,11 @@ class Tree(Element):
         """Toggle the open state of the subtree under ``key``."""
         item = str(key)
         self._widget.item(item, open=not self._widget.item(item, "open"))
+        return self
+
+    def see(self, key):
+        """Scroll so item ``key`` is visible (native Treeview.see)."""
+        self._widget.see(str(key))
         return self
 
     def _bind_events(self):

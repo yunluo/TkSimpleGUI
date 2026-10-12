@@ -558,6 +558,144 @@ class TestTkIntegration(unittest.TestCase):
         self.assertIsInstance(result, bool)
 
 
+class TestNativeCoverage(unittest.TestCase):
+    """逐控件核对 Tk/ttk 原生功能覆盖（本轮补齐的 passthrough API）。"""
+
+    def test_input_native_api(self):
+        element = sg.Input("abc", justify="right", key="-IN-")
+        window = sg.Window("t", [[element]], finalize=True)
+        self.assertEqual(str(element.widget.cget("justify")), "right")
+        element.set("hello")
+        self.assertEqual(element.get(), "hello")
+        element.insert(0, "X")
+        self.assertEqual(element.get(), "Xhello")
+        element.delete(0, 1)
+        self.assertEqual(element.get(), "hello")
+        element.set_position(2)
+        self.assertEqual(element.get_position(), 2)
+        element.select_range(0, 2)
+        element.clear_selection()
+        window.close()
+
+    def test_combo_current(self):
+        combo = sg.Combo(["a", "b", "c"], key="-CB-")
+        window = sg.Window("t", [[combo]], finalize=True)
+        combo.set("b")
+        self.assertEqual(combo.get(), "b")
+        self.assertEqual(combo.current(), 1)
+        combo.current(2)
+        self.assertEqual(combo.get(), "c")
+        window.close()
+
+    def test_spin_numeric_range(self):
+        spin = sg.Spin(range_=(0, 20), increment=5, initial_value=10, wrap=True)
+        window = sg.Window("t", [[spin]], finalize=True)
+        self.assertEqual(spin.get(), "10")
+        spin.set(15)
+        self.assertEqual(spin.get(), "15")
+        # values were generated from the range with the increment
+        self.assertEqual(spin.values, [0, 5, 10, 15, 20])
+        window.close()
+        with self.assertRaises(ValueError):
+            sg.Spin([1, 2], range_=(0, 10))
+
+    def test_checkbox_toggle(self):
+        checkbox = sg.Checkbox("c", default=False)
+        window = sg.Window("t", [[checkbox]], finalize=True)
+        checkbox.toggle()
+        self.assertTrue(checkbox.get())
+        checkbox.select()
+        checkbox.deselect()
+        self.assertFalse(checkbox.get())
+        window.close()
+
+    def test_radio_select_helpers(self):
+        first = sg.Radio("one", "g", key="-R1-")
+        second = sg.Radio("two", "g", key="-R2-")
+        window = sg.Window("t", [[first, second]], finalize=True)
+        second.select()
+        self.assertTrue(second.get())
+        self.assertFalse(first.get())
+        self.assertEqual(first.group_value(), "two")
+        second.deselect()
+        self.assertEqual(first.group_value(), "")
+        window.close()
+
+    def test_progressbar_indeterminate(self):
+        bar = sg.ProgressBar(100, key="-PB-")
+        window = sg.Window("t", [[bar]], finalize=True)
+        bar.start_indeterminate(interval_ms=30)
+        self.assertEqual(str(bar.widget.cget("mode")), "indeterminate")
+        window.refresh()
+        bar.stop_indeterminate()
+        self.assertEqual(str(bar.widget.cget("mode")), "determinate")
+        window.close()
+
+    def test_multiline_passthrough(self):
+        multiline = sg.Multiline("", key="-ML-")
+        window = sg.Window("t", [[multiline]], finalize=True)
+        multiline.insert("1.0", "hello")
+        multiline.insert("end", " world")
+        self.assertEqual(multiline.get(), "hello world")
+        multiline.delete("1.0", "1.6")  # removes "hello "
+        self.assertEqual(multiline.get(), "world")
+        multiline.see("end")  # must not raise
+        window.close()
+
+    def test_text_image_and_wrap(self):
+        text = sg.Text("logo:", image_data=sg.DEFAULT_BASE64_ICON, wrap_length=200)
+        window = sg.Window("t", [[text]], finalize=True)
+        self.assertIsNotNone(text._photo)
+        self.assertEqual(text._photo.width(), 64)
+        self.assertEqual(int(text.widget.cget("wraplength")), 200)
+        window.close()
+
+    def test_listbox_see_size(self):
+        listbox = sg.Listbox([f"item {i}" for i in range(30)], size=(10, 3))
+        window = sg.Window("t", [[listbox]], finalize=True)
+        self.assertEqual(listbox.size(), 30)
+        listbox.see(25)  # must not raise
+        window.close()
+
+    def test_table_tree_see(self):
+        table = sg.Table([[f"row {i}"] for i in range(50)], headings=["H"])
+        window = sg.Window("t", [[table]], finalize=True)
+        table.see(45)  # must not raise
+        window.close()
+        tree = sg.Tree()
+        window2 = sg.Window("t2", [[tree]], finalize=True)
+        tree.insert("", "k1", "visible")
+        tree.see("k1")
+        window2.close()
+
+    def test_frame_label_anchor(self):
+        frame = sg.Frame("Title", [[sg.Text("x")]], label_anchor="se")
+        window = sg.Window("t", [[frame]], finalize=True)
+        self.assertEqual(str(frame.widget.cget("labelanchor")), "se")
+        window.close()
+
+    def test_image_zoom_getters(self):
+        image = sg.Image(data_base64=sg.DEFAULT_BASE64_ICON)
+        window = sg.Window("t", [[image]], finalize=True)
+        self.assertEqual((image.width, image.height), (64, 64))
+        image.zoom(2)
+        self.assertEqual((image.width, image.height), (128, 128))
+        image.subsample(4)
+        self.assertEqual((image.width, image.height), (32, 32))
+        self.assertIsNotNone(image.photo)
+        window.close()
+
+    def test_canvas_passthrough(self):
+        canvas = sg.Canvas((100, 100))
+        window = sg.Window("t", [[canvas]], finalize=True)
+        item = canvas.widget.create_rectangle(10, 10, 40, 40, fill="red")
+        canvas.itemconfigure(item, fill="blue")
+        self.assertEqual(str(canvas.widget.itemcget(item, "fill")), "blue")
+        self.assertEqual(len(canvas.itembbox(item)), 4)
+        self.assertEqual(len(canvas.coords(item)), 4)
+        window.close()
+
+
 class TestFirstBatch(unittest.TestCase):
     """第一批：校验/日历/分栏/滚动容器/窗体右键/定时器/查找替换。"""
 

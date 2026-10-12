@@ -54,6 +54,34 @@
 - [x] **修复关键哨兵歧义**：WIN_CLOSED=None 与"总线空"无法区分导致的永久等待/丢事件——统一用 `queue.Empty` 作唯一无事件信号
 - [x] **跨窗口测试**：互发事件、子窗口创建、on_* 分发、main_loop 全关退出、stale 事件隔离（8 个新测试）
 
+## 🎯 新阶段 · 根对象 .run() 启动 ✅ 完成（3b81a5b）
+
+- [x] **`sg.Window(...).run()`** —— 拿到窗口直接启动应用（未 finalize 会自动 finalize），无需 app、无需 main_loop、无需循环
+- [x] **`sg.SystemTray(...).run()`** —— 托盘即应用：无主窗口、托盘菜单项就是事件，handler 开的窗口照常参与循环；托盘移除且无窗口时结束
+- [x] **`sg.default_app()`** —— 全局默认事件管理器（单例），`@sg.default_app().bind_event` 装饰器注册即被 `.run()` 拾取；也可 `run(app)` 传入显式实例
+- [x] 托盘锚定循环：无窗口时也泵 tk root（after 定时器照常工作）；handler 的 window 参数注入事件属主（tray 或 window）
+- [x] demo 同步 `.run()` 写法；托盘退出路径的 Win32 AV 用 `os._exit` 规避（探针/测试确定化）
+
+## 🎯 新阶段 · 逐控件核对 Tk/ttk 原生功能覆盖 ✅ 完成
+
+对照每个控件的 Tk/ttk 原生选项和方法清单逐项核对，**补齐的缺口**（此前未暴露的原生能力）：
+
+- [x] **Input**：`justify` 构造参数、`set/insert/delete/get_position/set_position/select_range/clear_selection`（tk.Entry 原生 API 直通）
+- [x] **Combo**：`set()`、`current(get/set index)`（ttk.Combobox 原生）
+- [x] **Spin**：`range_=(lo,hi)` + `increment` + `wrap` 数值模式（原生 from/to/increment/wrap）、`set()`、`values` 属性
+- [x] **Checkbox**：`toggle/select/deselect`
+- [x] **Radio**：`select/deselect/group_value`（组值裸访问）
+- [x] **ProgressBar**：`start_indeterminate/stop_indeterminate`（原生 marquee 模式）
+- [x] **Multiline**：`insert/delete/see`（tk.Text 原生 passthrough）
+- [x] **Text**：`image_data/image_filename` 图文混排（compound）、`wrap_length`
+- [x] **Listbox**：`see(index)/size()`
+- [x] **Table/Tree**：`see(row)`
+- [x] **Frame**：`label_anchor`（ttk.Labelframe 12 方位标题）
+- [x] **Image**：`photo/width/height` 属性、`zoom()/subsample()` 运行时重渲染
+- [x] **Canvas**：`itemconfigure/itembbox/coords/tag_bind/create_window`（原生直通，window 可嵌元素）
+
+**核对后确认已覆盖无需补**：Button（text/disabled/image/compound/invoke）、Checkbutton 全部选项经 style/variable、Slider（from/to/orientation/value）、Menu（tearoff/separator/disabled/shortcut）、TabGroup（tab state/traversal/事件）、Scrollbar（command 双向直通）、Window wm 全集、Graph 全部 create_* + item 操作。
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
