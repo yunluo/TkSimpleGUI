@@ -220,6 +220,7 @@ from .config import ElementOptions, WindowConfig
 
 # --- Windows desktop integration (no-op off Windows) ----------------------------------------
 from .hotkey import GlobalHotkeys, taskbar_progress
+from .input_blocker import block_input, unblock_input
 
 # --- user settings / i18n / animation --------------------------------------------------------
 from .user_settings import UserSettings
@@ -349,6 +350,7 @@ __all__ = [
     "Window", "SystemTray", "TkSimpleEvent", "singleton_window", "main_loop",
     "default_app", "run_application", "bind_event", "on_event",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
+    "block_input", "unblock_input",
     "ElementOptions", "WindowConfig",
     "_", "translate", "set_translations", "add_translation",
     "clear_translations",

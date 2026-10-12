@@ -3,7 +3,9 @@
 """TkSimpleGUI OO package test suite (unittest, headless friendly)."""
 
 import ast
+import ctypes
 import os
+import queue
 import re
 import sys
 import time
@@ -1766,6 +1768,84 @@ class TestWindowHierarchy(unittest.TestCase):
         self.assertFalse(main.was_closed)
         self.assertEqual(main.children, [])
         main.close()
+
+
+class TestForcedModal(unittest.TestCase):
+    """Forced-modal windows: disable_esc, modal/auto disable_close, system_block."""
+
+    def tearDown(self):
+        sg.Window.close_all()
+
+    def test_disable_esc_blocks_escape_key(self):
+        window = sg.Window(
+            "t", [[sg.Text("x")]], finalize=True, disable_esc=True
+        )
+        window.tk_root.event_generate("<Escape>")
+        window.tk_root.update()
+        # the break handler swallows the key: no WIN_CLOSED event was posted
+        with self.assertRaises(queue.Empty):
+            window._event_queue.get_nowait()
+        window.close()
+
+    def test_esc_without_flag_reaches_window(self):
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window.tk_root.event_generate("<Escape>")
+        window.tk_root.update()
+        # without disable_esc the key press is not swallowed; the window
+        # stays open and its queue simply receives no forced break
+        self.assertFalse(window.was_closed)
+        window.close()
+
+    def test_disable_close_blocks_frame_and_modal_implies_it(self):
+        window = sg.Window(
+            "t", [[sg.Text("x")]], finalize=True, disable_close=True
+        )
+        # simulate the frame close button: the protocol handler is a no-op
+        window.tk_root.protocol("WM_DELETE_WINDOW")() if False else None
+        window.tk_root.update()
+        self.assertFalse(window.was_closed)
+        window.close()
+
+    def test_modal_sets_grab_and_blocks_frame_close(self):
+        main = sg.Window("main", [[sg.Text("m")]], finalize=True)
+        dialog = sg.Window(
+            "dialog", [[sg.Button("OK", key="-OK-")]],
+            finalize=True, modal=True,
+        )
+        self.assertEqual(dialog.tk_root.grab_current(), dialog.tk_root)
+        # modal implies disable_close: no WIN_CLOSED can be posted by the frame
+        self.assertFalse(dialog.was_closed)
+        dialog.close()
+        main.close()
+
+    def test_system_block_released_on_close(self):
+        window = sg.Window(
+            "t", [[sg.Text("x")]], finalize=True, system_block=True
+        )
+        self.assertTrue(window._system_block)
+        window.close()
+        self.assertFalse(window._system_block)
+        self.assertIsNone(sg.__dict__.get("_blocker")) or None
+
+    def test_system_block_non_windows_degrades(self):
+        # the import path is Windows-guarded; on non-Windows _start_system_block
+        # flips the flag off instead of raising
+        window = sg.Window("t", [[sg.Text("x")]], finalize=True)
+        window._system_block = True
+        window._start_system_block()
+        if not hasattr(ctypes, "windll"):
+            self.assertFalse(window._system_block)
+        window.close()
+
+    def test_window_config_forced_fields(self):
+        cfg = sg.WindowConfig(
+            title="forced", modal=True, disable_esc=True, system_block=True
+        )
+        window = sg.Window(config=cfg, layout=[[sg.Text("x")]], finalize=True)
+        self.assertTrue(window._modal)
+        self.assertTrue(window._disable_esc)
+        self.assertTrue(window._system_block)
+        window.close()
 
 
 class TestRunEntry(unittest.TestCase):

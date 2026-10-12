@@ -62,6 +62,8 @@ class Window(object):
         "_icon",
         "_resizable",
         "_disable_close",
+        "_disable_esc",
+        "_system_block",
         "_element_justification",
         "_right_click_menu",
         "_popup_menu",
@@ -108,6 +110,8 @@ class Window(object):
     _icon: Any
     _resizable: Optional[Union[bool, Tuple[bool, bool]]]
     _disable_close: bool
+    _disable_esc: bool
+    _system_block: bool
     _element_justification: Optional[str]
     _right_click_menu: Optional[list]
     _popup_menu: Optional[tk.Menu]
@@ -139,6 +143,8 @@ class Window(object):
         margins=None,
         resizable=None,
         disable_close=False,
+        disable_esc=False,
+        system_block=False,
         element_justification=None,
         right_click_menu=None,
         actions=None,
@@ -166,6 +172,8 @@ class Window(object):
                 margins=margins,
                 resizable=resizable,
                 disable_close=disable_close or None,
+                disable_esc=disable_esc or None,
+                system_block=system_block or None,
                 element_justification=element_justification,
                 right_click_menu=right_click_menu,
                 parent=parent,
@@ -185,6 +193,8 @@ class Window(object):
             margins = resolved.pop("margins")
             resizable = resolved.pop("resizable")
             disable_close = resolved.pop("disable_close")
+            disable_esc = resolved.pop("disable_esc")
+            system_block = resolved.pop("system_block")
             element_justification = resolved.pop("element_justification")
             right_click_menu = resolved.pop("right_click_menu")
             parent = resolved.pop("parent")
@@ -211,6 +221,8 @@ class Window(object):
         self._icon = icon
         self._resizable = resizable
         self._disable_close = bool(disable_close)
+        self._disable_esc = bool(disable_esc)
+        self._system_block = bool(system_block)
         self._element_justification = element_justification
         self._right_click_menu = right_click_menu
         self._popup_menu = None
@@ -488,10 +500,13 @@ class Window(object):
                 self, root, self._right_click_menu
             )
             root.bind("<Button-3>", self._show_popup_menu)
-        if self._disable_close:
+        # a forced-modal window must not be closable from the frame either
+        if self._disable_close or self._modal:
             root.protocol("WM_DELETE_WINDOW", lambda: None)
         else:
             root.protocol("WM_DELETE_WINDOW", lambda: self._post_event(C.WIN_CLOSED))
+        if self._disable_esc:
+            root.bind("<Escape>", lambda _e: "break")
         if self._return_keyboard_events:
             root.bind("<Key>", self._on_keyboard_event)
         for shortcut, key in self._event_binds:
@@ -524,6 +539,8 @@ class Window(object):
         if self._modal:
             root.grab_set()
             root.focus_force()
+        if self._system_block:
+            self._start_system_block()
 
     # --- drag when grab_anywhere ------------------------------------------------
     def _start_move(self, event):
@@ -1224,12 +1241,33 @@ class Window(object):
         it from its parent. Returns self."""
         if self._closed:
             return self
+        if self._system_block:
+            self.stop_system_block()
         for child in self.children:
             child.close()
         if self._parent is not None:
             self._parent._unregister_child(self)
         self._destroy_root()
         self._mark_closed()
+        return self
+
+    # --- system-level input blocking ---------------------------------------------
+    def _start_system_block(self):
+        """Swallow all desktop input outside this process until released."""
+        try:
+            from ..input_blocker import block_input
+
+            block_input()
+        except (ImportError, RuntimeError):
+            self._system_block = False
+
+    def stop_system_block(self):
+        """Release the system-wide input hooks (safe when not blocking)."""
+        if self._system_block:
+            from ..input_blocker import unblock_input
+
+            unblock_input()
+            self._system_block = False
         return self
 
     def _destroy_root(self):

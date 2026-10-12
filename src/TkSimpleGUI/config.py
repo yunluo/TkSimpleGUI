@@ -88,6 +88,8 @@ class WindowConfig:
     margins: Optional[Tuple[int, int]] = None
     resizable: Optional[Any] = None
     disable_close: bool = False
+    disable_esc: bool = False
+    system_block: bool = False
     element_justification: Optional[str] = None
     right_click_menu: Optional[list] = None
     parent: Optional[Any] = None
@@ -101,8 +103,9 @@ class WindowConfig:
                 "title", "layout", "size", "location", "finalize",
                 "keep_on_top", "modal", "no_titlebar", "grab_anywhere",
                 "return_keyboard_events", "icon", "background_color",
-                "margins", "resizable", "disable_close",
-                "element_justification", "right_click_menu", "parent",
+                "margins", "resizable", "disable_close", "disable_esc",
+                "system_block", "element_justification", "right_click_menu",
+                "parent",
             )
         )
         for name, value in overrides.items():
