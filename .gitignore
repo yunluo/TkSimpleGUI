@@ -184,6 +184,10 @@ cython_debug/
 /_st*.txt
 /_*.py
 /_*.txt
+# the same patterns inside subdirectories (probes, scratch folders, ...)
+**/_*.py
+**/_*.txt
+**/_*.tmp
 
 # _split throwaway reports (legacy, directory removed)
 _split/*.txt
