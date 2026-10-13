@@ -44,7 +44,7 @@ from .containers import (
 from .calendar import Calendar
 from .chart import Chart, ChartType
 from .data import Table, Tree
-from .fancy import ImageButton, LED, RoundButton, TextProgressBar
+from .fancy import Gauge, ImageButton, LED, RoundButton, TextProgressBar
 
 __all__ = [
     "Element",
@@ -96,6 +96,7 @@ __all__ = [
     "RoundButton",
     "ImageButton",
     "TextProgressBar",
+    "Gauge",
     "LED",
     "validate_integer",
     "validate_float",

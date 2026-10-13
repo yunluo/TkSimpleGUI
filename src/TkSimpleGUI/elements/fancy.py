@@ -547,6 +547,285 @@ class TextProgressBar(Element):
         return self.update(current_value=current_value, max_value=max_value)
 
 
+class Gauge(Element):
+    """An analog dial gauge for industrial HMI panels (canvas-drawn).
+
+    A 270-degree arc with optional colored alarm zones (green / yellow /
+    red), tick marks, a needle and a digital readout in the middle::
+
+        gauge = ts.TGauge(100, value=72, title="Tank level", units="%",
+                          key="-G-")
+        gauge.update(85)
+
+    ``zones`` is a list of ``(from_value, to_value, color)`` alarm bands.
+    The default is the classic green / yellow / red health scale
+    (0-60% / 60-80% / 80-100% of the range); pass ``zones=[]`` for a bare
+    track. Zone colors are explicit (semantic alarm colors); the track,
+    needle and text follow the active theme unless overridden.
+    """
+
+    __slots__ = (
+        "_min_value",
+        "_max_value",
+        "_value",
+        "_zones",
+        "_auto_zones",
+        "_title",
+        "_units",
+        "_show_value",
+        "_show_ticks",
+        "_divisions",
+        "_needle_color",
+        "_background_color",
+        "_text_color",
+        "_font",
+        "_ids",
+    )
+
+    _START_ANGLE = 225.0  # Tk degrees (CCW from east); dial opens at bottom
+    _SWEEP = -270.0       # clockwise sweep, standard instrument dial
+
+    def __init__(
+        self,
+        max_value,
+        min_value=0.0,
+        value=None,
+        size=(150, 120),
+        zones=None,
+        title=None,
+        units="",
+        show_value=True,
+        show_ticks=True,
+        divisions=5,
+        needle_color=None,
+        background_color=None,
+        text_color=None,
+        font=None,
+        key=None,
+        tooltip=None,
+        visible=True,
+        pad=None,
+        expand_x=False,
+        expand_y=False,
+        right_click_menu=None,
+        metadata=None,
+    ):
+        super().__init__(
+            key=key,
+            size=size,
+            tooltip=tooltip,
+            visible=visible,
+            pad=pad,
+            expand_x=expand_x,
+            expand_y=expand_y,
+            right_click_menu=right_click_menu,
+            metadata=metadata,
+        )
+        if float(max_value) <= float(min_value):
+            raise ValueError("max_value must be greater than min_value")
+        self._min_value = float(min_value)
+        self._max_value = float(max_value)
+        self._value = (
+            self._min_value if value is None else float(value)
+        )
+        self._auto_zones = zones is None
+        self._zones = self._default_zones() if zones is None else list(zones)
+        for zone in self._zones:
+            if len(zone) != 3:
+                raise ValueError(
+                    "each zone must be a (from_value, to_value, color) tuple"
+                )
+        self._title = title
+        self._units = units
+        self._show_value = bool(show_value)
+        self._show_ticks = bool(show_ticks)
+        self._divisions = max(2, int(divisions))
+        self._needle_color = needle_color
+        self._background_color = background_color
+        self._text_color = text_color
+        self._font = font
+        self._ids = []
+
+    def _default_zones(self):
+        span = self._max_value - self._min_value
+        return [
+            (self._min_value, self._min_value + span * 0.6, "#2ecc71"),
+            (self._min_value + span * 0.6, self._min_value + span * 0.8, "#f1c40f"),
+            (self._min_value + span * 0.8, self._max_value, "#e74c3c"),
+        ]
+
+    # --- geometry ------------------------------------------------------------
+    def _fraction(self, value):
+        span = self._max_value - self._min_value
+        return min(1.0, max(0.0, (float(value) - self._min_value) / span))
+
+    def _angle(self, fraction):
+        return self._START_ANGLE + self._SWEEP * fraction
+
+    def _point(self, cx, cy, radius, angle_tk):
+        radians = math.radians(angle_tk)
+        return (cx + radius * math.cos(radians),
+                cy - radius * math.sin(radians))
+
+    def _fmt_value(self, value):
+        if float(value).is_integer():
+            return f"{int(value)}{self._units}"
+        return f"{value:g}{self._units}"
+
+    # --- rendering -----------------------------------------------------------
+    def _theme_colors(self):
+        """(surface, ink, muted, needle, track) for the current theme."""
+        manager = theme_mod.theme_manager
+        surface = self._background_color
+        if surface is None:
+            surface = manager.effective_background()
+        ink = self._text_color
+        if ink is None:
+            ink = manager.text_color
+            if ink is None or theme_mod._is_system_default(ink):
+                ink = "#333333"
+        muted = _mix_color(ink, surface or "#f0f0f0", 0.5)
+        needle = self._needle_color
+        if needle is None:
+            needle = manager.accent_color() or "#c62828"
+        track = _mix_color(ink, surface or "#f0f0f0", 0.75)
+        return surface, ink, muted, needle, track
+
+    def _create_widget(self, master):
+        width = int(self._size[0] or 150)
+        height = int(self._size[1] or 120)
+        surface, _ink, _muted, _needle, _track = self._theme_colors()
+        canvas = tk.Canvas(
+            master, width=width, height=height, highlightthickness=0, bd=0,
+        )
+        if surface is not None:
+            canvas.configure(background=surface)
+        self._draw_dial(canvas)
+        return canvas
+
+    def _draw_dial(self, canvas):
+        canvas.delete("all")
+        self._ids = []
+        width = int(self._size[0] or 150)
+        height = int(self._size[1] or 120)
+        surface, ink, muted, needle, track = self._theme_colors()
+        pad = 8.0
+        # the dial spans 1.707r vertically (arc ends sit at ~±45 deg);
+        # leave room for the tick ring and the readout / title lines
+        radius = min((width - 2.0 * pad - 12.0) / 2.0,
+                     (height - 2.0 * pad - 8.0) / 1.85)
+        radius = max(radius, 12.0)
+        band = max(radius * 0.17, 5.0)
+        cx = width / 2.0
+        cy = pad + radius
+        arc_box = (cx - radius, cy - radius, cx + radius, cy + radius)
+        # neutral track under every zone
+        canvas.create_arc(
+            *arc_box, start=self._START_ANGLE, extent=self._SWEEP,
+            style="arc", outline=track, width=band,
+        )
+        # alarm / value zones
+        for zone_from, zone_to, color in self._zones:
+            start = self._angle(self._fraction(zone_from))
+            extent = self._angle(self._fraction(zone_to)) - start
+            if abs(extent) < 0.05:
+                continue
+            canvas.create_arc(
+                *arc_box, start=start, extent=extent,
+                style="arc", outline=color, width=band,
+            )
+        # tick marks just inside the band
+        if self._show_ticks:
+            outer = radius - band / 2.0 - 1.5
+            for index in range(self._divisions + 1):
+                angle = self._angle(index / float(self._divisions))
+                x0, y0 = self._point(cx, cy, outer, angle)
+                x1, y1 = self._point(cx, cy, outer - 5.0, angle)
+                self._ids.append(canvas.create_line(
+                    x0, y0, x1, y1, fill=muted, width=1,
+                ))
+        # scale end labels (min / max)
+        label_radius = radius + band / 2.0 + 8.0
+        for fraction, value in ((0.0, self._min_value), (1.0, self._max_value)):
+            x, y = self._point(cx, cy, label_radius, self._angle(fraction))
+            self._ids.append(canvas.create_text(
+                x, y, text=self._fmt_value(value), fill=muted,
+                font=self._font or ("TkDefaultFont", 7),
+            ))
+        # needle (with a short counterweight tail) + hub
+        angle = self._angle(self._fraction(self._value))
+        tip = self._point(cx, cy, radius * 0.86, angle)
+        tail = self._point(cx, cy, radius * 0.12, angle + 180.0)
+        hub = max(band * 0.42, 4.0)
+        self._ids.append(canvas.create_line(
+            tail[0], tail[1], tip[0], tip[1],
+            fill=needle, width=max(2.0, radius * 0.045), capstyle="round",
+        ))
+        canvas.create_oval(
+            cx - hub, cy - hub, cx + hub, cy + hub,
+            fill=needle, outline="",
+        )
+        # digital readout + title under the hub
+        if self._show_value:
+            self._ids.append(canvas.create_text(
+                cx, cy + radius * 0.42, text=self._fmt_value(self._value),
+                fill=ink, font=self._font or ("TkDefaultFont", 12, "bold"),
+            ))
+        if self._title:
+            self._ids.append(canvas.create_text(
+                cx, cy + radius * 0.72, text=self._title,
+                fill=muted, font=("TkDefaultFont", 8),
+            ))
+
+    def apply_theme(self):
+        if self._widget is not None:
+            surface, _ink, _muted, _needle, _track = self._theme_colors()
+            if surface is not None:
+                self._widget.configure(background=surface)
+            self._draw_dial(self._widget)
+        return self
+
+    # --- state ----------------------------------------------------------------
+    @property
+    def max_value(self):
+        return self._max_value
+
+    @property
+    def min_value(self):
+        return self._min_value
+
+    def get(self):
+        return self._value
+
+    def update(self, value=None, visible=None, zones=None):
+        """Set the needle value (clamped to the range) and redraw."""
+        if zones is not None:
+            self._zones = list(zones)
+        if value is not None:
+            self._value = float(value)
+        if self._widget is not None and (value is not None or zones is not None):
+            self._draw_dial(self._widget)
+        if visible is not None:
+            self.unhide() if visible else self.hide()
+        return self
+
+    def set_range(self, min_value, max_value):
+        """Change the dial range; the needle stays at its value (clamped).
+
+        Default (auto) alarm zones are rescaled to the new range; explicit
+        zones are absolute values and stay untouched.
+        """
+        if float(max_value) <= float(min_value):
+            raise ValueError("max_value must be greater than min_value")
+        self._min_value = float(min_value)
+        self._max_value = float(max_value)
+        if self._auto_zones:
+            self._zones = self._default_zones()
+        if self._widget is not None:
+            self._draw_dial(self._widget)
+        return self
+
+
 class LED(Element):
     """A seven-segment LED display for numbers (canvas-drawn).
 

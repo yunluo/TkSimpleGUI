@@ -176,18 +176,23 @@ def tab_graphics():
         ("-CH-LINE-", "line", "折线图", "营收", "right"),
         ("-CH-BAR-", "bar", "柱状图", "销量", "bottom"),
         ("-CH-AREA-", "area", "面积图", "趋势", "top"),
-        ("-CH-SCATTER-", "scatter", "散点图", "采样", "right"),
+        ("-CH-SCATTER-", "scatter", "散点图（误差棒）", "采样", "right"),
         ("-CH-HBAR-", "hbar", "横向条形图", "速度", "left"),
         ("-CH-PIE-", "pie", "饼图", "份额", "bottom"),
         ("-CH-DONUT-", "donut", "环形图", "占比", "right"),
         ("-CH-STACKED-", "stacked", "堆叠柱状图", "总量", "bottom"),
+        ("-CH-HISTO-", "histogram", "直方图", "分布", "top"),
     ]
     for key, kind, _label, title, legend_pos in specs:
         smooth = key == "-CH-LINE-"
+        # the line chart carries SPC-style control limits (reference lines)
+        hlines = [(35, "目标 35"), (10, "下限 10", "#c62828")] \
+            if key == "-CH-LINE-" else None
         chart = ts.TChart((300, 190), chart_type=kind, title=title,
                           legend=(kind not in ("pie", "donut")),
                           legend_position=legend_pos, key=key,
-                          enable_events=True, smooth=smooth)
+                          enable_events=True, smooth=smooth, hlines=hlines,
+                          bins=8 if kind == "histogram" else None)
         charts[key] = chart
     charts["-CH-LINE-"].add_series("2024", [12, 34, 28, 41, 26, 38],
                                    labels=["一月", "二月", "三月", "四月", "五月", "六月"])
@@ -196,7 +201,9 @@ def tab_graphics():
                                   labels=["一季度", "二季度", "三季度", "四季度"])
     charts["-CH-BAR-"].add_series("西部", [9, 24, 16, 20])
     charts["-CH-AREA-"].add_series("负载", [4, 6, 5, 9, 7, 11, 8])
-    charts["-CH-SCATTER-"].add_series("样本", [1, 5, 3, 8, 2, 7, 4, 9])
+    charts["-CH-SCATTER-"].add_series(
+        "样本", [1, 5, 3, 8, 2, 7, 4, 9],
+        errors=[0.4, 0.9, 0.5, 1.2, 0.3, 0.8, 0.6, 1.0])
     charts["-CH-HBAR-"].add_series("速度", [40, 65, 30, 80],
                                    labels=["甲", "乙", "丙", "丁"])
     charts["-CH-PIE-"].add_series("份额",
@@ -206,11 +213,16 @@ def tab_graphics():
     charts["-CH-STACKED-"].add_series("线上", [10, 16, 12, 20],
                                       labels=["一季度", "二季度", "三季度", "四季度"])
     charts["-CH-STACKED-"].add_series("线下", [8, 6, 11, 7])
+    charts["-CH-HISTO-"].add_series("测量值", [
+        38.2, 39.1, 41.3, 40.2, 37.8, 42.1, 39.9, 40.8, 38.6, 41.7,
+        40.1, 39.3, 42.6, 38.9, 40.5, 41.1, 39.7, 40.4, 43.2, 37.2,
+        41.9, 40.0, 39.5, 42.8, 38.4, 40.9, 41.5, 39.2, 40.6, 42.3,
+    ])
     for chart in charts.values():
         chart.redraw()
     return [
-        [ts.Column([[ts.TText("TChart 图表 -- 折线 / 柱状 / 面积 / 散点 / 横条 /"
-                              " 饼图 / 环形 / 堆叠（图例四方位，装了 Pillow 自动抗锯齿）")],
+        [ts.Column([[ts.TText("TChart 图表 -- 折线（含控制限）/ 柱状 / 面积 / 散点（误差棒）"
+                              " / 横条 / 饼图 / 环形 / 堆叠 / 直方图")],
                     [ts.TButton("更新折线数据", key="-B-CHUPD-"),
                      ts.TButton("添加柱状系列", key="-B-CHADD-"),
                      ts.TButton("重掷饼图", key="-B-CHPIE-")],
@@ -218,7 +230,8 @@ def tab_graphics():
                      charts["-CH-AREA-"]],
                     [charts["-CH-SCATTER-"], charts["-CH-HBAR-"],
                      charts["-CH-PIE-"]],
-                    [charts["-CH-DONUT-"], charts["-CH-STACKED-"]]])],
+                    [charts["-CH-DONUT-"], charts["-CH-STACKED-"],
+                     charts["-CH-HISTO-"]]])],
         [ts.Column([[ts.TText("TGraph 自由绘图（用户坐标 + 图元句柄）-- 点击画布试试")],
                     [graph],
                     [ts.TButton("画圆", key="-B-CIRCLE-"),
@@ -277,6 +290,10 @@ def tab_containers():
 
 def tab_fancy():
     """Canvas-drawn widgets page."""
+    gauge = ts.TGauge(100, value=72, size=(150, 118), units="%",
+                      title="储罐液位", key="-GAUGE-")
+    alarm_gauge = ts.TGauge(60, value=64, min_value=-20, size=(150, 118),
+                            title="温度 °C", key="-GAUGE2-")
     return [
         [ts.Column([[ts.TText("圆角按钮（Tk 画不出的圆角/圆形按钮）")],
                     [ts.TRoundButton("圆角按钮", size=(110, 30), radius=14,
@@ -294,6 +311,16 @@ def tab_fancy():
                                          bar_color="#4caf50", key="-TPB-"),
                      ts.TButton("+10", key="-B-TPB-ADD-"),
                      ts.TButton("归零", key="-B-TPB-ZERO-")]])],
+        [ts.Column([[ts.TText("仪表盘 Gauge（工业 HMI：报警色带 + 指针 + 数字读数）"
+                             "-- 拖动滑杆联动")],
+                    [gauge, alarm_gauge,
+                     ts.Column([[ts.TSlider((0, 100), default_value=72,
+                                            key="-SL-GAUGE-", enable_events=True,
+                                            size=(14, 12))],
+                                [ts.TButton("模拟波动", key="-B-GAUGE-RND-")]]),
+                     ts.VerticalSeparator(),
+                     ts.TText("绿 / 黄 / 红报警带自动按量程分布；"
+                              "读数超上限时指针停在最大值。", text_color="#888888")]])],
     ]
 
 
@@ -689,7 +716,7 @@ def on_graph_click(window, values):
 
 @ts.bind_event(["-CH-LINE-", "-CH-BAR-", "-CH-AREA-",
                 "-CH-SCATTER-", "-CH-HBAR-", "-CH-PIE-",
-                "-CH-DONUT-", "-CH-STACKED-"])
+                "-CH-DONUT-", "-CH-STACKED-", "-CH-HISTO-"])
 def on_chart_click(window, event):
     chart = window[event]
     log(f"图表 {event} 被点击，共 {len(chart.widget.find_all())} 个图元")
@@ -807,6 +834,24 @@ def on_tpb_add(window, values):
 def on_tpb_zero(window, values):
     window["-TPB-"].update(current_value=0)
     log("文字进度条已归零")
+
+
+# gauge (industrial dial)
+@ts.bind_event("-SL-GAUGE-")
+def on_gauge_slider(window, values):
+    window["-GAUGE-"].update(values["-SL-GAUGE-"])
+
+
+@ts.bind_event("-B-GAUGE-RND-")
+def on_gauge_random(window, values):
+    import random
+
+    level = random.uniform(0, 100)
+    temperature = random.uniform(-20, 60)
+    window["-GAUGE-"].update(level)
+    window["-GAUGE2-"].update(temperature)
+    window["-SL-GAUGE-"].update(level)
+    log(f"仪表盘：液位 {level:.1f}% / 温度 {temperature:.1f}°C")
 
 
 # popup family

@@ -148,7 +148,7 @@ TkSimpleGUI/
 │       ├── window.py           # Window：统一循环、层级、定时器、剪贴板
 │       └── system_tray.py      # SystemTray（托盘图标/菜单/气泡/事件）
 ├── demos/                      # 演示脚本（feature showcase + 基本模板）
-├── tests/test_package.py       # 测试套件（208 项，pytest/unittest 均可跑）
+├── tests/test_package.py       # 测试套件（223 项，pytest/unittest 均可跑）
 ├── todo.md                     # 路线图
 ├── pyproject.toml
 └── README.md
@@ -158,7 +158,7 @@ TkSimpleGUI/
 
 ```bash
 pip install -e .
-python -m pytest tests -q             # 208 项测试（每测试 30s 超时守护）
+python -m pytest tests -q             # 223 项测试（每测试 30s 超时守护）
 python -m unittest discover tests     # 同一套测试的 unittest 跑法
 python tests/check_types.py           # ty 类型检查零诊断守卫
 python demos/showcase.py --smoke      # showcase 冒烟自检

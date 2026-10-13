@@ -1018,9 +1018,10 @@ class TestCharts(unittest.TestCase):
     """TChart: 8 types, AA raster, theme repaint, stacked/donut models."""
 
     def test_chart_types_count(self):
-        self.assertEqual(len(ts.ChartType.ALL), 8)
+        self.assertEqual(len(ts.ChartType.ALL), 9)
         self.assertIn("donut", ts.ChartType.ALL)
         self.assertIn("stacked", ts.ChartType.ALL)
+        self.assertIn("histogram", ts.ChartType.ALL)
 
     def _make(self, **kwargs):
         window = ts.Window(
@@ -1165,6 +1166,154 @@ class TestChartBackend(unittest.TestCase):
             self.assertEqual((frame.width(), frame.height()), (120, 80))
         finally:
             window.close()
+
+
+class TestScientificChart(unittest.TestCase):
+    """Error bars, reference lines and histogram binning (science/industry)."""
+
+    def _chart(self, **kwargs):
+        window = ts.Window(
+            "sci", [[ts.TChart((300, 180), key="-C-", **kwargs)]],
+            finalize=True,
+        )
+        self.addCleanup(window.close)
+        return window["-C-"]
+
+    def test_histogram_auto_binning(self):
+        chart = self._chart(chart_type="histogram")
+        chart.add_series("v", [1, 2, 2, 3, 3, 3, 4, 4, 5, 9])
+        chart.redraw()
+        edges, counts = chart._histogram_bins()
+        self.assertEqual(sum(counts), 10)  # every sample lands in a bin
+        self.assertEqual(len(edges), len(counts) + 1)
+        self.assertEqual(edges[0], 1.0)
+        self.assertEqual(edges[-1], 9.0)
+        kinds = {chart.widget.type(i) for i in chart.widget.find_all()}
+        self.assertIn("image", kinds)
+
+    def test_histogram_fixed_bins(self):
+        chart = self._chart(chart_type="histogram", bins=4)
+        chart.add_series("v", [0, 1, 2, 3, 4, 5, 6, 7])
+        _edges, counts = chart._histogram_bins()
+        self.assertEqual(len(counts), 4)
+
+    def test_error_bars_render_and_validate(self):
+        chart = self._chart(chart_type="scatter")
+        chart.add_series("m", [3, 4, 5], errors=[0.5, 0.5, 0.5])
+        chart.redraw()
+        self.assertEqual(chart._series[0].errors, [0.5, 0.5, 0.5])
+        with self.assertRaises(ValueError):
+            chart.add_series("bad", [1, 2], errors=[0.1])
+
+    def test_error_bars_extend_value_range(self):
+        chart = self._chart(chart_type="line")
+        chart.add_series("m", [10.0, 20.0], errors=[5.0, 5.0])
+        chart.redraw()
+        y_min, y_max = chart._y_range
+        self.assertLessEqual(y_min, 5.0)   # 10 - 5 must fit
+        self.assertGreaterEqual(y_max, 25.0)  # 20 + 5 must fit
+
+    def test_hlines_normalized_and_drawn(self):
+        chart = self._chart(chart_type="line",
+                            hlines=[(5, "USL"), 2, (8, "X", "#0000ff")])
+        self.assertEqual(chart._hlines,
+                         [(5.0, "USL", None), (2.0, None, None),
+                          (8.0, "X", "#0000ff")])
+        chart.add_series("a", [1, 4, 2, 6])
+        chart.redraw()
+        texts = [
+            chart.widget.itemcget(i, "text")
+            for i in chart.widget.find_all()
+            if chart.widget.type(i) == "text"
+        ]
+        self.assertIn("USL", texts)
+        self.assertIn("X", texts)
+
+    def test_hlines_extend_value_range(self):
+        chart = self._chart(chart_type="line", hlines=[100])
+        chart.add_series("a", [1, 2, 3])
+        chart.redraw()
+        self.assertGreaterEqual(chart._y_range[1], 100.0)
+
+    def test_hlines_skip_out_of_range(self):
+        # a limit far outside the data range must not crash the draw
+        chart = self._chart(chart_type="line")
+        chart.add_series("a", [1, 2, 3])
+        chart._hlines = [(1e6, "far", None)]
+        chart.redraw()  # extend-range keeps it in view: no raise is the bar
+
+
+class TestGauge(unittest.TestCase):
+    """TGauge: canvas analog dial (zones, needle, readout)."""
+
+    def _gauge(self, **kwargs):
+        gauge = ts.TGauge(100, key="-G-", **kwargs)
+        window = ts.Window("g", [[gauge]], finalize=True)
+        self.addCleanup(window.close)
+        return gauge
+
+    def test_defaults_and_readout(self):
+        gauge = self._gauge(value=72, units="%", title="Tank")
+        self.assertEqual(gauge.get(), 72.0)
+        self.assertEqual(gauge.min_value, 0.0)
+        self.assertEqual(gauge.max_value, 100.0)
+        # track + 3 zones + ticks + 2 end labels + needle + hub + readout + title
+        self.assertGreater(len(gauge.widget.find_all()), 8)
+
+    def test_update_clamps_needle_only(self):
+        gauge = self._gauge(value=50)
+        gauge.update(150)  # out of range: needle pins, value kept (metering)
+        self.assertEqual(gauge.get(), 150.0)
+        gauge.update(80, )
+        self.assertEqual(gauge.get(), 80.0)
+
+    def test_custom_zones_and_bare_track(self):
+        zoned = self._gauge(zones=[(0, 50, "#00ff00"), (50, 100, "#ff0000")])
+        bare = self._gauge(zones=[])
+        self.assertEqual(len(zoned._zones), 2)
+        self.assertEqual(bare._zones, [])
+
+    def test_range_validation(self):
+        with self.assertRaises(ValueError):
+            ts.TGauge(0)
+        gauge = self._gauge()
+        with self.assertRaises(ValueError):
+            gauge.set_range(10, 5)
+
+    def test_set_range_redraws(self):
+        gauge = self._gauge(value=50, zones=[])
+        gauge.set_range(-50, 50)
+        self.assertEqual(gauge.min_value, -50.0)
+        self.assertEqual(gauge.max_value, 50.0)
+        # a bare-track gauge, full redraw in both directions of the range
+        self.assertGreater(len(gauge.widget.find_all()), 5)
+
+    def test_set_range_rescales_auto_zones(self):
+        gauge = self._gauge(value=50)  # default green/yellow/red bands
+        gauge.set_range(0, 200)
+        first, last = gauge._zones[0], gauge._zones[-1]
+        self.assertEqual(first[0], 0.0)
+        self.assertEqual(first[1], 120.0)  # 60% of the new range
+        self.assertEqual(last[1], 200.0)   # red cap reaches the new max
+
+    def test_set_range_keeps_explicit_zones(self):
+        zones = [(0, 50, "#00ff00"), (50, 100, "#ff0000")]
+        gauge = self._gauge(zones=zones)
+        gauge.set_range(0, 200)
+        self.assertEqual(gauge._zones, zones)
+
+    def test_gauge_follows_theme(self):
+        gauge = self._gauge(value=42)
+        ts.theme("Slate")
+        try:
+            gauge.apply_theme()
+            self.assertEqual(
+                str(gauge.widget.cget("background")),
+                ts.theme_background_color(),
+            )
+        finally:
+            ts.theme(None)
+            gauge.apply_theme()
 
 
 class TestFirstBatch(unittest.TestCase):

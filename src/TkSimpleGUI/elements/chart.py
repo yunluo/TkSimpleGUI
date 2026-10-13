@@ -1,7 +1,11 @@
 """Chart: a high-level plotting element built on the Graph canvas.
 
-Eight chart types share one declarative data model — line, bar, hbar
-(horizontal bars), scatter, area, pie, donut and stacked (stacked bars).
+Nine chart types share one declarative data model — line, bar, hbar
+(horizontal bars), scatter, area, pie, donut, stacked (stacked bars) and
+histogram. Scientific / industrial extras: per-point error bars
+(``errors=``), dashed reference lines with labels (``hlines=`` — targets,
+spec limits, SPC control limits) and automatic histogram binning
+(``bins=``).
 
 Rendering backends, in order of preference:
 
@@ -110,8 +114,9 @@ class ChartType:
     PIE = "pie"
     DONUT = "donut"
     STACKED = "stacked"
+    HISTOGRAM = "histogram"
 
-    ALL = (LINE, BAR, HBAR, SCATTER, AREA, PIE, DONUT, STACKED)
+    ALL = (LINE, BAR, HBAR, SCATTER, AREA, PIE, DONUT, STACKED, HISTOGRAM)
 
 
 LEGEND_POSITIONS = ("top", "bottom", "left", "right")
@@ -120,13 +125,14 @@ LEGEND_POSITIONS = ("top", "bottom", "left", "right")
 class _Series:
     """One data series (or, for pie/donut charts, the labelled slice set)."""
 
-    __slots__ = ("name", "values", "labels", "color")
+    __slots__ = ("name", "values", "labels", "color", "errors")
 
-    def __init__(self, name, values, labels=None, color=None):
+    def __init__(self, name, values, labels=None, color=None, errors=None):
         self.name = name
         self.values = list(values)
         self.labels = list(labels) if labels is not None else []
         self.color = color
+        self.errors = list(errors) if errors is not None else []
 
     @property
     def total(self):
@@ -165,6 +171,29 @@ def _spline_path(points, steps=12):
     return out
 
 
+def _normalize_hlines(entries):
+    """Normalize the ``hlines`` argument to ``[(value, label, color), ...]``.
+
+    Accepts a single entry or a list; each entry is a number, a
+    ``(value, label)`` tuple or a ``(value, label, color)`` tuple.
+    """
+    if entries is None:
+        return []
+    if isinstance(entries, (int, float)):
+        entries = [entries]
+    out = []
+    for entry in entries:
+        if isinstance(entry, (int, float)):
+            out.append((float(entry), None, None))
+        elif len(entry) == 2:
+            value, label = entry
+            out.append((float(value), str(label), None))
+        else:
+            value, label, color = entry
+            out.append((float(value), str(label), color))
+    return out
+
+
 class Chart(Graph):
     """A multi-type plotting element on the Graph user coordinate system.
 
@@ -183,12 +212,17 @@ class Chart(Graph):
             Pillow is not installed).
         smooth: draw line/area series as splines through the data points.
         markers: show the point dots on line charts (and spline charts).
+        hlines: dashed horizontal reference lines — one entry or a list of
+            ``value`` / ``(value, label)`` / ``(value, label, color)``
+            tuples. Targets, specification limits, SPC control limits.
+        bins: histogram bin count (default: Freedman-Diaconis-ish auto).
     """
 
     __slots__ = (
         "_chart_type", "_title", "_legend", "_legend_position", "_grid",
         "_axis_labels", "_palette", "_series", "_auto_range", "_x_range",
         "_y_range", "_pie_labels", "_anti_alias", "_smooth", "_markers",
+        "_hlines", "_bins",
     )
 
     def __init__(
@@ -204,6 +238,8 @@ class Chart(Graph):
         anti_alias=True,
         smooth=False,
         markers=True,
+        hlines=None,
+        bins=None,
         graph_bottom_left=(0, 0),
         graph_top_right=(100, 100),
         background_color=None,
@@ -258,10 +294,16 @@ class Chart(Graph):
         self._anti_alias = bool(anti_alias)
         self._smooth = bool(smooth)
         self._markers = bool(markers)
+        self._hlines = _normalize_hlines(hlines)
+        self._bins = max(1, int(bins)) if bins is not None else None
 
     # --- data model -------------------------------------------------------------
-    def add_series(self, name, values, labels=None, color=None):
-        """Append one series (``[(name, value), ...]`` for pie/donut)."""
+    def add_series(self, name, values, labels=None, color=None, errors=None):
+        """Append one series (``[(name, value), ...]`` for pie/donut).
+
+        ``errors`` adds symmetric error bars (one magnitude per point) on
+        line/scatter/bar/area/stacked charts.
+        """
         if self._chart_type in (ChartType.PIE, ChartType.DONUT):
             pairs = [(str(label), float(value)) for label, value in values]
             self._series = [
@@ -273,7 +315,13 @@ class Chart(Graph):
                 )
             ]
         else:
-            self._series.append(_Series(name, values, labels, color))
+            series = _Series(name, values, labels, color, errors)
+            if series.errors and len(series.errors) != len(series.values):
+                raise ValueError(
+                    "errors must have the same length as values "
+                    f"(got {len(series.errors)} errors for {len(series.values)} values)"
+                )
+            self._series.append(series)
         return self
 
     def clear_series(self):
@@ -281,7 +329,7 @@ class Chart(Graph):
         self._series = []
         return self
 
-    def update_data(self, series_name, values, labels=None):
+    def update_data(self, series_name, values, labels=None, errors=None):
         """Replace one series' values and redraw (pie/donut: values = pairs)."""
         for series in self._series:
             if series.name == series_name:
@@ -293,6 +341,12 @@ class Chart(Graph):
                     series.values = list(values)
                     if labels is not None:
                         series.labels = list(labels)
+                    if errors is not None:
+                        if len(errors) != len(series.values):
+                            raise ValueError(
+                                "errors must have the same length as values"
+                            )
+                        series.errors = list(errors)
                 break
         else:
             raise KeyError(f"no series named {series_name!r}")
@@ -351,6 +405,10 @@ class Chart(Graph):
             return None
         if not self._series:
             return None
+        if self._chart_type == ChartType.HISTOGRAM:
+            edges, counts = self._histogram_bins()
+            y_max = max([1.0, *counts])
+            return (edges[0], edges[-1], 0.0, y_max * 1.08)
         count = max(len(series.values) for series in self._series)
         if self._chart_type == ChartType.STACKED:
             values = [
@@ -359,12 +417,21 @@ class Chart(Graph):
             ]
         else:
             values = [value for series in self._series for value in series.values]
+            # error bars must fit: extend the range by each error magnitude
+            for series in self._series:
+                for index, value in enumerate(series.values):
+                    if index < len(series.errors):
+                        magnitude = series.errors[index]
+                        values.append(value + magnitude)
+                        values.append(value - magnitude)
         if self._chart_type == ChartType.HBAR:
             # hbar swaps axes: values scale along x, categories along y
+            # (hlines are y-axis references and do not apply here)
             x_min = min([0.0, *values])
             x_max = max([1.0, *values])
             x_pad = (x_max - x_min) * 0.08
             return (x_min, x_max + x_pad, 0.0, float(count))
+        values.extend(value for value, _label, _color in self._hlines)
         y_min = min([0.0, *values]) if values else 0.0
         y_max = max(values) if values else 1.0
         if y_max == y_min:
@@ -373,6 +440,27 @@ class Chart(Graph):
         x_max = (max(count - 1, 1) if self._chart_type in
                  (ChartType.LINE, ChartType.SCATTER) else count)
         return (0, x_max, y_min - pad, y_max + pad)
+
+    def _histogram_bins(self):
+        """(edges, counts) — one shared binning over every series' values."""
+        values = [value for series in self._series for value in series.values]
+        if not values:
+            edges = [0.0, 1.0]
+            return edges, [0]
+        low, high = min(values), max(values)
+        if high == low:
+            high = low + 1.0
+        bins = self._bins
+        if bins is None:
+            # Freedman-Diaconis-ish: sqrt fallback keeps it dependency-free
+            bins = max(1, int(math.ceil(math.sqrt(len(values)))))
+        width = (high - low) / bins
+        counts = [0] * bins
+        for value in values:
+            index = min(bins - 1, int((value - low) / width))
+            counts[index] += 1
+        edges = [low + width * i for i in range(bins + 1)]
+        return edges, counts
 
     def _apply_auto_range(self):
         if not self._auto_range:
@@ -414,6 +502,9 @@ class Chart(Graph):
             primitives = self._grid_primitives() + self._data_primitives()
         if not (self._anti_alias and self._draw_primitives_pil(primitives, surface)):
             self._draw_primitives_vector(primitives)
+        if not round_kind:
+            # reference lines sit above the data but below axes/labels
+            self._draw_hlines()
         if round_kind:
             self._draw_round_legend()
         else:
@@ -510,7 +601,15 @@ class Chart(Graph):
                     fill=ink, font=("TkDefaultFont", 8),
                 )
         count = max((len(s.values) for s in self._series), default=0)
-        if count:
+        if self._chart_type == ChartType.HISTOGRAM:
+            # histogram x axis is a numeric axis: real value ticks, Excel style
+            for tick in self._nice_ticks(*self._x_range or (0, 100)):
+                x = self._px(tick, "x")
+                widget.create_text(
+                    x, bottom + 10, text=self._fmt(tick), anchor="n",
+                    fill=ink, font=("TkDefaultFont", 8),
+                )
+        elif count:
             labels = self._series[0].labels or [
                 str(i + 1) for i in range(count)
             ]
@@ -551,11 +650,41 @@ class Chart(Graph):
             return str(int(value))
         return f"{value:.2f}".rstrip("0").rstrip(".")
 
+    def _hline_color(self, explicit):
+        """Reference-line color: explicit, else a calm industrial red."""
+        if explicit:
+            return explicit
+        # blend toward the alarm hue so it reads on both light/dark themes
+        return self._blend("#c62828", 0.85)
+
+    def _draw_hlines(self):
+        """Dashed reference lines with right-aligned labels (vector layer)."""
+        if not self._hlines or self._chart_type == ChartType.HBAR:
+            return
+        left, top, right, bottom = self._plot_rect()
+        widget = self._widget
+        for value, label, color in self._hlines:
+            y = self._px(value, "y")
+            if y < top - 1 or y > bottom + 1:
+                continue  # outside the plot: skip rather than clip ugly
+            line_color = self._hline_color(color)
+            widget.create_line(
+                left, y, right, y, fill=line_color,
+                width=1, dash=(5, 3),
+            )
+            if label:
+                widget.create_text(
+                    right - 4, y - 9, text=label, anchor="e",
+                    fill=line_color, font=("TkDefaultFont", 8),
+                )
+
     # --- data layer: one primitive list, two renderers ------------------------------
     def _data_primitives(self):
         """The data marks as renderer-neutral primitive tuples."""
         if self._chart_type == ChartType.STACKED:
             return self._stacked_primitives()
+        if self._chart_type == ChartType.HISTOGRAM:
+            return self._histogram_primitives()
         handlers = {
             ChartType.LINE: self._line_primitives,
             ChartType.SCATTER: self._scatter_primitives,
@@ -570,6 +699,64 @@ class Chart(Graph):
                 prims.extend(self._bar_primitives(series, index))
             elif self._chart_type == ChartType.HBAR:
                 prims.extend(self._hbar_primitives(series, index))
+        return prims
+
+    def _histogram_primitives(self):
+        """Histogram bars — all series' values share one binning grid."""
+        if not self._series:
+            return []
+        edges, counts = self._histogram_bins()
+        _left, _top, _right, bottom = self._plot_rect()
+        color = self._series[0].color or self._color(0)
+        prims = []
+        for index, count in enumerate(counts):
+            if count <= 0:
+                continue
+            x0 = self._px(edges[index], "x")
+            x1 = self._px(edges[index + 1], "x")
+            y = self._px(count, "y")
+            prims.append(("rectangle", (x0, y, x1, bottom), color))
+        return prims
+
+    def _error_bar_primitives(self, anchors, series, color, cap=3.0):
+        """Symmetric error bars: main line + two caps, as line primitives.
+
+        ``anchors`` is a list of ``(pixel_x, data_value)`` pairs — the
+        marker / bar-center positions the error bars ride on.
+        """
+        prims = []
+        for index, (x, value) in enumerate(anchors):
+            if index >= len(series.errors):
+                break
+            magnitude = series.errors[index]
+            y_high = self._px(value + magnitude, "y")
+            y_low = self._px(value - magnitude, "y")
+            prims.append(("line", [(x, y_low), (x, y_high)], color, 1.2))
+            prims.append(("line", [(x - cap, y_high), (x + cap, y_high)], color, 1.2))
+            prims.append(("line", [(x - cap, y_low), (x + cap, y_low)], color, 1.2))
+        return prims
+
+    def _hbar_error_bar_primitives(self, series, color, cap=3.0):
+        """Horizontal error bars for hbar charts (error spans the x axis)."""
+        _left, top, _right, bottom = self._plot_rect()
+        count = max(len(s.values) for s in self._series)
+        slot = (bottom - top) / max(count, 1)
+        group_count = len(self._series)
+        bar_height = slot * 0.7 / group_count
+        series_index = self._series.index(series)
+        prims = []
+        for index, value in enumerate(series.values):
+            if index >= len(series.errors):
+                break
+            magnitude = series.errors[index]
+            y_center = top + slot * (index + 0.5)
+            offset = (series_index - (group_count - 1) / 2.0) * bar_height
+            y = y_center + offset
+            x_high = self._px(value + magnitude, "x")
+            x_low = self._px(value - magnitude, "x")
+            prims.append(("line", [(x_low, y), (x_high, y)], color, 1.2))
+            prims.append(("line", [(x_low, y - cap), (x_low, y + cap)], color, 1.2))
+            prims.append(("line", [(x_high, y - cap), (x_high, y + cap)], color, 1.2))
         return prims
 
     def _stacked_primitives(self):
@@ -602,6 +789,12 @@ class Chart(Graph):
         ]
         path = _spline_path(points) if self._smooth else points
         prims = [("line", path, color, LINE_WIDTH)]
+        if series.errors:
+            anchors = [
+                (self._px(i, "x"), value)
+                for i, value in enumerate(series.values)
+            ]
+            prims.extend(self._error_bar_primitives(anchors, series, color))
         if self._markers:
             for x, y in points:
                 prims.append((
@@ -613,13 +806,21 @@ class Chart(Graph):
         return prims
 
     def _scatter_primitives(self, series, color):
-        return [
+        prims = []
+        if series.errors:
+            anchors = [
+                (self._px(i, "x"), value)
+                for i, value in enumerate(series.values)
+            ]
+            prims.extend(self._error_bar_primitives(anchors, series, color))
+        prims.extend(
             ("ellipse",
              (self._px(i, "x") - SCATTER_RADIUS, self._px(v, "y") - SCATTER_RADIUS,
               self._px(i, "x") + SCATTER_RADIUS, self._px(v, "y") + SCATTER_RADIUS),
              color, "")
             for i, v in enumerate(series.values)
-        ]
+        )
+        return prims
 
     def _area_primitives(self, series, color):
         left, top, right, bottom = self._plot_rect()
@@ -640,6 +841,7 @@ class Chart(Graph):
         slot = (right - left) / max(count, 1)
         group_count = len(self._series)
         bar_width = slot * 0.7 / group_count
+        color = self._color(series_index)
         prims = []
         for i, value in enumerate(series.values):
             x_center = left + slot * (i + 0.5)
@@ -647,8 +849,15 @@ class Chart(Graph):
             x0 = x_center + offset - bar_width / 2
             x1 = x_center + offset + bar_width / 2
             y = self._px(value, "y")
-            prims.append(("rectangle", (x0, y, x1, bottom),
-                          self._color(series_index)))
+            prims.append(("rectangle", (x0, y, x1, bottom), color))
+        if series.errors:
+            # error bar rides the bar's center line, from the top upward
+            centers = [
+                (left + slot * (i + 0.5)
+                 + (series_index - (group_count - 1) / 2.0) * bar_width, value)
+                for i, value in enumerate(series.values)
+            ]
+            prims.extend(self._error_bar_primitives(centers, series, color))
         return prims
 
     def _hbar_primitives(self, series, series_index):
@@ -659,6 +868,7 @@ class Chart(Graph):
         bar_height = slot * 0.7 / group_count
         x_range = self._x_range or (0, 100)
         x_max = x_range[1] or 1.0
+        color = self._color(series_index)
         prims = []
         for i, value in enumerate(series.values):
             y_center = top + slot * (i + 0.5)
@@ -668,8 +878,9 @@ class Chart(Graph):
             length = (
                 (value - x_range[0]) / (x_max or 1.0) * (right - left)
             )
-            prims.append(("rectangle", (left, y0, left + length, y1),
-                          self._color(series_index)))
+            prims.append(("rectangle", (left, y0, left + length, y1), color))
+        if series.errors:
+            prims.extend(self._hbar_error_bar_primitives(series, color))
         return prims
 
     def _pie_primitives(self, surface):
