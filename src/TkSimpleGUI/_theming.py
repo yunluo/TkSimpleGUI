@@ -45,14 +45,22 @@ class ThemeManager(object):
     """Encapsulated look and feel state.
 
     ``name is None`` means *native*: no colors are overridden and ttk widgets
-    keep the system's default theme.
+    keep the system's default theme. ``theme_version`` increments on every
+    mutation so live windows can detect "my palette is stale" and re-apply
+    their colors (see :meth:`Window.update_theme`).
     """
 
-    __slots__ = ("_name", "_style_cache")
+    __slots__ = ("_name", "_style_cache", "_theme_version")
 
     def __init__(self):
         self._name = None
         self._style_cache = {}
+        self._theme_version = 0
+
+    @property
+    def theme_version(self):
+        """Monotonic counter bumped whenever theme colors change."""
+        return self._theme_version
 
     # --- name handling -----------------------------------------------------
     @property
@@ -92,6 +100,7 @@ class ThemeManager(object):
                     "for the available themes."
                 )
         self._name = canonical
+        self._theme_version += 1
         return canonical
 
     def add_new(self, name, colors):
@@ -99,6 +108,7 @@ class ThemeManager(object):
         if not isinstance(name, str) or not name:
             raise ValueError("theme name must be a non-empty string")
         LOOK_AND_FEEL_TABLE[name] = dict(colors)
+        self._theme_version += 1
         return name
 
     # --- raw entry ---------------------------------------------------------
@@ -336,6 +346,7 @@ def theme_background_color(color=None):
     """Get or set the current theme's window background color."""
     if color is not None:
         theme_manager._entry()["BACKGROUND"] = color  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.background_color
 
 
@@ -343,6 +354,7 @@ def theme_text_color(color=None):
     """Get or set the current theme's text color."""
     if color is not None:
         theme_manager._entry()["TEXT"] = color  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.text_color
 
 
@@ -350,6 +362,7 @@ def theme_button_color(color=None):
     """Get or set the current theme's button (text, background) colors."""
     if color is not None:
         theme_manager._entry()["BUTTON"] = color  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.button_colors
 
 
@@ -357,6 +370,7 @@ def theme_input_background_color(color=None):
     """Get or set the current theme's input background color."""
     if color is not None:
         theme_manager._entry()["INPUT"] = color  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.input_background_color
 
 
@@ -364,6 +378,7 @@ def theme_input_text_color(color=None):
     """Get or set the current theme's input text color."""
     if color is not None:
         theme_manager._entry()["TEXT_INPUT"] = color  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.input_text_color
 
 
@@ -374,6 +389,7 @@ def theme_progress_bar_color(bar_color=None, background_color=None):
         new_bar = bar_color if bar_color is not None else current[0]
         new_bg = background_color if background_color is not None else current[1]
         theme_manager._entry()["PROGRESS"] = (new_bar, new_bg)  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.progress_bar_colors
 
 
@@ -381,6 +397,7 @@ def theme_slider_color(color=None):
     """Get or set the current theme's slider color."""
     if color is not None:
         theme_manager._entry()["SCROLL"] = color  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.slider_color
 
 
@@ -388,6 +405,7 @@ def theme_border_width(width=None):
     """Get or set the current theme's border width."""
     if width is not None:
         theme_manager._entry()["BORDER"] = width  # noqa: SLF001
+        theme_manager._theme_version += 1  # noqa: SLF001
     return theme_manager.border_width
 
 

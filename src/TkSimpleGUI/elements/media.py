@@ -265,6 +265,13 @@ class Canvas(Element):
             **kwargs
         )
 
+    def apply_theme(self):
+        if self._background_color is None:
+            kwargs = theme_mod.theme_manager.text_kwargs()
+            if "background" in kwargs:
+                self._widget.configure(background=kwargs["background"])
+        return self
+
     def _bind_events(self):
         self._widget.bind("<Button-1>", self._on_click)
 

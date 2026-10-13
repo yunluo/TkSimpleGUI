@@ -378,6 +378,18 @@ class Element(metaclass=ElementBaseMeta):
             self._widget.grid()
         return self
 
+    def apply_theme(self):
+        """Re-apply theme colors to this element's widget (live theme switch).
+
+        The default implementation refreshes only ttk styles (a no-op for
+        plain tk widgets); element classes that paint theme colors directly
+        onto tk widgets (Text, Input, Frame, Column, Canvas, StatusBar…)
+        override this to reconfigure their options. Elements that were
+        created with explicit ``text_color`` / ``background_color`` keep
+        those -- only theme-derived colors change. Returns self.
+        """
+        return self
+
     def refresh(self):
         """Process pending tk events for the owning window."""
         if self._window is not None:

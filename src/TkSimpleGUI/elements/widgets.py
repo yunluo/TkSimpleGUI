@@ -183,6 +183,13 @@ class Text(Element):
         if self._enable_events:
             self._widget.bind("<Button-1>", lambda _e: self._post_event())
 
+    def apply_theme(self):
+        if self._text_color is None and self._background_color is None:
+            # only theme-derived colors: recompute and repaint
+            kwargs = theme_mod.theme_manager.text_kwargs()
+            self._widget.configure(**kwargs)
+        return self
+
     def get(self):
         """The displayed text."""
         return self._text
@@ -251,6 +258,14 @@ class StatusBar(Element):
 
     def get(self):
         return self._text
+
+    def apply_theme(self):
+        if self._text_color is None and self._background_color is None:
+            kwargs = theme_mod.theme_manager.text_kwargs()
+            kwargs.setdefault("relief", tk.SUNKEN)
+            kwargs.setdefault("anchor", "w")
+            self._widget.configure(**kwargs)
+        return self
 
     def update(self, value=None, visible=None):
         if value is not None:
@@ -378,6 +393,19 @@ class Input(InputElement):
         if self._enable_events:
             self._widget.bind("<KeyRelease>", lambda _e: self._post_event())
         self._widget.bind("<Return>", lambda _e: self._post_event())
+
+    def apply_theme(self):
+        # recompute the derived TEntry style from the new palette
+        self._widget.configure(
+            style=theme_mod.theme_manager.ttk_widget_style(
+                self._widget.nametowidget(self._widget.winfo_parent()),
+                "TEntry",
+                foreground=self._text_color,
+                fieldbackground=self._background_color,
+                font=self._font,
+            )
+        )
+        return self
 
     @property
     def default_text(self):

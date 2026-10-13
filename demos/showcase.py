@@ -1036,7 +1036,8 @@ def on_copy_log(window, values):
 @ts.bind_event(["System (native)", "Slate", "Daylight", "Dusk", "Sage"])
 def on_theme(window, event, values):
     name = ts.theme("System" if event == "System (native)" else event)
-    log(f"theme switched to {name} (applies to new windows)", color="#1565c0")
+    window.update_theme()
+    log(f"theme switched to {name} (applied live)", color="#1565c0")
 
 
 # Themes tab: per-row Preview / Set as default buttons.
@@ -1053,8 +1054,8 @@ def on_theme_preview(window, event, values):
 def on_theme_set_default(window, event, values):
     name = event.replace("-SET-", "").rstrip("-")
     applied = ts.theme(name)
-    log(f"default theme set to {applied} (next window will use it)",
-        color="#2e7d32")
+    window.update_theme()
+    log(f"theme set to {applied} (applied live to this window)", color="#2e7d32")
 
 
 @ts.bind_event("-TOOL-NEW-")

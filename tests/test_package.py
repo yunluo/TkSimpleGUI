@@ -104,6 +104,44 @@ class TestThemes(unittest.TestCase):
         self.assertTrue(theme_manager.is_native)
         ts.theme(None)
 
+    def test_theme_version_bumps_on_change(self):
+        from TkSimpleGUI._theming import theme_manager
+        start = theme_manager.theme_version
+        ts.theme("Slate")
+        after_apply = theme_manager.theme_version
+        ts.theme_background_color("#101010")
+        after_bg = theme_manager.theme_version
+        ts.theme(None)
+        self.assertGreater(after_apply, start)
+        self.assertGreater(after_bg, after_apply)
+
+    def test_update_theme_repaints_live_window(self):
+        """update_theme() repaints an already visible window immediately."""
+        window = ts.Window(
+            "live",
+            [[ts.Text("t", key="-T-")], [ts.Input("i", key="-IN-")],
+             [ts.Column([[ts.Text("inner")]], key="-COL-")]],
+            finalize=True,
+        )
+        try:
+            ts.theme("Slate")
+            slate_bg = ts.theme_background_color()
+            # the window was built under the native theme -- its tk Label
+            # still carries the old (default) background; update_theme must
+            # reconfigure it to the Slate palette without recreating widgets
+            window.update_theme()
+            self.assertEqual(str(window["-T-"].widget.cget("background")), slate_bg)
+            self.assertEqual(str(window["-COL-"].widget.cget("background")), slate_bg)
+            # widget identity is preserved (repaint, not rebuild)
+            self.assertFalse(window.was_closed)
+            # explicit per-element colors survive the repaint
+            window["-T-"].update(text_color="#ff0000")
+            window.update_theme()
+            self.assertEqual(str(window["-T-"].widget.cget("foreground")), "#ff0000")
+        finally:
+            window.close()
+            ts.theme(None)
+
 
 class TestSettings(unittest.TestCase):
     def test_set_get(self):

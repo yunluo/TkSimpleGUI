@@ -1255,6 +1255,41 @@ class Window:
             self._tk_root.update()
         return self
 
+    def update_theme(self):
+        """Live theme switch: repaint this window (and its children) now.
+
+        After ``ts.theme("Slate")`` (or any ``theme_*`` color setter) the
+        new palette only reaches *future* windows by default; call this to
+        push it into an already visible window:
+
+        - the ttk style sheet is recomputed (labels, entries, buttons,
+          notebook tabs, treeviews…)
+        - the window and content frame backgrounds are re-applied
+        - every element's ``apply_theme`` hook runs (classic tk widgets
+          like Text / Input / Frame / Column / Canvas repaint their
+          theme-derived colors; explicit per-element colors are kept)
+
+        Child windows are updated recursively. Safe to call any time
+        after finalize; returns self.
+        """
+        if not self._finalized or not self._root_alive():
+            return self
+        theme_mod.theme_manager.configure_ttk(self._ttk_style)
+        # window + content frame background
+        bg = self._background_color or theme_mod.theme_manager.background_color
+        if bg is not None and bg != C.COLOR_SYSTEM_DEFAULT:
+            self._tk_root.configure(background=bg)
+            for child in self._tk_root.winfo_children():
+                if isinstance(child, tk.Frame):
+                    child.configure(background=bg)
+        for element in self._elements_by_key.values():
+            with contextlib.suppress(tk.TclError, AttributeError):
+                element.apply_theme()
+        for child in self.children:
+            child.update_theme()
+        self.refresh()
+        return self
+
     def bring_to_front(self):
         """Raise the window and give it focus."""
         if self._root_alive():

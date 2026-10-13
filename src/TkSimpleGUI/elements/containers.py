@@ -125,6 +125,13 @@ class Column(ContainerElement):
             kwargs["background"] = bg
         return tk.Frame(master, **kwargs)
 
+    def apply_theme(self):
+        if self._background_color is None:
+            bg = theme_mod.theme_manager.background_color
+            if bg is not None and bg != C.COLOR_SYSTEM_DEFAULT:
+                self._widget.configure(background=bg)
+        return self
+
     def update(self, visible=None):
         if visible is not None:
             self.unhide() if visible else self.hide()
