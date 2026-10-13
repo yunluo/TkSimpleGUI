@@ -63,12 +63,37 @@ target-version = "py37"
 line-length = 100
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "B", "UP"]
+select = ["E", "F", "W", "B", "UP", "SIM", "PIE", "RET", "C4", "PL", "N"]
 ignore = [
     # Literal["a","b"] strings are flagged as forward references because ruff
     # cannot resolve the _typing_compat conditional import chain (33 false
     # positives across elements/*); the ty gate covers real typing errors.
     "F722",
+    # Imports inside functions are deliberate in this codebase: many
+    # element modules lazily import from the window package to dodge
+    # circular dependencies on first import.
+    "PLC0415",
+    # Element / Window classes legitimately take many constructor args
+    # (size / padding / key / colors / fonts / callbacks ...). Splitting
+    # them would just move the complexity into helper dataclasses.
+    "PLR0913",
+    # Many update() and event handlers need many branches by design; a
+    # wizard-style cascade is clearer than 12 nested ternaries.
+    "PLR0912",
+    # magic-value-comparison is noisy in tests (== "expected" everywhere)
+    "PLR2004",
+    # global is used for the two process-wide singletons (default_app,
+    # input_blocker); see event.py / input_blocker.py.
+    "PLW0603",
+    # Test files use a free-form layout; let them.
+    "N802", "N803", "N806", "N815",
+    # Project convention: ``import constants as C`` / ``import enums as E``
+    # appears in every module -- the short aliases are stable, intentional,
+    # and shorter than the alternatives at every call site.
+    "N812",
+    # ``import TkSimpleGUI as sg`` is the ecosystem spelling users copy from
+    # the docs; enforcing CamelCase module aliases there would break it.
+    "N813",
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -85,8 +110,11 @@ ignore = [
 "src/TkSimpleGUI/elements/buttons.py" = ["F821"]
 "src/TkSimpleGUI/elements/containers.py" = ["F821"]
 "src/TkSimpleGUI/elements/data.py" = ["F821"]
-"src/TkSimpleGUI/elements/misc.py" = ["F821"]
 "src/TkSimpleGUI/elements/widgets.py" = ["F821"]
+# SystemTray wraps the Win32 Shell_NotifyIconW API verbatim; the public
+# method names mirror the upstream Win32 spelling (ShowMessage, Update,
+# Hide, UnHide) and we do not want to break that mapping.
+"src/TkSimpleGUI/window/system_tray.py" = ["N802"]
 
 [tool.coverage.run]
 source = ["TkSimpleGUI"]

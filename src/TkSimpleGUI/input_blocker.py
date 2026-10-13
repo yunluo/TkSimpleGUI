@@ -238,8 +238,7 @@ def block_input():
 
 def unblock_input():
     """Stop blocking input (only when no other window still holds it)."""
-    global _blocker
     with _blocker_lock:
+        # module-level singleton; not reassigned here, so no `global` needed
         if _blocker is not None:
             _blocker.release()
-    return None

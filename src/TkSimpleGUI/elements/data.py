@@ -9,6 +9,7 @@ from .._typing_compat import Literal
 from .base import Element
 from .. import constants as C
 from .. import enums as E
+import contextlib
 
 
 
@@ -175,10 +176,8 @@ class Table(Element):
         spec = self._row_icons[row_index]
         if spec is None:
             return
-        try:
+        with contextlib.suppress(tk.TclError):
             tree.item(item_id, image=self._load_image_spec(spec))
-        except tk.TclError:
-            pass
 
     # --- data binding (lightweight TDataSource) ---------------------------------------
     def bind(self, records=None, headings=None, **kwargs):  # ty: ignore[invalid-method-override]
@@ -598,7 +597,7 @@ class Tree(Element):
                 )
             self._images.append(photo)
             kwargs["image"] = photo
-        item_id = self._widget.insert(
+        self._widget.insert(
             parent,
             "end",
             iid=str(key),
@@ -606,7 +605,6 @@ class Tree(Element):
             values=[str(v) for v in (values or ())],
             **kwargs
         )
-        return item_id
 
     def delete(self, key):
         """Delete the item with the given key."""

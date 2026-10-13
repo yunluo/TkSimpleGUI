@@ -388,7 +388,6 @@ def popup_get_font(
     bold = len(default_font) > 2 and "bold" in default_font[2:]
     italic = len(default_font) > 2 and "italic" in default_font[2:]
 
-    picker_column = [Listbox([], key="-FONTS-", size=(26, 10), enable_events=True)]
     option_rows: List[ElementRow] = [
         [Text("Size")],
         [Spin([str(n) for n in range(1, 101)], initial_value=str(size), key="-SIZE-")],
@@ -401,7 +400,8 @@ def popup_get_font(
     )
     rows: List[ElementRow] = [
         [Text(message)],
-        [Column(picker_column), Column(option_rows)],
+        [Column([Listbox([], key="-FONTS-", size=(26, 10), enable_events=True)]),
+         Column(option_rows)],
         [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
@@ -422,12 +422,10 @@ def popup_get_font(
         picked_italic = (
             bool(window["-ITALIC-"].get()) if include_bold_italic else italic
         )
-        flags = []
-        if picked_bold:
-            flags.append("bold")
+        flags = ("bold",) if picked_bold else ()
         if picked_italic:
-            flags.append("italic")
-        return picked_family, picked_size, tuple(flags)
+            flags = flags + ("italic",)
+        return picked_family, picked_size, flags
 
     def _refresh_preview(_window=None, _event=None, _values=None):
         picked = _current_font()
@@ -445,13 +443,9 @@ def popup_get_font(
             break
         if event in ("-FONTS-", "-SIZE-", "-BOLD-", "-ITALIC-"):
             _refresh_preview()
-            continue
-        if event == "OK":
+        elif event == "OK":
             picked = _current_font()
-            if include_bold_italic:
-                result = (picked[0], picked[1], picked[2])
-            else:
-                result = (picked[0], picked[1])
+            result = picked if include_bold_italic else picked[:2]
             break
     window.close()
     return result

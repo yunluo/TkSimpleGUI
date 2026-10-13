@@ -6,13 +6,13 @@ IDE discovery, but every option can also be bundled into a typed dataclass
 and passed as ``config=`` — useful for sharing one look across many widgets
 or building layouts from data::
 
-    opts = sg.ElementOptions(pad=(10, 4), expand_x=True,
+    opts = ts.ElementOptions(pad=(10, 4), expand_x=True,
                              right_click_menu=["&Menu", ["Refresh"]])
-    sg.TInput("", config=opts)
-    sg.TText("hi", config=opts)
+    ts.TInput("", config=opts)
+    ts.TText("hi", config=opts)
 
-    cfg = sg.WindowConfig(title="Demo", resizable=True, modal=True)
-    sg.Window(layout=layout, config=cfg)
+    cfg = ts.WindowConfig(title="Demo", resizable=True, modal=True)
+    ts.Window(layout=layout, config=cfg)
 """
 
 from dataclasses import dataclass
@@ -97,8 +97,8 @@ class WindowConfig:
     def as_kwargs(self, **overrides) -> dict:
         """The resolved kwargs for ``Window``: config values with explicit
         ``overrides`` winning."""
-        resolved = dict(
-            (field_name, getattr(self, field_name))
+        resolved = {
+            field_name: getattr(self, field_name)
             for field_name in (
                 "title", "layout", "size", "location", "finalize",
                 "keep_on_top", "modal", "no_titlebar", "grab_anywhere",
@@ -107,7 +107,7 @@ class WindowConfig:
                 "system_block", "element_justification", "right_click_menu",
                 "parent", "on_close",
             )
-        )
+        }
         for name, value in overrides.items():
             if value is not None:
                 resolved[name] = value

@@ -33,12 +33,15 @@ def main():
             "The type gate cannot pass without running the checker."
         )
         return 2
+    # check=False is deliberate: the exit code is interpreted below, and a
+    # nonzero ty result must fall through to the diagnostic printer, not raise.
     run = subprocess.run(
         [ty, "check", "src", "--python-version", "3.7"],
         capture_output=True,
         text=True,
         encoding="utf-8",
         errors="replace",
+        check=False,
     )
     output = (run.stdout or "") + (run.stderr or "")
     if "All checks passed" in output:

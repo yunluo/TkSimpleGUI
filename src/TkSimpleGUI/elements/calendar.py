@@ -21,7 +21,7 @@ class Calendar(Element):
     with the built-in ``<``/``>`` buttons. ``get()`` returns the selected
     date formatted with ``dateformat`` (default ``"%Y-%m-%d"``)::
 
-        cal = sg.Calendar(key="-CAL-", default_date=datetime.date.today())
+        cal = ts.Calendar(key="-CAL-", default_date=datetime.date.today())
         event, values = window.read()
         print(values["-CAL-"])  # "2026-10-11"
     """

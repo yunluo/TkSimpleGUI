@@ -21,10 +21,10 @@
 - [x] **Multiline 补全**：`scroll_y` 滚动条、`wrap` 模式（word/char/none）、`link()` 超链接（tag_bind 可点击文字→事件）、`search_all` 高亮全部匹配 + `clear_highlights`
 - [x] **Image 补全（PhotoImage 原生能力）**：`zoom/subsample` 缩放参数、GIF 逐帧读取 → **GIF 动画播放**（after 循环 + `animation_control(start/delay)`）
 - [x] **ttk.Spinbox 迁移**：Spin 改用 ttk.Spinbox（原生外观），主题样式 TSpinbox
-- [x] **sg.ttk_theme(name) / sg.ttk_themes()**：切换底层 ttk 主题（clam/vista/aqua…），不与 160 主题冲突
+- [x] **ts.ttk_theme(name) / ts.ttk_themes()**：切换底层 ttk 主题（clam/vista/aqua…），不与 160 主题冲突
 - [x] **Window wm 缺口**：`set_fullscreen`、`make_toolwindow`（Win）、`transient(parent)`（真模态从属）、`stack_above`、`set_max_size`、`bell()`
 - [x] **Selection（PRIMARY 选区）**：`selection_get/selection_set` 与剪贴板并列
-- [x] **字体工具**：`sg.font_families()`、`sg.font_measure(text, font)`、`sg.font_actual(font)`
+- [x] **字体工具**：`ts.font_families()`、`ts.font_measure(text, font)`、`ts.font_actual(font)`
 - [x] **独立 Menubutton / Scrollbar 元素**（目标元素暴露 `_scroll_command` 供驱动）
 - [x] **Notebook 增强**：`<<NotebookTabChanged>>` 页切换事件（投递 `(key, title)`）、`enable_traversal`（Ctrl+Tab）、`update(tab=, tab_state=)` 页禁用/隐藏、`select_tab`/`current_tab`
 - [x] **Style 深水区**：`window.configure_style(style, **options)` / `window.map_style(style, **state_map)` 高级钩子
@@ -49,7 +49,7 @@
 ## 🎯 新阶段 · 单一事件循环 ✅ 完成（1c6febd）
 
 - [x] **全局事件总线**：`Window._event_bus` 类级队列，`_post_event` 投递 `(window, event, values快照)`；**任何** `window.read()` / `read_all_windows()` 都能消费**任何**窗口的事件（时间序）——多窗口天然支持，无需任何额外代码
-- [x] **`sg.main_loop(window, app)`**：用户**零循环**。框架泵所有窗口 root → 取总线事件 → `app.apply_event`（`@app.bind_event` + `on_*` 装饰器）→ `Action` 回调 → 全部窗口关闭自动退出
+- [x] **`ts.main_loop(window, app)`**：用户**零循环**。框架泵所有窗口 root → 取总线事件 → `app.apply_event`（`@app.bind_event` + `on_*` 装饰器）→ `Action` 回调 → 全部窗口关闭自动退出
 - [x] **隐藏主 root 架构**：所有窗口都是隐藏 `tk.Tk` master 的 Toplevel——关闭任一窗口（含第一个）不再连带销毁其它窗口
 - [x] **WIN_CLOSED 语义**：仅用户点标题栏 X 产生（程序性 close 静默）；标题栏关闭自动出 registry；`Window.close_all()` 收尾
 - [x] **修复关键哨兵歧义**：WIN_CLOSED=None 与"总线空"无法区分导致的永久等待/丢事件——统一用 `queue.Empty` 作唯一无事件信号
@@ -57,9 +57,9 @@
 
 ## 🎯 新阶段 · 根对象 .run() 启动 ✅ 完成（3b81a5b）
 
-- [x] **`sg.Window(...).run()`** —— 拿到窗口直接启动应用（未 finalize 会自动 finalize），无需 app、无需 main_loop、无需循环
-- [x] **`sg.SystemTray(...).run()`** —— 托盘即应用：无主窗口、托盘菜单项就是事件，handler 开的窗口照常参与循环；托盘移除且无窗口时结束
-- [x] **`sg.default_app()`** —— 全局默认事件管理器（单例），`@sg.default_app().bind_event` 装饰器注册即被 `.run()` 拾取；也可 `run(app)` 传入显式实例
+- [x] **`ts.Window(...).run()`** —— 拿到窗口直接启动应用（未 finalize 会自动 finalize），无需 app、无需 main_loop、无需循环
+- [x] **`ts.SystemTray(...).run()`** —— 托盘即应用：无主窗口、托盘菜单项就是事件，handler 开的窗口照常参与循环；托盘移除且无窗口时结束
+- [x] **`ts.default_app()`** —— 全局默认事件管理器（单例），`@ts.default_app().bind_event` 装饰器注册即被 `.run()` 拾取；也可 `run(app)` 传入显式实例
 - [x] 托盘锚定循环：无窗口时也泵 tk root（after 定时器照常工作）；handler 的 window 参数注入事件属主（tray 或 window）
 - [x] demo 同步 `.run()` 写法；托盘退出路径的 Win32 AV 用 `os._exit` 规避（探针/测试确定化）
 
@@ -87,8 +87,8 @@
 
 针对"讨厌 Tk 一切都是字符串"：新增 `src/TkSimpleGUI/enums.py`，**13 类 str 子类枚举**替代魔术字符串（枚举的值就是 Tk 字符串，与裸字符串完全互换）：
 
-- [x] **`sg.Anchor`**（9方位）/ **`sg.LabelAnchor`**（12方位标题）/ **`sg.Justify`** / **`sg.Relief`** / **`sg.Orientation`** / **`sg.Compound`**（图文混排）/ **`sg.State`** / **`sg.WrapMode`** / **`sg.ProgressMode`** / **`sg.Cursor`** / **`sg.Color`**（常用色名，`#rrggbb` 照常可用）
-- [x] **`sg.EventType`** —— 替代 `"<Button-1>"` 式事件串：`DOUBLE_CLICK`/`RIGHT_CLICK`/`FOCUS_IN`/`RETURN`... + 工厂方法 `control("o")`/`shift("F5")`/`alt("q")`/`key(name)`
+- [x] **`ts.Anchor`**（9方位）/ **`ts.LabelAnchor`**（12方位标题）/ **`ts.Justify`** / **`ts.Relief`** / **`ts.Orientation`** / **`ts.Compound`**（图文混排）/ **`ts.State`** / **`ts.WrapMode`** / **`ts.ProgressMode`** / **`ts.Cursor`** / **`ts.Color`**（常用色名，`#rrggbb` 照常可用）
+- [x] **`ts.EventType`** —— 替代 `"<Button-1>"` 式事件串：`DOUBLE_CLICK`/`RIGHT_CLICK`/`FOCUS_IN`/`RETURN`... + 工厂方法 `control("o")`/`shift("F5")`/`alt("q")`/`key(name)`
 - [x] **`py.typed`**（PEP 561）+ 全量 Literal 注解 —— IDE 静默识别类型、补全、查错
 - [x] 控件构造参数全部接受枚举（str 子类天然兼容），枚举/字符串互换有 6 个专项测试钉住
 
@@ -96,8 +96,8 @@
 
 Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/元类链保持），新增 `src/TkSimpleGUI/config.py`：
 
-- [x] **`sg.WindowConfig`** —— 18 个窗口选项的 typed dataclass（title/layout/size/modal/resizable/parent...），`sg.Window(layout=..., config=cfg)`；显式 kwargs 覆盖 config 值
-- [x] **`sg.ElementOptions`** —— 元素共享参数包（pad/expand/tooltip/right_click_menu/metadata/disabled...），**任何控件** `config=opts` 一次带全
+- [x] **`ts.WindowConfig`** —— 18 个窗口选项的 typed dataclass（title/layout/size/modal/resizable/parent...），`ts.Window(layout=..., config=cfg)`；显式 kwargs 覆盖 config 值
+- [x] **`ts.ElementOptions`** —— 元素共享参数包（pad/expand/tooltip/right_click_menu/metadata/disabled...），**任何控件** `config=opts` 一次带全
 - [x] **元类自动展开**：`ElementBaseMeta` 包装子类 `__init__` 拦截 `config=`，40 个控件构造器**零改动**即获得能力；显式 kwargs 优先于 config
 - [x] 7 个专项测试（override 优先级/类型校验/layout 进 config/共享 options 复用）
 

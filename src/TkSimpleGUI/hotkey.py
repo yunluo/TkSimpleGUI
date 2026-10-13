@@ -45,7 +45,7 @@ class GlobalHotkeys:
 
     Usage::
 
-        hotkeys = sg.GlobalHotkeys()
+        hotkeys = ts.GlobalHotkeys()
         hotkeys.register("Ctrl-Alt-P", "-HOTKEY-PRINT")
         hotkeys.start(window)          # events appear in window.read()
         ...
@@ -209,8 +209,7 @@ class _TaskbarProgress:
             ctypes.cast(vtable_ptr, ctypes.POINTER(ctypes.c_void_p)),
             ctypes.POINTER(ctypes.c_void_p * 32),
         ).contents
-        address = vtable[slot]
-        return address
+        return vtable[slot]
 
     @classmethod
     def _vtable_call(cls, interface: ctypes.c_void_p, slot: int, *args):
@@ -260,7 +259,7 @@ def taskbar_progress(window):
 
     Returns ``None`` off Windows or before the window is finalized. Usage::
 
-        progress = sg.taskbar_progress(window)
+        progress = ts.taskbar_progress(window)
         progress.set_value(30, 100)     # 30% on the task bar button
         progress.set_state("error")     # red overlay
         progress.clear()

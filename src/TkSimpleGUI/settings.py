@@ -204,7 +204,7 @@ class Settings:
     # --- dict style API ----------------------------------------------------
     def as_dict(self):
         """Snapshot of every option as a dict."""
-        return dict((name, getattr(self, name)) for name in _KNOWN_OPTIONS)
+        return {name: getattr(self, name) for name in _KNOWN_OPTIONS}
 
     def apply_options(self, **kwargs):
         """Validate and apply a batch of options."""

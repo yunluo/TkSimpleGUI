@@ -4,11 +4,11 @@
 :class:`TkSimpleEvent` replaces the hand written ``while True`` read loop with
 decorator based handlers::
 
-    app = sg.TkSimpleEvent()
+    app = ts.TkSimpleEvent()
 
     @app.bind_event("-OK-")
     def on_ok(window, values):
-        sg.popup("clicked!")
+        ts.popup("clicked!")
 
     app.run_event(window)
 """
@@ -43,7 +43,7 @@ class TkSimpleEvent:
     @property
     def get_events(self):
         """Read-only mapping of event key to handler function."""
-        return dict((k, entry[0]) for k, entry in self._event_handlers.items())
+        return {key: entry[0] for key, entry in self._event_handlers.items()}
 
     # --- registration --------------------------------------------------------
     def bind_event(self, event_names):
@@ -142,7 +142,7 @@ class TkSimpleEvent:
 
 
 # --- application-wide default event manager ------------------------------------
-# sg.Window(...).run() / sg.SystemTray(...).run() use this instance when no
+# ts.Window(...).run() / ts.SystemTray(...).run() use this instance when no
 # explicit app is passed; @app.bind_event handlers registered on it are
 # picked up automatically.
 _default_app: Optional["TkSimpleEvent"] = None

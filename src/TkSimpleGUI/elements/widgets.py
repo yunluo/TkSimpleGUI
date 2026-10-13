@@ -10,6 +10,7 @@ from .base import Element, InputElement
 from .. import constants as C
 from .. import enums as E
 from .. import _theming as theme_mod
+import contextlib
 
 
 
@@ -46,7 +47,7 @@ def _char_height(size):
 # --- built-in input validators (validate_command callables) -------------------
 def validate_integer(text):
     """Validator: allow only integers (empty text allowed while editing)."""
-    if text == "" or text == "-":
+    if text in ("", "-"):
         return True
     try:
         int(text)
@@ -326,9 +327,9 @@ class Input(InputElement):
         self._validate_command = validate_command
         self._invalid_command = invalid_command
         # str-enum values compare equal to their Tk strings, so both
-        # sg.Justify.RIGHT and "right" land here the same way
+        # ts.Justify.RIGHT and "right" land here the same way
         # str-enum values compare equal to their Tk strings, so both
-        # sg.Justify.RIGHT and "right" land here the same way
+        # ts.Justify.RIGHT and "right" land here the same way
         self._justify = str(justify).lower() if str(justify).lower() in ("left", "center",
                 "right") else "left"
         if validate is not None and validate_command is not None:
@@ -366,7 +367,7 @@ class Input(InputElement):
             if self._invalid_command is not None:
                 invalid = self._invalid_command
                 kwargs["invalidcommand"] = (
-                    master.register(lambda new_text: invalid(new_text)),
+                    master.register(invalid),
                     "%P",
                 )
         entry = ttk.Entry(master, textvariable=self._textvariable, **kwargs)
@@ -521,7 +522,7 @@ class Combo(InputElement):
         if width is not None:
             kwargs["width"] = width
         state = "disabled" if self._disabled else ("readonly" if self._readonly else "normal")
-        combo = ttk.Combobox(
+        return ttk.Combobox(
             master,
             textvariable=self._variable,
             values=[str(v) for v in self._values],
@@ -702,7 +703,7 @@ class Spin(InputElement):
 
     Pass ``values=[...]`` for a fixed list, or ``range_=(lo, hi)`` with
     ``increment`` for a native numeric spinbox (with ``wrap`` rollover)::
-        sg.Spin(range_=(0, 100), increment=5, initial_value=10)
+        ts.Spin(range_=(0, 100), increment=5, initial_value=10)
     """
 
     __slots__ = (
@@ -909,7 +910,7 @@ class Checkbox(InputElement):
 
     def _bind_events(self):
         if self._enable_events:
-            self._widget.configure(command=lambda: self._post_event())
+            self._widget.configure(command=self._post_event)
 
     @property
     def text(self):
@@ -1019,7 +1020,7 @@ class Radio(InputElement):
 
     def _bind_events(self):
         if self._enable_events:
-            self._widget.configure(command=lambda: self._post_event())
+            self._widget.configure(command=self._post_event)
 
     def get(self):
         """True when this radio is the selected one in its group."""
@@ -1427,18 +1428,14 @@ class Multiline(InputElement):
 
     def undo(self):
         """Undo the last edit (native tk.Text undo stack)."""
-        try:
+        with contextlib.suppress(tk.TclError):
             self._text.edit_undo()
-        except tk.TclError:
-            pass
         return self
 
     def redo(self):
         """Re-apply the last undone edit (native tk.Text undo stack)."""
-        try:
+        with contextlib.suppress(tk.TclError):
             self._text.edit_redo()
-        except tk.TclError:
-            pass
         return self
 
     # --- native tk.Text API passthrough -----------------------------------------
@@ -1537,7 +1534,7 @@ class ProgressBar(Element):
             if str(self._orientation).lower() in ("h", "horizontal")
             else "vertical"
         )
-        bar = ttk.Progressbar(
+        return ttk.Progressbar(
             master, orient=orient, maximum=self._max_value, value=self._current
         )
         return bar
@@ -1588,7 +1585,7 @@ class CheckList(Element):
     ``get()`` returns the list of currently checked values; clicking an item
     posts the element's key when ``enable_events`` is on::
 
-        sg.CheckList(["a", "b", "c"], default_checked=["b"], key="-CHECKS-")
+        ts.CheckList(["a", "b", "c"], default_checked=["b"], key="-CHECKS-")
     """
 
     __slots__ = (
@@ -1629,7 +1626,7 @@ class CheckList(Element):
             metadata=metadata,
         )
         self._values = [str(value) for value in values]
-        self._default_checked = set(str(value) for value in default_checked)
+        self._default_checked = {str(value) for value in default_checked}
         self._checked_vars = {}
         self._enable_events = enable_events
         self._text_color = text_color
@@ -1682,12 +1679,12 @@ class CheckList(Element):
     def update(self, values=None, checked=None, visible=None):
         if values is not None:
             self._values = [str(value) for value in values]
-            self._default_checked = set(
+            self._default_checked = {
                 str(value) for value in (checked or ())
-            )
+            }
             self._build_items(self._widget)
         elif checked is not None:
-            wanted = set(str(value) for value in checked)
+            wanted = {str(value) for value in checked}
             for value, variable in self._checked_vars.items():
                 variable.set(value in wanted)
         if visible is not None:

@@ -69,13 +69,13 @@ class ElementBaseMeta(ABCMeta):
 
                 if not isinstance(config, ElementOptions):
                     raise TypeError("config must be an ElementOptions instance")
-                for name in (
+                for option_name in (
                     "key", "size", "tooltip", "visible", "pad", "expand_x",
                     "expand_y", "justification", "right_click_menu", "metadata",
                 ):
-                    value = getattr(config, name)
-                    if value is not None and kwargs.get(name) is None:
-                        kwargs[name] = value
+                    value = getattr(config, option_name)
+                    if value is not None and kwargs.get(option_name) is None:
+                        kwargs[option_name] = value
                 if config.disabled and not kwargs.get("disabled"):
                     kwargs["disabled"] = True
             original_init(self, *args, **kwargs)
@@ -408,7 +408,7 @@ class Tooltip:
     def _show(self):
         self._id = None
         if self._tip is not None:
-            return
+            return None
         x = self._widget.winfo_rootx() + 10
         y = self._widget.winfo_rooty() + self._widget.winfo_height() + 10
         self._tip = tk_wrapper = self._make_tip_window(x, y)
@@ -601,9 +601,7 @@ def _validate_layout(layout):
     for row in layout:
         if row is None:
             continue
-        if not isinstance(row, (list, tuple)):
-            row = [row]
-        rows.append(list(row))
+        rows.append(list(row) if isinstance(row, (list, tuple)) else [row])
     return rows
 
 

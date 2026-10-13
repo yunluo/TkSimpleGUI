@@ -82,10 +82,7 @@ def slide(window, to_location, duration_ms=500, steps=10, on_done=None):
 def animate_progress(window, bar, to_value, duration_ms=500, steps=10, on_done=None):
     """Animate a :class:`~TkSimpleGUI.elements.widgets.ProgressBar` (element
     or key) from its current value to ``to_value``."""
-    if isinstance(bar, str):
-        element = window[bar]
-    else:
-        element = bar
+    element = window[bar] if isinstance(bar, str) else bar
     start = float(element.get() or 0)
     end = float(to_value)
     interval = max(1, int(duration_ms) // max(1, steps))

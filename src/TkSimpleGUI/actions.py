@@ -7,9 +7,9 @@ and registers its ``shortcut`` as a keyboard binding. When the event fires,
 ``callback(window, values)`` runs automatically and ``read()`` still
 returns the key::
 
-    open_action = sg.Action("Open", key="-OPEN-", shortcut="<Control-o>",
+    open_action = ts.Action("Open", key="-OPEN-", shortcut="<Control-o>",
                             callback=lambda w, v: do_open())
-    window = sg.Window("App", layout, actions=[open_action])
+    window = ts.Window("App", layout, actions=[open_action])
 """
 
 

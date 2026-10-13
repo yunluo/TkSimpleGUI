@@ -6,7 +6,7 @@ figures (no images, no third-party deps), so they rescale with the
 graph coordinate system, and every drawn figure id is recorded per
 series for post-hoc styling through ``chart.widget.itemconfigure``::
 
-    chart = sg.TChart((420, 260), chart_type=sg.ChartType.LINE,
+    chart = ts.TChart((420, 260), chart_type=ts.ChartType.LINE,
                       title="Revenue", legend=True)
     chart.add_series("2024", [12, 34, 28, 41])
     chart.add_series("2025", [22, 30, 38, 35], labels=["Q1", "Q2", "Q3", "Q4"])
@@ -196,7 +196,7 @@ class Chart(Graph):
             return None
         count = max(len(series.values) for series in self._series)
         values = [value for series in self._series for value in series.values]
-        y_min = min(0.0, min(values))
+        y_min = min([0.0, *values]) if values else 0.0
         y_max = max(values) if values else 1.0
         if y_max == y_min:
             y_max = y_min + 1.0

@@ -16,6 +16,7 @@ import tkinter as tk
 from typing import Callable, Optional, Tuple
 
 from .base import Element
+import contextlib
 
 # A Tk color string ("#rrggbb" or a name); "" means transparent.
 Color = str
@@ -195,7 +196,7 @@ class RoundButton(_CanvasButton):
 
     Tk buttons are always rectangular; this draws its own figure::
 
-        sg.RoundButton("Go", radius=14, fill_color="#e91e63", key="-GO-")
+        ts.RoundButton("Go", radius=14, fill_color="#e91e63", key="-GO-")
     """
 
     __slots__ = ("_radius", "_text")
@@ -348,12 +349,11 @@ class ImageButton(_CanvasButton):
         return 0 <= event.x < self._width and 0 <= event.y < self._height
 
     def _brighten(self, photo: tk.PhotoImage, amount: int) -> tk.PhotoImage:
-        # copy() with no args clones the image on its own interpreter
+        # copy() with no args clones the image on its own interpreter;
+        # keep the plain copy when overlay compositing is unavailable
         result = photo.copy()
-        try:
+        with contextlib.suppress(tk.TclError):
             result.tk.call(result, "write", photo, "-compositingrule", "overlay")
-        except tk.TclError:
-            pass  # keep the plain copy when overlay compositing is unavailable
         return result
 
     def _on_enter(self, _event):
@@ -373,7 +373,7 @@ class TextProgressBar(Element):
     ttk.Progressbar cannot overlay text; this draws the bar and the label
     as canvas figures::
 
-        bar = sg.TextProgressBar(100, key="-PB-", bar_color="#4caf50")
+        bar = ts.TextProgressBar(100, key="-PB-", bar_color="#4caf50")
         bar.update(current_value=42)   # shows "42%"
     """
 
@@ -501,7 +501,7 @@ class LED(Element):
     blinking-clock colon separator. The digit size scales to fit the
     configured digit count::
 
-        led = sg.TLED(42, digits=4, color="#ff3b30", key="-LED-")
+        led = ts.TLED(42, digits=4, color="#ff3b30", key="-LED-")
         led.update(1997)          # -> "_199" style zero padding? no: right-aligned
         clock.update("12:34")     # colon supported when allow_colon=True
     """

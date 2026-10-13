@@ -2,14 +2,14 @@
 """Typed enums replacing Tk's magic strings.
 
 Every enum is a ``str`` subclass whose *value* is the literal string Tk
-expects, so ``sg.Anchor.NW`` can be passed anywhere ``"nw"`` is accepted —
+expects, so ``ts.Anchor.NW`` can be passed anywhere ``"nw"`` is accepted —
 with IDE completion, typo protection (AttributeError instead of a silent
 wrong layout) and discoverability.
 
-    sg.Text("hi", anchor=sg.Anchor.CENTER)          # instead of "center"
-    sg.Input(justify=sg.Justify.RIGHT)              # instead of "right"
-    sg.Frame("T", layout, label_anchor=sg.Anchor.SE)
-    element.bind(sg.EventType.DOUBLE_CLICK)         # instead of "<Double-1>"
+    ts.Text("hi", anchor=ts.Anchor.CENTER)          # instead of "center"
+    ts.Input(justify=ts.Justify.RIGHT)              # instead of "right"
+    ts.Frame("T", layout, label_anchor=ts.Anchor.SE)
+    element.bind(ts.EventType.DOUBLE_CLICK)         # instead of "<Double-1>"
 """
 
 from enum import Enum
@@ -142,7 +142,7 @@ class EventType(str, Enum):
     """Common tk event patterns as named constants.
 
     The value is the exact Tk binding pattern, so
-    ``element.bind(sg.EventType.DOUBLE_CLICK)`` equals the string form.
+    ``element.bind(ts.EventType.DOUBLE_CLICK)`` equals the string form.
     """
 
     CLICK = "<Button-1>"
@@ -161,7 +161,6 @@ class EventType(str, Enum):
     KEY_RELEASE = "<KeyRelease>"
     SPACE = "<space>"
     DELETE = "<Delete>"
-    FOCUS_WINDOW = "<FocusIn>"
     RESIZE = "<Configure>"
     WHEEL = "<MouseWheel>"
 

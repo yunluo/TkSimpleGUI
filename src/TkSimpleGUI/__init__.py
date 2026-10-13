@@ -7,10 +7,10 @@ Usage::
     import TkSimpleGUI as sg
 
     layout = [
-        [sg.Text("Hello")],
-        [sg.Input(key="-IN-"), sg.Button("OK")],
+        [ts.Text("Hello")],
+        [ts.Input(key="-IN-"), ts.Button("OK")],
     ]
-    window = sg.Window("Demo", layout)
+    window = ts.Window("Demo", layout)
     event, values = window.read()
     window.close()
 """
@@ -20,7 +20,7 @@ from ._version import __version__, version, __author__, __email__, __license__, 
 from . import constants as C  # noqa: F401
 
 # --- typed enums (kill the magic strings) -----------------------------------------------
-# sg.Anchor.CENTER instead of "center", sg.EventType.DOUBLE_CLICK instead of
+# ts.Anchor.CENTER instead of "center", ts.EventType.DOUBLE_CLICK instead of
 # "<Double-1>" ... every enum's value IS the Tk string, so mixing styles works.
 from .enums import (
     Anchor,
@@ -193,15 +193,15 @@ def bind_event(event_names):
     The recommended way to wire events — no imports beyond ``sg``, no
     explicit manager::
 
-        @sg.bind_event("OK")
+        @ts.bind_event("OK")
         def on_ok(window, values):
-            sg.popup(f"hi {values['-IN-']}")
+            ts.popup(f"hi {values['-IN-']}")
 
-        sg.Window("Demo", layout).run()   # handler fires inside .run()
+        ts.Window("Demo", layout).run()   # handler fires inside .run()
 
     ``event_names`` is one key or a list of keys; the handler must be named
     with an ``on_`` prefix. The same manager also accepts ``bind_event``
-    directly (``sg.default_app().bind_event``).
+    directly (``ts.default_app().bind_event``).
     """
     return default_app().bind_event(event_names)
 
@@ -214,7 +214,7 @@ def on_event(event_names):
 def main_loop(window, app=None):
     """Run the single application event loop (user code never writes one).
 
-    The lighter form is ``window.run()`` / ``sg.SystemTray(...).run()`` —
+    The lighter form is ``window.run()`` / ``ts.SystemTray(...).run()`` —
     same loop, called on the root object itself.
     """
     return run_application(window, app=app)
@@ -266,7 +266,7 @@ from .popup import (
 # Every widget is also importable by its own name with a "T" prefix
 # (TText = Text, TButton = Button, TRoundButton = RoundButton, ...) —
 # a single mechanical rule, no renames. Both spellings are the same class;
-# existing sg.Text style code keeps working.
+# existing ts.Text style code keeps working.
 TText = Text
 TInput = Input
 TInputText = InputText

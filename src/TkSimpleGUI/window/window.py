@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """The :class:`Window` class: layout hosting, event loop and element lookup."""
 
+import contextlib
 import queue
 import threading
 import time
@@ -27,12 +28,12 @@ class Window:
 
     Typical usage::
 
-        window = sg.Window("Title", layout, finalize=True)
+        window = ts.Window("Title", layout, finalize=True)
         event, values = window.read()
         window["-INPUT-"].update("new text")
         window.close()
 
-    The class is also a context manager: ``with sg.Window(...) as win:``
+    The class is also a context manager: ``with ts.Window(...) as win:``
     finalizes on entry and closes on exit.
 
     Typing note: ``_tk_root`` is ``None`` until :meth:`finalize` (or the
@@ -87,7 +88,7 @@ class Window:
 
     # Global event bus: every element event lands here as
     # (window, event, values). There is ONE event loop for the whole
-    # application; any Window.read() (or sg.main_loop) consumes events
+    # application; any Window.read() (or ts.main_loop) consumes events
     # raised by ANY window, so multi window support is inherent.
     _event_bus: "queue.Queue[Any]" = queue.Queue()
 
@@ -181,26 +182,34 @@ class Window:
                 right_click_menu=right_click_menu,
                 parent=parent,
             )
-            title = resolved.pop("title")
-            layout = layout if layout is not None else resolved.pop("layout", None)
-            size = resolved.pop("size")
-            location = resolved.pop("location")
-            finalize = bool(resolved.pop("finalize"))
-            keep_on_top = resolved.pop("keep_on_top")
-            modal = resolved.pop("modal")
-            no_titlebar = resolved.pop("no_titlebar")
-            grab_anywhere = resolved.pop("grab_anywhere")
-            return_keyboard_events = resolved.pop("return_keyboard_events")
-            icon = resolved.pop("icon")
-            background_color = resolved.pop("background_color")
-            margins = resolved.pop("margins")
-            resizable = resolved.pop("resizable")
-            disable_close = resolved.pop("disable_close")
-            disable_esc = resolved.pop("disable_esc")
-            system_block = resolved.pop("system_block")
-            element_justification = resolved.pop("element_justification")
-            right_click_menu = resolved.pop("right_click_menu")
-            parent = resolved.pop("parent")
+            # every WindowConfig field maps 1:1 onto an __init__ local; the
+            # pop calls below splice them back into the local namespace
+            (title, size, location, parent, layout, finalize, keep_on_top,
+             modal, no_titlebar, grab_anywhere, return_keyboard_events,
+             icon, background_color, margins, resizable, disable_close,
+             disable_esc, system_block, element_justification,
+             right_click_menu) = (
+                resolved.pop("title"),
+                resolved.pop("size"),
+                resolved.pop("location"),
+                resolved.pop("parent"),
+                layout if layout is not None else resolved.pop("layout", None),
+                bool(resolved.pop("finalize")),
+                resolved.pop("keep_on_top"),
+                resolved.pop("modal"),
+                resolved.pop("no_titlebar"),
+                resolved.pop("grab_anywhere"),
+                resolved.pop("return_keyboard_events"),
+                resolved.pop("icon"),
+                resolved.pop("background_color"),
+                resolved.pop("margins"),
+                resolved.pop("resizable"),
+                resolved.pop("disable_close"),
+                resolved.pop("disable_esc"),
+                resolved.pop("system_block"),
+                resolved.pop("element_justification"),
+                resolved.pop("right_click_menu"),
+            )
         self._title = title if title is not None else ""
         self._layout = _validate_layout(layout)
         self._tk_root = None  # ty: ignore[invalid-assignment]
@@ -353,7 +362,7 @@ class Window:
         Called from :meth:`_mark_closed`; WIN_CLOSED notifications are kept
         so the application loop learns that a window went away.
         """
-        alive = set(id(window) for window in cls._open_windows)
+        alive = {id(window) for window in cls._open_windows}
         kept = []
         try:
             while True:
@@ -374,7 +383,7 @@ class Window:
         window is finalized out of the registry — with the single
         application loop this means "all windows closed → returns
         (None, WIN_CLOSED, {})" once the last one goes away, so callers can
-        simply loop until then (or use :func:`sg.main_loop`).
+        simply loop until then (or use :func:`ts.main_loop`).
         """
         deadline = None if timeout is None else time.time() + timeout / 1000.0
         while True:
@@ -442,10 +451,8 @@ class Window:
         # link into the parent's children list (also gives the WM grouping)
         if self._parent is not None:
             self._parent._register_child(self)
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._tk_root.transient(self._parent._tk_root)
-            except tk.TclError:
-                pass
         self._finalized = True
         self._show()
         return self
@@ -672,7 +679,7 @@ class Window:
 
     def _post_event(self, key):
         """Queue an event on the global bus (elements/user code; consumed by
-        any ``Window.read`` or ``sg.main_loop``)."""
+        any ``Window.read`` or ``ts.main_loop``)."""
         if self._closed:
             return
         if self._action_by_text and isinstance(key, str):
@@ -961,10 +968,8 @@ class Window:
             try:
                 self._tk_root.state("zoomed")
             except tk.TclError:
-                try:
+                with contextlib.suppress(tk.TclError):
                     self._tk_root.attributes("-zoomed", True)
-                except tk.TclError:
-                    pass
         return self
 
     def minimize(self):
@@ -989,10 +994,8 @@ class Window:
     def set_alpha_channel(self, alpha):
         """Set the window transparency (``0.0`` invisible - ``1.0`` opaque)."""
         if self._root_alive():
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._tk_root.attributes("-alpha", float(alpha))
-            except tk.TclError:
-                pass
         return self
 
     def keep_on_top(self):
@@ -1032,12 +1035,10 @@ class Window:
         self._icon = icon
         if self._root_alive():
             if icon is None:
-                try:
-                    # dropping the iconphoto mapping restores the embedded
-                    # interpreter icon on the title bar
+                # dropping the iconphoto mapping restores the embedded
+                # interpreter icon on the title bar
+                with contextlib.suppress(tk.TclError):
                     self._tk_root.tk.call("wm", "iconphoto", self._tk_root, "-default")
-                except tk.TclError:
-                    pass
                 return self
             self._apply_icon(icon)
         return self
@@ -1051,10 +1052,8 @@ class Window:
     def make_toolwindow(self, toolwindow=True):
         """Windows-only small tool window (no task bar entry)."""
         if self._root_alive():
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._tk_root.attributes("-toolwindow", bool(toolwindow))
-            except tk.TclError:
-                pass
         return self
 
     def transient(self, parent_window=None):
@@ -1301,17 +1300,13 @@ class Window:
 
     def _destroy_root(self):
         if self._tk_root is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._tk_root.destroy()
-            except tk.TclError:
-                pass
             self._tk_root = None  # ty: ignore[invalid-assignment]
         # last window gone: tear down the hidden master root too
         if not Window._open_windows and Window._main_root is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 Window._main_root.destroy()
-            except tk.TclError:
-                pass
             Window._main_root = None
 
     def __enter__(self):
@@ -1371,12 +1366,12 @@ class Window:
         The standard way to launch an application — no ``while True``, no
         explicit event manager::
 
-            app = sg.default_app()
+            app = ts.default_app()
 
             @app.bind_event("OK")
             def on_ok(window, values): ...
 
-            sg.Window("Demo", layout).run()
+            ts.Window("Demo", layout).run()
 
         An explicit manager can be passed (``window.run(app)``); handlers
         registered on it take precedence. Returns when the last window
@@ -1404,10 +1399,8 @@ class _TimerHandle:
         """Stop the timer (safe to call more than once)."""
         self._cancelled = True
         if self._id is not None and self._window._root_alive():
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._window._tk_root.after_cancel(self._id)
-            except tk.TclError:
-                pass
             self._id = None
         return self
 
@@ -1426,7 +1419,5 @@ def _validate_layout(layout):
     for row in layout:
         if row is None:
             continue
-        if not isinstance(row, (list, tuple)):
-            row = [row]
-        rows.append(list(row))
+        rows.append(list(row) if isinstance(row, (list, tuple)) else [row])
     return rows

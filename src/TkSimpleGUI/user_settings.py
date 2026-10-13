@@ -4,7 +4,7 @@
 Settings live in a JSON file (default ``~/.tksimplegui4/settings.json``)
 and every :meth:`~UserSettings.set` writes through to disk immediately::
 
-    prefs = sg.UserSettings("myapp.json")
+    prefs = ts.UserSettings("myapp.json")
     prefs.set("window/size", "800x600")
     prefs["theme"] = "Slate"
     print(prefs.get("theme"))

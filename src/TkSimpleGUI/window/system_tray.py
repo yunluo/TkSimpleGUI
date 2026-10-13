@@ -7,7 +7,7 @@ through :meth:`SystemTray.Read`. The message pump is the Tk event loop, so
 tray events fire while a window is being read; a standalone (windowless)
 tray creates its own hidden Tk root to pump with::
 
-    tray = sg.SystemTray(menu=["Show", "---", "Exit"])
+    tray = ts.SystemTray(menu=["Show", "---", "Exit"])
     event, _ = tray.Read(timeout=100)   # menu item text / __CLICKED__ / ...
     tray.ShowMessage("Hello", "Body")
     tray.close()
@@ -26,6 +26,7 @@ import time
 import tkinter
 
 from .. import constants as C
+import contextlib
 
 
 # --- win32 constants ---------------------------------------------------------
@@ -334,10 +335,8 @@ class SystemTray:
             ctypes.windll.user32.DestroyWindow(self._hwnd)
             self._hwnd = None
         if self._owns_root and self._tk_root is not None:
-            try:
+            with contextlib.suppress(Exception):
                 self._tk_root.destroy()
-            except Exception:
-                pass
             self._tk_root = None  # ty: ignore[invalid-assignment]
         return self
 
@@ -353,13 +352,13 @@ class SystemTray:
         normally. The loop ends when the tray is removed (``close()``) and
         no windows are left::
 
-            app = sg.default_app()
+            app = ts.default_app()
 
             @app.bind_event("Exit")
             def on_exit(tray, values):
                 tray.close()
 
-            sg.SystemTray(menu=["Show", "Exit"]).run()
+            ts.SystemTray(menu=["Show", "Exit"]).run()
         """
         from ..event import run_application
 
@@ -420,10 +419,8 @@ def _tray_wnd_proc(hwnd, msg, w_param, l_param):
     if msg == WM_TRAY_EVENT:
         tray = _ICONS.get(hwnd)
         if tray is not None:
-            try:
+            with contextlib.suppress(Exception):
                 tray._on_tray_event(l_param)
-            except Exception:
-                pass
             return 0
     if msg in (WM_CLOSE, WM_DESTROY, WM_NCDESTROY):
         return 0

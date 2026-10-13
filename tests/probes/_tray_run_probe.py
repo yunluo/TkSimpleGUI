@@ -4,7 +4,7 @@ import sys
 import os
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "..", "src"))
-import TkSimpleGUI as sg
+import TkSimpleGUI as ts
 
 LOG = os.path.join(os.path.dirname(os.path.abspath(__file__)), "_tray_run_trace.txt")
 
@@ -18,8 +18,8 @@ if os.path.exists(LOG):
     os.remove(LOG)
 
 trace("start")
-app = sg.TkSimpleEvent()
-tray = sg.SystemTray(title="tray run probe", menu=["Exit"])
+app = ts.TkSimpleEvent()
+tray = ts.SystemTray(title="tray run probe", menu=["Exit"])
 trace("tray created")
 
 

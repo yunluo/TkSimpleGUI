@@ -5,7 +5,7 @@ A grab-bag of small standalone utilities the package itself leans on:
 ``Timer`` (stopwatch), ``Translator`` (i18n), platform probes, font
 helpers, rgb conversion, etc. The class and free functions are all
 re-exported from the package root, so callers should keep using
-``sg.Translator``, ``sg._`` and so on.
+``ts.Translator``, ``ts._`` and so on.
 """
 
 import json
@@ -84,12 +84,7 @@ def rgb(red, green, blue):
     """Convert red/green/blue ints (clamped to 0-255) to a Tk color string."""
     values = []
     for component in (red, green, blue):
-        component = int(component)
-        if component < 0:
-            component = 0
-        elif component > 255:
-            component = 255
-        values.append(component)
+        values.append(max(0, min(255, int(component))))
     return f"#{values[0]:02x}{values[1]:02x}{values[2]:02x}"
 
 
@@ -216,8 +211,8 @@ class Translator:
     at a JSON file with the same shape) and then wrap every UI string
     with :func:`_`::
 
-        sg.set_translations({"Open": "Ouvert", "Save": "Sauve"})
-        sg.Text(_("Open"))
+        ts.set_translations({"Open": "Ouvert", "Save": "Sauve"})
+        ts.Text(_("Open"))
     """
 
     __slots__ = ("_catalog",)

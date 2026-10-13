@@ -18,23 +18,23 @@
 
 - **零事件循环** — 永远不写 `while True`：`window.run()` 一个入口，
   全局唯一事件循环天然支持多窗口协同
-- **事件绑定走装饰器** — `@sg.bind_event` 绑定模块级 `on_*` 函数，
+- **事件绑定走装饰器** — `@ts.bind_event` 绑定模块级 `on_*` 函数，
   `window` / `event` / `values` 按参数名自动注入
 - **面向对象控件** — 每个控件都是真正的类实例，属性读写、方法直调，
   不再和 `window["-KEY-"].update(...)` 的字符串寻址缠斗
-- **两种命名风格** — 朴素（`sg.Text`）与统一 T 前缀
-  （`sg.TText` / `sg.TInput` / `sg.TButton`）——同一个类，随你喜欢
+- **两种命名风格** — 朴素（`ts.Text`）与统一 T 前缀
+  （`ts.TText` / `ts.TInput` / `ts.TButton`）——同一个类，随你喜欢
 - **消灭魔术字符串** — Tk 的字符串选项全部类型化为枚举
-  （`sg.Anchor.CENTER`、`sg.Justify.RIGHT`、`sg.EventType.DOUBLE_CLICK`、
-  `sg.Color.NAVY`、`sg.Relief.SUNKEN`…），枚举值本身就是 Tk 字符串，裸字符串依旧可用
-- **dataclass 配置对象** — `sg.WindowConfig` / `sg.ElementOptions`
+  （`ts.Anchor.CENTER`、`ts.Justify.RIGHT`、`ts.EventType.DOUBLE_CLICK`、
+  `ts.Color.NAVY`、`ts.Relief.SUNKEN`…），枚举值本身就是 Tk 字符串，裸字符串依旧可用
+- **dataclass 配置对象** — `ts.WindowConfig` / `ts.ElementOptions`
   声明式参数包，可共享复用
 - **100% 类型标注** — `py.typed`（PEP 561），ty 零诊断，IDE 全程补全与检查
 - **超越 Tk** — 圆角按钮、图像按钮、文字进度条、全局热键、任务栏进度、
   系统托盘、日历控件、表格编辑/排序、拆分器、流式面板……Tk/ttk 没有的这里也有
 - **封装彻底** — `__slots__` 全覆盖、私有属性 + `@property`、
   主题与设置走单例而非模块全局
-- **系统原生外观** — 不调 `sg.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
+- **系统原生外观** — 不调 `ts.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
 - **Python 3.7+** — 3.8+ 零第三方依赖（3.7 需 `typing_extensions`），Tkinter/ttk + 标准库
 
 ## 安装
@@ -46,19 +46,19 @@ pip install TkSimpleGUI
 ## 快速上手
 
 ```python
-import TkSimpleGUI as sg
+import TkSimpleGUI as ts
 
-window = sg.Window("Demo", [
-    [sg.Text("Hello, TkSimpleGUI!", key="-OUT-")],
-    [sg.Input(key="-IN-"), sg.Button("Greet")],
-    [sg.Button("Exit")],
+window = ts.Window("Demo", [
+    [ts.Text("Hello, TkSimpleGUI!", key="-OUT-")],
+    [ts.Input(key="-IN-"), ts.Button("Greet")],
+    [ts.Button("Exit")],
 ])
 
-@sg.bind_event
+@ts.bind_event
 def on_greet(window, values):
     window["-OUT-"].update(f"Hello, {values['-IN-'] or 'stranger'}!")
 
-@sg.bind_event
+@ts.bind_event
 def on_exit(window):
     window.close()
 
@@ -68,15 +68,15 @@ window.run()   # 就这一行——没有 while True
 多窗口同样零仪式：
 
 ```python
-main = sg.Window("Main", [[sg.Button("Open child")], [sg.Button("Quit")]])
-child = sg.Window("Child", [[sg.Text("I am the child")], [sg.Button("Close me")]],
+main = ts.Window("Main", [[ts.Button("Open child")], [ts.Button("Quit")]])
+child = ts.Window("Child", [[ts.Text("I am the child")], [ts.Button("Close me")]],
                   parent=main)
 
-@sg.bind_event
+@ts.bind_event
 def on_open_child(window):
     child.un_hide()
 
-@sg.bind_event
+@ts.bind_event
 def on_close_me(window):
     window.close()
 
@@ -86,8 +86,8 @@ main.run()     # 唯一的循环，泵所有窗口
 ## 窗口层级
 
 ```python
-main = sg.Window("Main", layout)
-child = sg.Window("Child", layout, parent=main)
+main = ts.Window("Main", layout)
+child = ts.Window("Child", layout, parent=main)
 
 child.parent is main        # True
 main.children               # [child]
@@ -98,18 +98,18 @@ child.close()               # 级联关闭自己的子窗口
 ## 声明式配置（dataclass）
 
 ```python
-import TkSimpleGUI as sg
+import TkSimpleGUI as ts
 
-label_style = sg.ElementOptions(justification=sg.Justify.CENTER,
+label_style = ts.ElementOptions(justification=ts.Justify.CENTER,
                                 expand_x=True, pad=(8, 4))
 
 layout = [
-    [sg.Text("Title", config=label_style)],
-    [sg.Text("Body", config=label_style)],
+    [ts.Text("Title", config=label_style)],
+    [ts.Text("Body", config=label_style)],
 ]
 
-cfg = sg.WindowConfig(title="Settings", size=(420, 280), resizable=True)
-window = sg.Window(config=cfg)
+cfg = ts.WindowConfig(title="Settings", size=(420, 280), resizable=True)
+window = ts.Window(config=cfg)
 window.layout(layout).finalize()
 ```
 

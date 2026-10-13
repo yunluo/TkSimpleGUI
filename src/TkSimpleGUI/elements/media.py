@@ -7,6 +7,7 @@ from typing import Optional, Tuple, Union
 
 from .base import Element
 from .. import _theming as theme_mod
+import contextlib
 
 # A drawing point in user/graph coordinates.
 Point = Tuple[float, float]
@@ -161,10 +162,8 @@ class Image(Element):
 
     def _stop_animation(self):
         if self._animation_job is not None and self._widget is not None:
-            try:
+            with contextlib.suppress(tk.TclError):
                 self._widget.after_cancel(self._animation_job)
-            except tk.TclError:
-                pass
             self._animation_job = None
 
     def animation_control(self, start=True, delay=None):
@@ -258,14 +257,13 @@ class Canvas(Element):
 
     def _create_widget(self, master):
         kwargs = theme_mod.theme_manager.text_kwargs(background_color=self._background_color)
-        canvas = tk.Canvas(
+        return tk.Canvas(
             master,
             width=self._canvas_size[0],
             height=self._canvas_size[1],
             highlightthickness=0,
             **kwargs
         )
-        return canvas
 
     def _bind_events(self):
         self._widget.bind("<Button-1>", self._on_click)

@@ -67,10 +67,9 @@ class Frame(ContainerElement):
             Literal["nw", "n", "ne", "en", "e", "es", "se", "s", "sw", "wn", "w", "ws"],
             str(self._label_anchor).lower(),
         )
-        frame = ttk.Labelframe(
+        return ttk.Labelframe(
             master, text=self._title, labelanchor=anchor, **kwargs
         )
-        return frame
 
     def update(self, value=None, visible=None):
         if value is not None:
@@ -124,8 +123,7 @@ class Column(ContainerElement):
         if bg is not None:
             kwargs["style"] = "Custom.TFrame"
             kwargs["background"] = bg
-        frame = tk.Frame(master, **kwargs)
-        return frame
+        return tk.Frame(master, **kwargs)
 
     def update(self, visible=None):
         if visible is not None:
@@ -173,7 +171,7 @@ class Tab(ContainerElement):
         bg = theme_mod.theme_manager.background_color
         if bg is not None:
             kwargs["background"] = bg
-        frame = ttk.Frame(master, **kwargs)
+        return ttk.Frame(master, **kwargs)
         return frame
 
     def update(self, title=None, visible=None):
@@ -450,7 +448,7 @@ class Splitter(ContainerElement):
     layout becomes one pane. ``orientation`` "h" stacks panes side by side,
     "v" on top of each other. Delphi's TSplitter / Qt's QSplitter equivalent::
 
-        sg.Splitter([[sg.Text("left")], [sg.Input()]], [[sg.Text("right")]])
+        ts.Splitter([[ts.Text("left")], [ts.Input()]], [[ts.Text("right")]])
     """
 
     __slots__ = (
@@ -529,7 +527,7 @@ class ScrollableColumn(ContainerElement):
     Delphi's TScrollBox equivalent: nested layout content larger than the
     element scrolls with the mouse wheel or scrollbars::
 
-        sg.ScrollableColumn(long_layout, size=(300, 200))
+        ts.ScrollableColumn(long_layout, size=(300, 200))
     """
 
     __slots__ = (
@@ -883,8 +881,8 @@ class KeyValueEditor(ContainerElement):
         self._labels = []
         self._inputs = []
         rows = []
-        for label, value in pairs:
-            label = str(label)
+        for raw_label, value in pairs:
+            label = str(raw_label)
             input_element = Input(
                 "" if value is None else str(value), size=value_size
             )
@@ -905,9 +903,10 @@ class KeyValueEditor(ContainerElement):
 
     def get(self):
         """``{label: current_value}`` for every row."""
-        return dict(
-            (label, element.get()) for label, element in zip(self._labels, self._inputs)
-        )
+        return {
+            label: element.get()
+            for label, element in zip(self._labels, self._inputs)
+        }
 
     def _create_widget(self, master):
         kwargs = {}
