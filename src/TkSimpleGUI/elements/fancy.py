@@ -16,6 +16,7 @@ import tkinter as tk
 from typing import Callable, Optional, Tuple
 
 from .base import Element
+from .. import _theming as theme_mod
 import contextlib
 
 # A Tk color string ("#rrggbb" or a name); "" means transparent.
@@ -66,6 +67,7 @@ class _CanvasButton(Element):
         "_height",
         "_fill",
         "_hover_fill",
+        "_theme_fill",
         "_text_color",
         "_font",
         "_clicked",
@@ -76,9 +78,9 @@ class _CanvasButton(Element):
     def __init__(
         self,
         size=(100, 32),
-        fill_color="#3a7bd5",
+        fill_color=None,
         hover_color=None,
-        text_color="#ffffff",
+        text_color=None,
         font=None,
         key=None,
         enable_events=True,
@@ -103,9 +105,15 @@ class _CanvasButton(Element):
         )
         self._width = int(size[0] or 100)
         self._height = int(size[1] or 32)
-        self._fill = fill_color
-        self._hover_fill = hover_color or self._lighten(fill_color)
-        self._text_color = text_color
+        # uncolored buttons pick up the current theme's accent hue
+        self._theme_fill = fill_color is None
+        accent = theme_mod.theme_manager.accent_color()
+        self._fill = fill_color or accent or "#3a7bd5"
+        self._hover_fill = hover_color or self._lighten(self._fill)
+        if text_color is not None:
+            self._text_color = text_color
+        else:
+            self._text_color = theme_mod.contrast_on(self._fill)
         self._font = font
         self._clicked: Optional[Callable[[_CanvasButton], None]] = None
         self._background_id = None
@@ -165,6 +173,22 @@ class _CanvasButton(Element):
         )
         return self._background_id in overlapping
 
+    def apply_theme(self):
+        """Re-derive the fill when it came from the theme accent."""
+        if not self._theme_fill or self._widget is None:
+            return self
+        accent = theme_mod.theme_manager.accent_color()
+        fill = accent or "#3a7bd5"
+        if fill != self._fill:
+            self._fill = fill
+            self._hover_fill = self._lighten(fill)
+            self._text_color = theme_mod.contrast_on(fill)
+            if self._background_id is not None:
+                self._widget.itemconfigure(self._background_id, fill=self._fill)
+            if self._text_id is not None:
+                self._widget.itemconfigure(self._text_id, fill=self._text_color)
+        return self
+
     def _on_click(self, event):
         if self._hit(event):
             self._post_event()
@@ -206,9 +230,9 @@ class RoundButton(_CanvasButton):
         text="",
         size=(100, 32),
         radius=10,
-        fill_color="#3a7bd5",
+        fill_color=None,
         hover_color=None,
-        text_color="#ffffff",
+        text_color=None,
         font=None,
         key=None,
         enable_events=True,
@@ -382,6 +406,7 @@ class TextProgressBar(Element):
         "_current",
         "_bar_color",
         "_trough_color",
+        "_theme_bar",
         "_text_color",
         "_font",
         "_show_text",
@@ -395,9 +420,9 @@ class TextProgressBar(Element):
         max_value,
         current_value=0,
         size=(140, 20),
-        bar_color="#3a7bd5",
+        bar_color=None,
         trough_color=None,
-        text_color="#ffffff",
+        text_color=None,
         font=None,
         show_text=True,
         key=None,
@@ -422,14 +447,44 @@ class TextProgressBar(Element):
         )
         self._max_value = max_value if max_value else 100
         self._current = current_value
-        self._bar_color = bar_color
-        self._trough_color = trough_color
-        self._text_color = text_color
+        # uncolored bars follow the theme accent; the trough blends toward
+        # the theme background so it stays quiet in every palette
+        self._theme_bar = bar_color is None and trough_color is None
+        accent = theme_mod.theme_manager.accent_color()
+        self._bar_color = bar_color or accent or "#3a7bd5"
+        surface = theme_mod.theme_manager.background_color
+        if trough_color is not None:
+            self._trough_color = trough_color
+        elif surface and not theme_mod._is_system_default(surface):
+            self._trough_color = _mix_color(self._bar_color, surface, 0.75)
+        else:
+            self._trough_color = None  # resolved at draw time
+        self._text_color = text_color or theme_mod.contrast_on(self._bar_color)
         self._font = font
         self._show_text = bool(show_text)
         self._trough_id = None
         self._bar_id = None
         self._label_id = None
+
+    def apply_theme(self):
+        """Re-derive bar/trough/text colors when they came from the theme."""
+        if not self._theme_bar or self._widget is None:
+            return self
+        accent = theme_mod.theme_manager.accent_color()
+        bar = accent or "#3a7bd5"
+        surface = theme_mod.theme_manager.background_color
+        if surface and not theme_mod._is_system_default(surface):
+            trough = _mix_color(bar, surface, 0.75)
+        else:
+            trough = _mix_color(bar, "#222222", 0.75)
+        self._bar_color = bar
+        self._trough_color = trough
+        self._text_color = theme_mod.contrast_on(bar)
+        self._widget.itemconfigure(self._trough_id, fill=trough)
+        self._widget.itemconfigure(self._bar_id, fill=bar)
+        if self._label_id is not None:
+            self._widget.itemconfigure(self._label_id, fill=self._text_color)
+        return self
 
     def _create_widget(self, master):
         width = int(self._size[0] or 140)

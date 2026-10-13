@@ -256,7 +256,10 @@ class Canvas(Element):
         self._canvas_size = size
 
     def _create_widget(self, master):
-        kwargs = theme_mod.theme_manager.text_kwargs(background_color=self._background_color)
+        kwargs = {}
+        bg = theme_mod.theme_manager.effective_background(self._background_color)
+        if bg is not None:
+            kwargs["background"] = bg
         return tk.Canvas(
             master,
             width=self._canvas_size[0],
@@ -267,9 +270,12 @@ class Canvas(Element):
 
     def apply_theme(self):
         if self._background_color is None:
-            kwargs = theme_mod.theme_manager.text_kwargs()
-            if "background" in kwargs:
-                self._widget.configure(background=kwargs["background"])
+            bg = theme_mod.theme_manager.effective_background()
+            if bg is None:
+                bg = theme_mod.native_widget_colors(
+                    tk.Canvas, self._widget, ("background",)
+                )["background"]
+            self._widget.configure(background=bg)
         return self
 
     def _bind_events(self):

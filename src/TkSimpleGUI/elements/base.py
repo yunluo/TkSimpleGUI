@@ -432,11 +432,13 @@ class Tooltip:
         tip = tk.Toplevel(self._widget)
         tip.wm_overrideredirect(True)
         tip.wm_geometry(f"+{x}+{y}")
+        # themed windows get a themed tooltip; native keeps the classic look
+        colors = theme_mod.theme_manager.tooltip_colors()
         label = tk.Label(
             tip,
             text=self._text,
-            background="#ffffe0",
-            foreground="#000000",
+            background=colors.get("background", "#ffffe0"),
+            foreground=colors.get("foreground", "#000000"),
             justify="left",
             relief="solid",
             borderwidth=1,
@@ -550,6 +552,16 @@ class ContainerElement(Element):
         super()._post_create()
         if self._layout:
             self._window._build_layout(self._layout, self._widget)
+
+    def apply_theme(self):
+        """Repaint the container surface so nested themed rows sit on it."""
+        bg = theme_mod.theme_manager.effective_background()
+        if bg is None:
+            bg = theme_mod.native_widget_colors(
+                tk.Frame, self._widget, ("background",)
+            )["background"]
+        self._widget.configure(background=bg)
+        return self
 
 
 def build_popup_menu(owner, master, definition):

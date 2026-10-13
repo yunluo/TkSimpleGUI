@@ -142,6 +142,90 @@ class TestThemes(unittest.TestCase):
             window.close()
             ts.theme(None)
 
+    def test_update_theme_repaints_unkeyed_elements(self):
+        """Elements without a key repaint too (classic tk widgets stay dark)."""
+        window = ts.Window(
+            "unkeyed",
+            [[ts.Multiline("m", key="-ML-")],
+             [ts.Button("Toggle", toggle=True), ts.Button("Plain")],
+             [ts.CheckList(["a", "b"]), ts.Listbox(["x"], key="-LB-")]],
+            finalize=True,
+        )
+        try:
+            ts.theme("Slate")
+            slate_bg = ts.theme_background_color()
+            window.update_theme()
+            multiline = window["-ML-"]
+            self.assertEqual(
+                str(multiline._text.cget("background")),
+                ts.theme_input_background_color(),
+            )
+            # find the unkeyed toggle button / checklist via the flat list
+            from TkSimpleGUI.elements.buttons import Button
+            from TkSimpleGUI.elements.widgets import CheckList
+            buttons = [e for e in window._elements if isinstance(e, Button)]
+            checklists = [
+                e for e in window._elements if isinstance(e, CheckList)
+            ]
+            self.assertEqual(
+                str(buttons[0].widget.cget("background")),
+                ts.theme_button_color()[1],
+            )
+            self.assertEqual(
+                str(checklists[0].widget.cget("background")), slate_bg
+            )
+        finally:
+            window.close()
+            ts.theme(None)
+
+    def test_native_theme_builds_full_zoo(self):
+        """Under System the sentinel colors never reach tk (regression)."""
+        window = ts.Window(
+            "zoo",
+            [[ts.Column([[ts.Text("c")]]), ts.Frame("F", [[ts.Text("f")]])],
+             [ts.TabGroup([[ts.Tab("T", [[ts.Text("t")]])]])],
+             [ts.Canvas(size=(20, 20)), ts.Listbox(["i"]),
+              ts.CheckList(["a"]), ts.Calendar()],
+             [ts.LabeledEdit("L"), ts.LED(1), ts.RoundButton("R"),
+              ts.TextProgressBar(10, current_value=5)]],
+            finalize=True,
+        )
+        window.close()
+        self.assertTrue(window.was_closed)
+
+    def test_update_theme_back_to_native_restores(self):
+        """A themed window switched back to System returns to native look."""
+        window = ts.Window("revert", [[ts.Text("t", key="-T-")]], finalize=True)
+        try:
+            ts.theme("Slate")
+            window.update_theme()
+            self.assertEqual(
+                window._ttk_style.theme_use(), "clam"
+            )
+            slate_bg = ts.theme_background_color()
+            self.assertEqual(str(window["-T-"].widget.cget("background")), slate_bg)
+            ts.theme(None)
+            window.update_theme()
+            # ttk engine left clam again...
+            self.assertNotEqual(window._ttk_style.theme_use(), "clam")
+            # ...and the window surface dropped the themed background
+            self.assertNotEqual(
+                str(window._tk_root.cget("background")), slate_bg
+            )
+        finally:
+            window.close()
+            ts.theme(None)
+
+    def test_accent_and_tooltip_helpers(self):
+        from TkSimpleGUI._theming import theme_manager
+        ts.theme("Slate")
+        self.assertEqual(theme_manager.accent_color(), "#6b9bd1")
+        colors = theme_manager.tooltip_colors()
+        self.assertIn("background", colors)
+        ts.theme(None)
+        self.assertIsNone(theme_manager.accent_color())
+        self.assertEqual(theme_manager.tooltip_colors(), {})
+
 
 class TestSettings(unittest.TestCase):
     def test_set_get(self):

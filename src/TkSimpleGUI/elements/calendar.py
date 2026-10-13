@@ -110,6 +110,10 @@ class Calendar(Element):
     # --- widget construction ------------------------------------------------------
     def _create_widget(self, master):
         bg = self._surface_color(master)
+        muted = theme_mod.theme_manager.muted_color()
+        fg = theme_mod.theme_manager.text_color
+        if muted is None or theme_mod._is_system_default(fg):
+            muted = "#808080"  # native look
         frame = tk.Frame(master, background=bg)
         header = ttk.Label(
             frame,
@@ -125,13 +129,16 @@ class Calendar(Element):
             frame, text=">", width=3, command=lambda: self._shift(1)
         )
         next_button.grid(row=1, column=5, columnspan=2)
+        # weekday headers get their own row: sharing row 1 with the nav
+        # buttons made the labels overlap the buttons
         for column, name in enumerate(_WEEKDAY_HEADERS):
             weekday = tk.Label(
-                frame, text=name, anchor="center", background=bg
+                frame, text=name, anchor="center",
+                background=bg, foreground=muted,
             )
-            weekday.grid(row=1, column=column, sticky="ew", padx=1)
+            weekday.grid(row=2, column=column, sticky="ew", padx=1)
         day_area = tk.Frame(frame, background=bg)
-        day_area.grid(row=2, column=0, columnspan=7, sticky="nsew")
+        day_area.grid(row=3, column=0, columnspan=7, sticky="nsew")
         self._header = header
         self._day_area = day_area
         frame.columnconfigure(2, weight=1)
@@ -140,7 +147,7 @@ class Calendar(Element):
     @staticmethod
     def _surface_color(master):
         """The surface color to paint the calendar onto (theme aware)."""
-        themed = theme_mod.theme_manager.background_color
+        themed = theme_mod.theme_manager.effective_background()
         if themed is not None:
             return themed
         # ttk parents do not expose -background via cget; ask the toplevel
@@ -157,6 +164,11 @@ class Calendar(Element):
         self._draw_month()
 
     # --- month rendering -------------------------------------------------------------
+    def _accent(self):
+        """Selection color for the chosen day (theme accent / classic blue)."""
+        accent = theme_mod.theme_manager.accent_color()
+        return accent if accent is not None else "#3a7bd5"
+
     def _draw_month(self):
         self._header.configure(
             text=f"{_calendar.month_name[self._viewed.month]} {self._viewed.year}"
@@ -164,6 +176,10 @@ class Calendar(Element):
         for child in self._day_area.winfo_children():
             child.destroy()
         background = self._day_area.cget("background")
+        fg = theme_mod.theme_manager.text_color
+        native = theme_mod._is_system_default(fg)
+        accent = self._accent()
+        accent_fg = theme_mod.contrast_on(accent)
         weeks = _calendar.Calendar(firstweekday=0).monthdayscalendar(
             self._viewed.year, self._viewed.month
         )
@@ -186,12 +202,34 @@ class Calendar(Element):
                     relief="sunken" if is_selected else "flat",
                     bd=0,
                     highlightthickness=0,
-                    background="#3a7bd5" if is_selected else background,
-                    foreground="#ffffff" if is_selected else "#000000",
-                    activebackground="#3a7bd5",
+                    background=accent if is_selected else background,
+                    activebackground=accent,
+                    activeforeground=accent_fg,
                     command=lambda d=day_date: self._choose_day(d),
                 )
+                if not native:
+                    # classic tk.Button rejects "" — only pass themed colors
+                    button.configure(foreground=accent_fg if is_selected else fg)
                 button.grid(row=row_index, column=column, padx=1, pady=1)
+
+    def apply_theme(self):
+        """Repaint the calendar surface, weekday row and days."""
+        if self._widget is None or self._day_area is None:
+            return self
+        bg = self._surface_color(self._widget.master)
+        muted = theme_mod.theme_manager.muted_color()
+        fg = theme_mod.theme_manager.text_color
+        if theme_mod._is_system_default(fg):
+            muted = theme_mod.native_widget_colors(
+                tk.Label, self._widget, ("foreground",)
+            )["foreground"]
+        self._widget.configure(background=bg)
+        self._day_area.configure(background=bg)
+        for child in self._widget.winfo_children():
+            if isinstance(child, tk.Label):
+                child.configure(background=bg, foreground=muted)
+        self._draw_month()
+        return self
 
     def _choose_day(self, day_date):
         self._date = day_date

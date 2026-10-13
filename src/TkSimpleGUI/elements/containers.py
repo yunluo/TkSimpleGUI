@@ -59,7 +59,15 @@ class Frame(ContainerElement):
         return self._title
 
     def _create_widget(self, master):
-        kwargs = theme_mod.theme_manager.text_kwargs()
+        manager = theme_mod.theme_manager
+        # ttk.Labelframe takes ttk-style options: let the style sheet carry
+        # the palette unless a per-widget background was requested
+        kwargs: Dict[str, Any] = {}
+        bg = manager.effective_background()
+        if bg is not None:
+            kwargs["style"] = manager.ttk_widget_style(
+                master, "TLabelframe", background=bg
+            )
         width = self._size[0] if self._size else None
         if width is not None:
             kwargs["width"] = int(width)
@@ -77,6 +85,18 @@ class Frame(ContainerElement):
             self._widget.configure(text=value)
         if visible is not None:
             self.unhide() if visible else self.hide()
+        return self
+
+    def apply_theme(self):
+        """Recompute the derived Labelframe style (theme colors move)."""
+        manager = theme_mod.theme_manager
+        bg = manager.effective_background()
+        style = "TLabelframe"
+        if bg is not None:
+            style = manager.ttk_widget_style(
+                self._widget, "TLabelframe", background=bg
+            )
+        self._widget.configure(style=style)
         return self
 
 
@@ -119,17 +139,19 @@ class Column(ContainerElement):
 
     def _create_widget(self, master):
         kwargs = {}
-        bg = self._background_color or theme_mod.theme_manager.background_color
+        bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
-            kwargs["style"] = "Custom.TFrame"
             kwargs["background"] = bg
         return tk.Frame(master, **kwargs)
 
     def apply_theme(self):
         if self._background_color is None:
-            bg = theme_mod.theme_manager.background_color
-            if bg is not None and bg != C.COLOR_SYSTEM_DEFAULT:
-                self._widget.configure(background=bg)
+            bg = theme_mod.theme_manager.effective_background()
+            if bg is None:
+                bg = theme_mod.native_widget_colors(
+                    tk.Frame, self._widget, ("background",)
+                )["background"]
+            self._widget.configure(background=bg)
         return self
 
     def update(self, visible=None):
@@ -174,12 +196,9 @@ class Tab(ContainerElement):
         return self._title
 
     def _create_widget(self, master):
-        kwargs = {}
-        bg = theme_mod.theme_manager.background_color
-        if bg is not None:
-            kwargs["background"] = bg
-        return ttk.Frame(master, **kwargs)
-        return frame
+        # ttk.Frame carries colors through the style sheet, not options;
+        # only fall back to a derived style when the palette is overridden
+        return ttk.Frame(master, style="Tab.TFrame")
 
     def update(self, title=None, visible=None):
         if title is not None:
@@ -507,7 +526,7 @@ class Splitter(ContainerElement):
             else "vertical"
         )
         kwargs: Dict[str, Any] = {"sashwidth": int(self._handle_size or 8)}
-        bg = self._background_color or theme_mod.theme_manager.background_color
+        bg = theme_mod.theme_manager.effective_background(self._background_color)
         if bg is not None:
             kwargs["background"] = bg
         paned = tk.PanedWindow(master, orient=orient, **kwargs)
@@ -585,7 +604,7 @@ class ScrollableColumn(ContainerElement):
 
     def _create_widget(self, master):
         kwargs = {}
-        bg = self._background_color or theme_mod.theme_manager.background_color
+        bg = theme_mod.theme_manager.effective_background(self._background_color)
         if bg is not None:
             kwargs["background"] = bg
         outer = tk.Frame(master)
@@ -658,6 +677,16 @@ class ScrollableColumn(ContainerElement):
             self.unhide() if visible else self.hide()
         return self
 
+    def apply_theme(self):
+        bg = theme_mod.theme_manager.effective_background(self._background_color)
+        if bg is None:
+            bg = theme_mod.native_widget_colors(
+                tk.Frame, self._canvas, ("background",)
+            )["background"]
+        self._canvas.configure(background=bg)
+        self._inner_frame.configure(background=bg)
+        return self
+
 
 def _width_of(size):
     return size[0] if size and size[0] else 300
@@ -714,7 +743,7 @@ class Toolbar(Element):
 
     def _create_widget(self, master):
         kwargs = {}
-        bg = self._background_color or theme_mod.theme_manager.background_color
+        bg = theme_mod.theme_manager.effective_background(self._background_color)
         if bg is not None:
             kwargs["background"] = bg
         frame = tk.Frame(master, **kwargs)
@@ -840,7 +869,7 @@ class LabeledEdit(ContainerElement):
 
     def _create_widget(self, master):
         kwargs = {}
-        bg = theme_mod.theme_manager.background_color
+        bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
             kwargs["background"] = bg
         return tk.Frame(master, **kwargs)
@@ -917,7 +946,7 @@ class KeyValueEditor(ContainerElement):
 
     def _create_widget(self, master):
         kwargs = {}
-        bg = theme_mod.theme_manager.background_color
+        bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
             kwargs["background"] = bg
         return tk.Frame(master, **kwargs)
@@ -983,7 +1012,7 @@ class FlowPanel(Element):
 
     def _create_widget(self, master):
         kwargs = {}
-        bg = self._background_color or theme_mod.theme_manager.background_color
+        bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
             kwargs["background"] = bg
         return tk.Frame(master, **kwargs)

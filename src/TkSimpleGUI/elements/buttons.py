@@ -236,6 +236,36 @@ class Button(Element):
         else:
             self._widget.configure(command=self._on_click)
 
+    def apply_theme(self):
+        """Repaint theme-derived button colors (explicit colors are kept)."""
+        if self._toggle:
+            # tk toggle button: re-apply its color kwargs directly
+            kwargs = theme_mod.theme_manager.button_kwargs(self._button_color)
+            if not kwargs:
+                kwargs = theme_mod.native_widget_colors(
+                    tk.Button, self._widget,
+                    ("background", "foreground",
+                     "activebackground", "activeforeground"),
+                )
+            self._widget.configure(**kwargs)
+            return self
+        colors = self._button_color
+        if colors is None:
+            colors = theme_mod.theme_manager.button_colors
+        style_options = {}
+        if colors is not None:
+            fg, bg = colors
+            if fg is not None:
+                style_options["foreground"] = fg
+            if bg is not None:
+                style_options["background"] = bg
+        if self._font is not None:
+            style_options["font"] = self._font
+        self._widget.configure(style=theme_mod.theme_manager.ttk_widget_style(
+            self._widget, "TButton", **style_options
+        ))
+        return self
+
     # --- behaviour -------------------------------------------------------------
     def _on_click(self):
         if self._toggle:

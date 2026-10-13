@@ -107,7 +107,7 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m pytest tests -q`（188 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 测试：`python -m pytest tests -q`（196 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
 - 类型：`python tests/check_types.py`（ty 零诊断守卫；找不到 ty 时返回非零）
 - Lint：`ruff check src tests`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）
 - 语法：`python tests/check_syntax.py`（用当前解释器 ast 全量解析；3.7 结论需在 3.7 下运行）

@@ -8,6 +8,7 @@ system's native look (Windows Vista style, macOS Aqua, ...). Applying a named
 theme from :data:`LOOK_AND_FEEL_TABLE` switches to TkSimpleGUI colors.
 """
 
+import contextlib
 import tkinter as tk
 from tkinter import ttk
 
@@ -24,6 +25,54 @@ def _is_system_default(value):
     user gets ``TclError: unknown color name "1234567890"``.
     """
     return value is None or value == C.COLOR_SYSTEM_DEFAULT
+
+
+# --- small hex color helpers (module level, used by the ttk skin) --------------
+def _parse_hex(color):
+    """``#rrggbb`` -> ``(r, g, b)``, or ``None`` for named/invalid colors."""
+    try:
+        value = color.lstrip("#")
+        if len(value) != 6:
+            return None
+        return tuple(int(value[i:i + 2], 16) for i in (0, 2, 4))
+    except (AttributeError, TypeError, ValueError):
+        return None
+
+
+def _blend(color, other, ratio):
+    """Mix ``color`` toward ``other`` by ``ratio`` (0..1). Non-hex passthrough."""
+    base, target = _parse_hex(color), _parse_hex(other)
+    if base is None or target is None:
+        return color
+    mixed = tuple(round(b + (t - b) * ratio) for b, t in zip(base, target))
+    return "#{:02x}{:02x}{:02x}".format(*mixed)
+
+
+def _luminance(color):
+    """Perceived brightness 0..1 (unknown colors count as mid gray)."""
+    rgb = _parse_hex(color)
+    if rgb is None:
+        return 0.5
+    return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255.0
+
+
+def contrast_on(color):
+    """Black or white text color — whichever reads better on ``color``."""
+    return "#ffffff" if _luminance(color) < 0.55 else "#1e2228"
+
+
+def native_widget_colors(widget_class, master, options):
+    """Sample platform-default option values from a throwaway widget.
+
+    Classic tk widgets reject ``""`` as a color, so the only reliable way
+    to undo theme colors is to copy the defaults from a fresh instance of
+    the same class. Returns ``{option: value}``.
+    """
+    probe = widget_class(master)
+    try:
+        return {option: str(probe.cget(option)) for option in options}
+    finally:
+        probe.destroy()
 
 
 
@@ -50,12 +99,13 @@ class ThemeManager(object):
     their colors (see :meth:`Window.update_theme`).
     """
 
-    __slots__ = ("_name", "_style_cache", "_theme_version")
+    __slots__ = ("_name", "_style_cache", "_theme_version", "_native_engine")
 
     def __init__(self):
         self._name = None
         self._style_cache = {}
         self._theme_version = 0
+        self._native_engine = None
 
     @property
     def theme_version(self):
@@ -173,7 +223,53 @@ class ThemeManager(object):
     def color_list(self):
         return self._get("COLOR_LIST", [])
 
+    def accent_color(self):
+        """The theme's accent hue — selections, slider handles, focus rings.
+
+        Falls back through COLOR_LIST[1] -> button background -> progress
+        bar color. ``None`` for the native look.
+        """
+        if self.is_native:
+            return None
+        colors = self.color_list
+        if len(colors) > 1 and _parse_hex(colors[1]) is not None:
+            return colors[1]
+        button = self.button_colors
+        if button is not None and _parse_hex(button[1] or "") is not None:
+            return button[1]
+        progress = self.progress_bar_colors
+        if progress is not None and _parse_hex(progress[0] or "") is not None:
+            return progress[0]
+        return None
+
+    def muted_color(self):
+        """A dimmed text color (secondary labels, inactive tabs), or None."""
+        if self.is_native:
+            return None
+        bg, fg = self.background_color, self.text_color
+        if _is_system_default(bg) or _is_system_default(fg):
+            return None
+        return _blend(fg, bg, 0.45)
+
+    def tooltip_colors(self):
+        """tk kwargs for hover tooltips; ``{}`` keeps the platform default."""
+        bg, fg = self.background_color, self.text_color
+        if _is_system_default(bg) or _is_system_default(fg):
+            return {}
+        return {"background": _blend(bg, fg, 0.12), "foreground": fg}
+
     # --- tk kwargs helpers --------------------------------------------------
+    def effective_background(self, override=None):
+        """A concrete background color for tk.Frame-like widgets.
+
+        ``override`` (an explicit per-widget color) wins; otherwise the
+        theme background is used. Returns ``None`` when the result would be
+        the ``COLOR_SYSTEM_DEFAULT`` sentinel (native look — leave the
+        platform default in place).
+        """
+        bg = override or self.background_color
+        return None if _is_system_default(bg) else bg
+
     def window_kwargs(self):
         """tk kwargs for the window background (empty dict when native)."""
         if self.is_native or _is_system_default(self.background_color):
@@ -191,8 +287,13 @@ class ThemeManager(object):
             kwargs["foreground"] = fg
         return kwargs
 
-    def input_kwargs(self, text_color=None, background_color=None):
-        """tk kwargs for input widgets."""
+    def input_kwargs(self, text_color=None, background_color=None,
+            include_caret=True):
+        """tk kwargs for input widgets.
+
+        ``include_caret=False`` drops ``insertbackground`` for widgets that
+        do not support a text caret (e.g. tk.Listbox).
+        """
         kwargs = {}
         bg = (
             background_color
@@ -202,11 +303,16 @@ class ThemeManager(object):
         fg = text_color if text_color is not None else self.input_text_color
         if not _is_system_default(bg):
             kwargs["background"] = bg
-            if not _is_system_default(fg):
+            if not _is_system_default(fg) and include_caret:
                 kwargs["insertbackground"] = fg
         if not _is_system_default(fg):
             kwargs["foreground"] = fg
-            kwargs["insertbackground"] = fg
+            if include_caret:
+                kwargs["insertbackground"] = fg
+        accent = self.accent_color()
+        if accent is not None and kwargs.get("background") is not None:
+            kwargs["selectbackground"] = accent
+            kwargs["selectforeground"] = contrast_on(accent)
         return kwargs
 
     def button_kwargs(self, button_color=None):
@@ -248,75 +354,223 @@ class ThemeManager(object):
         return name
 
     def configure_ttk(self, style):
-        """Apply the current theme to a ``ttk.Style`` (no-op when native)."""
+        """Apply the current theme to a ``ttk.Style``.
+
+        Under the native look this *restores*: the ttk engine returns to the
+        platform's own theme so widgets keep the system appearance even
+        after a themed session. Under a named theme the ``clam`` engine is
+        skinned with the palette — every widget class gets configured and
+        given state maps (hover / pressed / disabled / selected / focus) so
+        the look stays alive instead of being a flat color swap.
+        """
         if self.is_native:
+            if self._native_engine is not None:
+                with contextlib.suppress(Exception):
+                    if style.theme_use() != self._native_engine:
+                        style.theme_use(self._native_engine)
             return
         try:
-            style.theme_use("clam")
+            if self._native_engine is None:
+                self._native_engine = style.theme_use()
+            if style.theme_use() != "clam":
+                style.theme_use("clam")
         except Exception:
             pass
+
         bg = self.background_color or "#e8e8e8"
         fg = self.text_color or "#000000"
-        style.configure(".", background=bg, foreground=fg, borderwidth=self.border_width)
-        style.configure("TFrame", background=bg)
-        style.configure("TLabel", background=bg, foreground=fg)
-        button = self.button_colors
-        if button is not None:
-            btn_fg, btn_bg = button
-            style.configure(
-                "TButton",
-                background=btn_bg or bg,
-                foreground=btn_fg or fg,
-            )
-            active_bg = self._lighten(btn_bg or bg)
-            style.map(
-                "TButton",
-                background=[("active", active_bg), ("pressed", active_bg)],
-                foreground=[("active", btn_fg or fg)],
-            )
         input_bg = self.input_background_color or bg
         input_fg = self.input_text_color or fg
-        style.configure("TEntry", fieldbackground=input_bg, foreground=input_fg)
-        style.configure("TSpinbox", fieldbackground=input_bg, foreground=input_fg)
-        style.configure("TCombobox", fieldbackground=input_bg, foreground=input_fg)
+        button = self.button_colors
+        if button is None:
+            button = (fg, _blend(bg, fg, 0.18))
+        btn_fg = button[0] or fg
+        btn_bg = button[1] or bg
+        accent = self.accent_color() or btn_bg
+        accent_fg = contrast_on(accent)
+
+        # one shared set of derived state colors keeps the look coherent
+        border = _blend(bg, fg, 0.18)
+        muted = _blend(fg, bg, 0.45)
+        disabled_bg = _blend(btn_bg, bg, 0.72)
+        disabled_fg = _blend(btn_fg, bg, 0.55)
+        hover = _blend(btn_bg, "#ffffff", 0.12)
+        pressed = _blend(btn_bg, "#000000", 0.16)
+        disabled_field = _blend(input_bg, bg, 0.45)
+
         style.configure(
-            "Treeview",
-            background=input_bg or bg,
-            fieldbackground=input_bg or bg,
-            foreground=input_fg,
+            ".", background=bg, foreground=fg, bordercolor=border,
+            lightcolor=border, darkcolor=border, troughcolor=input_bg,
+            focuscolor=accent, selectbackground=accent,
+            selectforeground=accent_fg, insertcolor=input_fg,
+            borderwidth=self.border_width,
         )
-        style.configure("Treeview.Heading", background=bg, foreground=fg)
-        if self.slider_color is not None:
-            style.configure("Horizontal.TScale", troughcolor=self.slider_color)
-            style.configure("Vertical.TScale", troughcolor=self.slider_color)
-        style.configure("TNotebook", background=bg, foreground=fg)
-        style.configure("TNotebook.Tab", background=bg, foreground=fg)
-        style.map("TNotebook.Tab", background=[("selected", input_bg or bg)])
-        progress = self.progress_bar_colors
-        if progress is not None:
+        style.configure("TFrame", background=bg)
+        style.configure("Tab.TFrame", background=bg)
+        style.configure("TLabel", background=bg, foreground=fg)
+
+        # --- buttons: flat-ish surfaces with depth, quiet disabled state ----
+        button_config = dict(
+            background=btn_bg, foreground=btn_fg,
+            bordercolor=_blend(btn_bg, "#000000", 0.25),
+            lightcolor=_blend(btn_bg, "#ffffff", 0.08),
+            darkcolor=_blend(btn_bg, "#000000", 0.20),
+        )
+        button_map = dict(
+            background=[("disabled", disabled_bg), ("pressed", pressed),
+                        ("active", hover)],
+            foreground=[("disabled", disabled_fg)],
+        )
+        for base in ("TButton", "TMenubutton"):
+            style.configure(base, **button_config)
+            style.map(base, **button_map)
+
+        # --- entries: quiet border, accent focus ring, dim disabled field ---
+        entry_map = dict(
+            fieldbackground=[("disabled", disabled_field), ("readonly", input_bg)],
+            foreground=[("disabled", muted)],
+            bordercolor=[("focus", accent)],
+            lightcolor=[("focus", accent)],
+            darkcolor=[("focus", accent)],
+        )
+        for base in ("TEntry", "TSpinbox", "TCombobox"):
             style.configure(
-                "Horizontal.TProgressbar",
-                background=progress[0] or bg,
-                troughcolor=progress[1] or bg,
+                base, fieldbackground=input_bg, foreground=input_fg,
+                bordercolor=border, lightcolor=border, darkcolor=border,
+                insertcolor=input_fg, selectbackground=accent,
+                selectforeground=accent_fg,
             )
+            style.map(base, **entry_map)
+        for base in ("TSpinbox", "TCombobox"):
+            style.configure(base, arrowcolor=input_fg)
+            style.map(base, arrowcolor=[("disabled", muted)])
+
+        # the combobox dropdown list is a classic tk.Listbox: option database
+        master = style.master
+        for option, value in (
+            ("*TCombobox*Listbox.background", input_bg),
+            ("*TCombobox*Listbox.foreground", input_fg),
+            ("*TCombobox*Listbox.selectBackground", accent),
+            ("*TCombobox*Listbox.selectForeground", accent_fg),
+        ):
+            master.option_add(option, value)
+
+        # --- check/radio: themed indicator surface + accent check/dot -------
+        indicator_surface = _blend(input_bg, bg, 0.25)
+        for base in ("TCheckbutton", "TRadiobutton"):
             style.configure(
-                "Vertical.TProgressbar",
-                background=progress[0] or bg,
-                troughcolor=progress[1] or bg,
+                base, background=bg, foreground=fg,
+                indicatorbackground=indicator_surface,
+                indicatorforeground=accent,
+                upperbordercolor=border, lowerbordercolor=border,
+            )
+            style.map(
+                base,
+                indicatorbackground=[
+                    ("disabled", _blend(indicator_surface, bg, 0.5)),
+                    ("pressed", _blend(indicator_surface, fg, 0.22)),
+                ],
+                foreground=[("disabled", muted)],
             )
 
-    @staticmethod
-    def _lighten(color):
-        """Lighten a #rrggbb color a bit for hover states (fallback: unchanged)."""
-        try:
-            value = color.lstrip("#")
-            if len(value) != 6:
-                return color
-            parts = [int(value[i:i + 2], 16) for i in (0, 2, 4)]
-            parts = [min(255, channel + 32) for channel in parts]
-            return f"#{parts[0]:02x}{parts[1]:02x}{parts[2]:02x}"
-        except Exception:
-            return color
+        # --- scale: accent handle on a flat trough ---------------------------
+        scroll = self.slider_color
+        trough = (
+            scroll
+            if not _is_system_default(scroll)
+            else _blend(input_bg, bg, 0.35)
+        )
+        for base in ("Horizontal.TScale", "Vertical.TScale"):
+            style.configure(
+                base, troughcolor=trough, background=accent,
+                bordercolor=trough, lightcolor=trough, darkcolor=trough,
+                gripcount=0,
+            )
+            style.map(
+                base,
+                background=[("disabled", _blend(accent, bg, 0.5)),
+                            ("active", _blend(accent, "#ffffff", 0.15))],
+            )
+
+        # --- progress: flat accent bar on a quiet trough ---------------------
+        progress = self.progress_bar_colors
+        bar_color = progress[0] if progress and progress[0] else accent
+        trough_color = (
+            progress[1] if progress and progress[1]
+            else _blend(input_bg, bg, 0.35)
+        )
+        for base in ("Horizontal.TProgressbar", "Vertical.TProgressbar"):
+            style.configure(
+                base, background=bar_color, troughcolor=trough_color,
+                bordercolor=trough_color, lightcolor=bar_color,
+                darkcolor=bar_color,
+            )
+
+        # --- notebook: raised selected tab, dimmed idle tabs ------------------
+        style.configure(
+            "TNotebook", background=bg, bordercolor=border, lightcolor=bg,
+            darkcolor=bg, tabmargins=(6, 4, 6, 0),
+        )
+        style.configure(
+            "TNotebook.Tab", background=bg, foreground=muted,
+            bordercolor=border, lightcolor=border, darkcolor=border,
+            padding=(10, 5),
+        )
+        style.map(
+            "TNotebook.Tab",
+            background=[("selected", input_bg)],
+            foreground=[("selected", fg),
+                        ("disabled", _blend(muted, bg, 0.4))],
+            lightcolor=[("selected", input_bg)],
+            darkcolor=[("selected", input_bg)],
+        )
+
+        # --- tree/table -------------------------------------------------------
+        style.configure(
+            "Treeview", background=input_bg, fieldbackground=input_bg,
+            foreground=input_fg, bordercolor=border, lightcolor=border,
+            darkcolor=border,
+        )
+        style.map(
+            "Treeview",
+            background=[("selected", accent)],
+            foreground=[("selected", accent_fg)],
+        )
+        style.configure(
+            "Treeview.Heading", background=bg, foreground=_blend(fg, bg, 0.25),
+            bordercolor=border, lightcolor=border, darkcolor=border,
+            relief="flat", padding=(6, 4),
+        )
+        style.map("Treeview.Heading", foreground=[("active", fg)])
+
+        # --- containers ---------------------------------------------------------
+        style.configure(
+            "TLabelframe", background=bg, bordercolor=border,
+            lightcolor=border, darkcolor=border,
+        )
+        style.configure("TLabelframe.Label", background=bg, foreground=fg)
+        style.configure("TSeparator", background=border)
+        style.configure("TPanedwindow", background=bg)
+        style.configure("Sash", sashthickness=6, gripcount=0, background=border)
+        style.configure("TSizegrip", background=bg)
+
+        # per-widget derived styles (explicit user colors) need the same
+        # state maps, otherwise hover/disabled fall back to engine defaults
+        for cache_key, name in self._style_cache.items():
+            base = cache_key[0]
+            if base in ("TButton", "TMenubutton"):
+                style.map(name, **button_map)
+            elif base in ("TEntry", "TSpinbox", "TCombobox"):
+                style.map(
+                    name,
+                    fieldbackground=[("disabled", disabled_field)],
+                    foreground=[("disabled", muted)],
+                    bordercolor=[("focus", accent)],
+                    lightcolor=[("focus", accent)],
+                    darkcolor=[("focus", accent)],
+                )
+            elif base in ("TCheckbutton", "TRadiobutton"):
+                style.map(name, foreground=[("disabled", muted)])
 
 
 theme_manager = ThemeManager()

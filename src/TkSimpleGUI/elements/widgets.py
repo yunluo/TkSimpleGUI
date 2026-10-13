@@ -185,8 +185,11 @@ class Text(Element):
 
     def apply_theme(self):
         if self._text_color is None and self._background_color is None:
-            # only theme-derived colors: recompute and repaint
+            # theme-derived colors only: repaint, or clear when the theme
+            # went back to the native look ("" restores the platform color)
             kwargs = theme_mod.theme_manager.text_kwargs()
+            if not kwargs:
+                kwargs = {"background": "", "foreground": ""}
             self._widget.configure(**kwargs)
         return self
 
@@ -262,6 +265,12 @@ class StatusBar(Element):
     def apply_theme(self):
         if self._text_color is None and self._background_color is None:
             kwargs = theme_mod.theme_manager.text_kwargs()
+            if not kwargs:
+                # classic tk.Label: sample the platform defaults ("" is
+                # only accepted by ttk widgets)
+                kwargs = theme_mod.native_widget_colors(
+                    tk.Label, self._widget, ("background", "foreground")
+                )
             kwargs.setdefault("relief", tk.SUNKEN)
             kwargs.setdefault("anchor", "w")
             self._widget.configure(**kwargs)
@@ -656,7 +665,9 @@ class Listbox(InputElement):
 
     def _create_widget(self, master):
         kwargs = theme_mod.theme_manager.input_kwargs(
-            text_color=self._text_color, background_color=self._background_color
+            text_color=self._text_color,
+            background_color=self._background_color,
+            include_caret=False,  # tk.Listbox has no text caret
         )
         kwargs["exportselection"] = False
         width = _char_width(self._size)
@@ -681,6 +692,19 @@ class Listbox(InputElement):
     def _scroll_command(self):
         """The yview command a standalone :class:`Scrollbar` can drive."""
         return self._widget.yview
+
+    def apply_theme(self):
+        kwargs = theme_mod.theme_manager.input_kwargs(
+            text_color=self._text_color,
+            background_color=self._background_color,
+            include_caret=False,
+        )
+        if not kwargs:
+            kwargs = theme_mod.native_widget_colors(
+                tk.Listbox, self._widget, ("background", "foreground")
+            )
+        self._widget.configure(**kwargs)
+        return self
 
     @property
     def values(self):
@@ -1359,6 +1383,18 @@ class Multiline(InputElement):
             self._text.bind("<KeyRelease>", lambda _e: self._post_event())
         self._text.bind("<Return>", self._on_return)
 
+    def apply_theme(self):
+        kwargs = theme_mod.theme_manager.input_kwargs(
+            text_color=self._text_color, background_color=self._background_color
+        )
+        if not kwargs:
+            kwargs = theme_mod.native_widget_colors(
+                tk.Text, self._text,
+                ("background", "foreground", "insertbackground"),
+            )
+        self._text.configure(**kwargs)
+        return self
+
     def _on_return(self, event):
         if self._enable_events:
             self._post_event()
@@ -1662,31 +1698,52 @@ class CheckList(Element):
         self._font = font
 
     def _create_widget(self, master):
-        kwargs = theme_mod.theme_manager.text_kwargs(
-            color=self._text_color, background_color=self._background_color
-        )
+        kwargs = {}
+        bg = theme_mod.theme_manager.effective_background(self._background_color)
+        if bg is not None:
+            kwargs["background"] = bg
         frame = tk.Frame(master, **kwargs)
         self._build_items(frame)
         return frame
+
+    def _item_style(self, master):
+        """Derived TCheckbutton style for the items (base style when unstyled)."""
+        return theme_mod.theme_manager.ttk_widget_style(
+            master, "TCheckbutton",
+            foreground=self._text_color,
+            background=self._background_color,
+            font=self._font,
+        )
 
     def _build_items(self, frame):
         for child in frame.winfo_children():
             child.destroy()
         self._checked_vars = {}
         checked = self._default_checked
+        style_name = self._item_style(frame)
         for value in self._values:
             variable = tk.BooleanVar(value=value in checked, master=frame)
-            button = tk.Checkbutton(
+            button = ttk.Checkbutton(
                 frame,
                 text=value,
                 variable=variable,
-                anchor="w",
+                style=style_name,
                 command=self._on_change,
             )
-            if self._font is not None:
-                button.configure(font=self._font)
             button.pack(fill="x")
             self._checked_vars[value] = variable
+
+    def apply_theme(self):
+        bg = theme_mod.theme_manager.effective_background(self._background_color)
+        if bg is None:
+            bg = theme_mod.native_widget_colors(
+                tk.Frame, self._widget, ("background",)
+            )["background"]
+        self._widget.configure(background=bg)
+        style_name = self._item_style(self._widget)
+        for button in self._widget.winfo_children():
+            button.configure(style=style_name)
+        return self
 
     def _on_change(self):
         if self._enable_events:

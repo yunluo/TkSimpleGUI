@@ -49,6 +49,7 @@ class Window:
         "_finalized",
         "_closed",
         "_elements_by_key",
+        "_elements",
         "_event_queue",
         "_keep_on_top",
         "_modal",
@@ -99,6 +100,7 @@ class Window:
     _finalized: bool
     _closed: bool
     _elements_by_key: Dict[Any, Element]
+    _elements: List[Element]
     _event_queue: "queue.Queue[Any]"
     _keep_on_top: Optional[bool]
     _modal: bool
@@ -218,6 +220,7 @@ class Window:
         self._parent = parent
         self._children: List[Window] = []
         self._elements_by_key = {}
+        self._elements = []
         self._event_queue = queue.Queue()
         self._keep_on_top = (
             keep_on_top if keep_on_top is not None else settings_mod.settings.keep_on_top
@@ -433,11 +436,9 @@ class Window:
             content = tk.Frame(self._tk_root)
             bg = (
                 self._background_color
-                or theme_mod.theme_manager.background_color
+                or theme_mod.theme_manager.effective_background()
             )
-            # the system default sentinel ("1234567890") is *not* a real
-            # color -- skip it so Tk does not raise on unknown color names
-            if bg is not None and bg != C.COLOR_SYSTEM_DEFAULT:
+            if bg is not None:
                 content.configure(background=bg)
             margins = self._margins
             self._tk_root.rowconfigure(0, weight=1)
@@ -612,6 +613,9 @@ class Window:
             master.rowconfigure(row, weight=1)
 
     def _register_element(self, element):
+        # every element lands in the flat list (update_theme repaints all
+        # of them); only keyed ones additionally join the lookup dict
+        self._elements.append(element)
         key = element.key
         if key is None:
             return
@@ -1275,14 +1279,17 @@ class Window:
         if not self._finalized or not self._root_alive():
             return self
         theme_mod.theme_manager.configure_ttk(self._ttk_style)
-        # window + content frame background
-        bg = self._background_color or theme_mod.theme_manager.background_color
-        if bg is not None and bg != C.COLOR_SYSTEM_DEFAULT:
-            self._tk_root.configure(background=bg)
-            for child in self._tk_root.winfo_children():
-                if isinstance(child, tk.Frame):
-                    child.configure(background=bg)
-        for element in self._elements_by_key.values():
+        # window + content frame background ("back to native" restores it)
+        bg = self._background_color or theme_mod.theme_manager.effective_background()
+        if bg is None:
+            bg = theme_mod.native_widget_colors(
+                tk.Frame, self._tk_root, ("background",)
+            )["background"]
+        self._tk_root.configure(background=bg)
+        for child in self._tk_root.winfo_children():
+            if isinstance(child, tk.Frame):
+                child.configure(background=bg)
+        for element in self._elements:
             with contextlib.suppress(tk.TclError, AttributeError):
                 element.apply_theme()
         for child in self.children:
