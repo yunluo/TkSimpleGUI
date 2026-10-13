@@ -171,6 +171,23 @@ from .elements import (
     LED,
     Chart,
     ChartType,
+    Tag,
+    Badge,
+    Avatar,
+    Statistic,
+    Empty,
+    Result,
+    Skeleton,
+    Alert,
+    Watermark,
+    Card,
+    Descriptions,
+    Steps,
+    Timeline,
+    Segmented,
+    Rate,
+    Pagination,
+    Transfer,
     validate_integer,
     validate_float,
     validate_regex,
@@ -315,6 +332,23 @@ TTextProgressBar = TextProgressBar
 TGauge = Gauge
 TLED = LED
 TChart = Chart
+TTag = Tag
+TBadge = Badge
+TAvatar = Avatar
+TStatistic = Statistic
+TEmpty = Empty
+TResult = Result
+TSkeleton = Skeleton
+TAlert = Alert
+TWatermark = Watermark
+TCard = Card
+TDescriptions = Descriptions
+TSteps = Steps
+TTimeline = Timeline
+TSegmented = Segmented
+TRate = Rate
+TPagination = Pagination
+TTransfer = Transfer
 
 __all__ = [
     "__version__", "version", "__author__", "__email__", "__license__", "port",
@@ -351,6 +385,9 @@ __all__ = [
     "Menubutton", "Scrollbar",
     "RoundButton", "ImageButton", "TextProgressBar", "Gauge", "LED",
     "Chart", "ChartType",
+    "Tag", "Badge", "Avatar", "Statistic", "Empty", "Result", "Skeleton",
+    "Alert", "Watermark", "Card", "Descriptions", "Steps", "Timeline",
+    "Segmented", "Rate", "Pagination", "Transfer",
     "validate_integer", "validate_float", "validate_regex",
     "Window", "SystemTray", "TkSimpleEvent", "singleton_window", "main_loop",
     "default_app", "run_application", "bind_event", "on_event",
@@ -377,6 +414,9 @@ __all__ = [
     "THorizontalSeparator", "TSizegrip", "TMenubutton", "TScrollbar",
     "TRoundButton", "TImageButton", "TTextProgressBar", "TGauge", "TLED",
     "TChart",
+    "TTag", "TBadge", "TAvatar", "TStatistic", "TEmpty", "TResult",
+    "TSkeleton", "TAlert", "TWatermark", "TCard", "TDescriptions", "TSteps",
+    "TTimeline", "TSegmented", "TRate", "TPagination", "TTransfer",
     "Anchor", "LabelAnchor", "Justify", "Relief", "Orientation", "Compound",
     "State", "WrapMode", "ProgressMode", "SelectMode", "Cursor",
     "EventType", "Color",

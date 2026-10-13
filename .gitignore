@@ -188,6 +188,9 @@ cython_debug/
 **/_*.py
 **/_*.txt
 **/_*.tmp
+# ... except the package's own private modules (_theming.py, _paint.py, ...):
+# those are real source files, not probes
+!src/TkSimpleGUI/**/_*.py
 
 # _split throwaway reports (legacy, directory removed)
 _split/*.txt

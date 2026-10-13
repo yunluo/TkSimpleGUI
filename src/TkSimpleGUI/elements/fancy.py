@@ -16,47 +16,14 @@ import tkinter as tk
 from typing import Callable, Optional, Tuple
 
 from .base import Element
+from ._paint import blend as _mix_color
+from ._paint import rounded_polygon as _rounded_polygon
 from .. import _theming as theme_mod
 import contextlib
 
 # A Tk color string ("#rrggbb" or a name); "" means transparent.
 Color = str
 Point = Tuple[float, float]
-
-
-def _mix_color(color: str, other: str, weight: float) -> str:
-    """Blend two #rrggbb colors (weight = share of ``other``)."""
-    try:
-        a = color.lstrip("#")
-        b = other.lstrip("#")
-        if len(a) != 6 or len(b) != 6:
-            return color
-        mixed = [
-            int(int(a[i:i + 2], 16) * (1 - weight) + int(b[i:i + 2], 16) * weight)
-            for i in (0, 2, 4)
-        ]
-        return f"#{mixed[0]:02x}{mixed[1]:02x}{mixed[2]:02x}"
-    except (ValueError, AttributeError):
-        return color
-
-
-def _rounded_polygon(canvas, x0, y0, x1, y1, radius, **kwargs):
-    """Draw a closed rounded rectangle as a canvas polygon (Tk has no
-    native rounded rectangle). Returns the polygon item id."""
-    points = [
-        x0 + radius, y0,
-        x1 - radius, y0,
-        x1, y0,
-        x1, y0 + radius,
-        x1, y1 - radius,
-        x1, y1,
-        x1 - radius, y1,
-        x0 + radius, y1,
-        x0, y1,
-        x0, y0 + radius,
-        x0, y0,
-    ]
-    return canvas.create_polygon(points, smooth=True, **kwargs)
 
 
 class _CanvasButton(Element):

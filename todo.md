@@ -101,15 +101,47 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 - [x] **元类自动展开**：`ElementBaseMeta` 包装子类 `__init__` 拦截 `config=`，40 个控件构造器**零改动**即获得能力；显式 kwargs 优先于 config
 - [x] 7 个专项测试（override 优先级/类型校验/layout 进 config/共享 options 复用）
 
+## ✅ 批次 A：Element Plus 风格自绘展示控件（17 个，全部完成）
+
+对照 Element Plus 74 个组件盘点后的"零风险"第一批：全部 Canvas 自绘或既有元素组合，
+零新依赖，随主题自动换色（含 native 主题下采样平台默认色）。共享绘制层
+`elements/_paint.py`（palette/blend/tint/shade/roundrect/capsule/cross/check/star/多边形裁剪/
+可选 Pillow 探测/系统字体定位）在这一批次里建立，图表后端与头像/水印共用同一探测缓存。
+
+- [x] **display.py（9）**：`Tag`（胶囊/light·dark·plain 三效果/可关闭×）、`Badge`（数字/圆点/99+ 溢出）、
+      `Avatar`（文字首字母 / 图片圆形裁剪，无 Pillow 时描边退化）、`Statistic`（大数字+前后缀+涨跌箭头，
+      内容超宽自动加宽画布）、`Empty`（折角文档图标+说明）、`Result`（info/success/warning/error 四态圆标）、
+      `Skeleton`（呼吸动画，`animated`/`start_animation`/`stop_animation`）、`Alert`（四态内嵌条+标题+关闭，
+      light/dark 两效果）、`Watermark`（平铺；有 Pillow 且定位到系统字体时按角度旋转，否则水平退化）
+- [x] **panels.py（4）**：`Card`（ContainerElement，标题/副标题/右上 extra + 分隔线，嵌套布局进 body）、
+      `Descriptions`（标签值网格，columns/bordered/label_suffix，`update(items=)` 重建）、
+      `Steps`（横向/纵向步骤条，finish/process/error/wait 四态）、`Timeline`（str / (时间, 内容) / dict 三形态输入）
+- [x] **selection.py（4）**：`Segmented`（分段控制器，滑选药丸+键盘左右键+readonly）、`Rate`（星形评分，
+      悬停预览+半星裁剪+readonly）、`Pagination`（页码窗口/省略号/钳位/total 文案/show_total）、
+      `Transfer`（双 Listbox+四箭头，双击移动，`move_selected`/`move_all` 可编程调用）
+- [x] 导出：17 个类 + 17 个 `T` 前缀别名（`TTag`…`TTransfer`）；`elements/__init__.py` 与包根同步
+- [x] showcase 新增「展示控件」页（中文 UI，17 控件全演示 + 交互按钮与日志联动；页面放进
+      `ScrollableColumn` 才装得下，多亏对照时发现"多元素行与宽卡片共用 grid 列"会把窗口撑到 2165px）
+- [x] 44 个专项测试（267 全绿）+ 双主题（Daylight/Slate）PrintWindow 截图目检
+- [x] 目检与双解释器实机抓到并修掉的 4 个真 bug：
+      **Alert 构造时不写描述文字**（只有标题）、**Statistic 前缀+数字+趋势超宽被裁**（改为按内容加宽画布）、
+      **Tag 的"×"在 32 位 3.7 上点不动**（Tk 8.6.9 细线命中原点判定不可靠，改成右侧 18px 区域命中）、
+      **Timeline 收到 `("10:02", {…})` 时把字典 repr 画出来**（第二个槽位是 mapping 时按字段解析）
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
+- Element Plus 对照中的"文档流概念"组件：Affix 固钉、Anchor 锚点、Backtop 回到顶部、PageHeader 页头、
+  Breadcrumb（桌面无长页面滚动模型）、Row/Col 24 栅格（Tk grid 本身就是栅格）、字体图标体系
+- 待评估的后续批次（未排期）：B 批弹层族（Popover/Popconfirm/Loading/Drawer/折叠面板/弹出式日期时间）、
+  C 批（AutoComplete/Cascader/TreeSelect/InputTag/Upload 桌面转译）、Canvas 虚拟列表（唯一需要重写渲染层的项目）
 
 ## 附：回归基线
 
-- 测试：`python -m pytest tests -q`（223 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
-- 类型：`python tests/check_types.py`（ty 零诊断守卫；找不到 ty 时返回非零）
-- Lint：`ruff check src tests`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）
+- 测试：`python -m pytest tests -q`（267 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 类型：`python tests/check_types.py`（ty 守卫；找不到 ty 时返回非零。注意 PATH 上的 ty 0.0.53 会对既有
+  `elements/buttons.py` 报 34 条 ttk stub 误报——基线如此，与本批次无关；`D:\bin\ty.exe`（0.0.32）零诊断）
+- Lint：`ruff check src tests demos`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）
 - 语法：`python tests/check_syntax.py`（用当前解释器 ast 全量解析；3.7 结论需在 3.7 下运行）
 - 冒烟：`python demos/showcase.py --smoke`（3.8+ 语法扫描与现代风格守卫已内置于测试套件 TestPy37Compatibility）
 - 每批提交后：compileall + 上述五项 + git commit（中文 + fix:/feat:/refactor: 前缀）

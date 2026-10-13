@@ -44,7 +44,20 @@ from .containers import (
 from .calendar import Calendar
 from .chart import Chart, ChartType
 from .data import Table, Tree
+from .display import (
+    Alert,
+    Avatar,
+    Badge,
+    Empty,
+    Result,
+    Skeleton,
+    Statistic,
+    Tag,
+    Watermark,
+)
 from .fancy import Gauge, ImageButton, LED, RoundButton, TextProgressBar
+from .panels import Card, Descriptions, Steps, Timeline
+from .selection import Pagination, Rate, Segmented, Transfer
 
 __all__ = [
     "Element",
@@ -98,6 +111,23 @@ __all__ = [
     "TextProgressBar",
     "Gauge",
     "LED",
+    "Tag",
+    "Badge",
+    "Avatar",
+    "Statistic",
+    "Empty",
+    "Result",
+    "Skeleton",
+    "Alert",
+    "Watermark",
+    "Card",
+    "Descriptions",
+    "Steps",
+    "Timeline",
+    "Segmented",
+    "Rate",
+    "Pagination",
+    "Transfer",
     "validate_integer",
     "validate_float",
     "validate_regex",

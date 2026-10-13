@@ -2781,6 +2781,689 @@ class TestEventManager(unittest.TestCase):
         gc.collect()
 
 
+class TestDisplayElements(unittest.TestCase):
+    """Batch A display.py: Tag, Badge, Avatar, Statistic, Empty, Result,
+    Skeleton, Alert and Watermark (see the batch A design spec)."""
+
+    def _window(self, elements):
+        """A finalized window around ``elements`` rows (closed on cleanup)."""
+        window = ts.Window("t", elements, finalize=True)
+        self.addCleanup(window.close)
+        return window
+
+    def _click(self, window, widget, x, y):
+        """A real <Button-1> on ``widget``; the event lands on the bus.
+
+        Nothing is read back here — :meth:`_events` collects the events,
+        so a stray bus entry cannot swallow the click's own event.
+        """
+        window.tk_root.update()
+        widget.event_generate("<Button-1>", x=x, y=y, when="tail")
+        window.tk_root.update()
+
+    def _events(self, window, timeout=300):
+        """Every event the application-wide bus delivers within ``timeout`` ms.
+
+        A synthetic click posts into a shared bus, and on the 32-bit 3.7
+        build a stray ``WIN_CLOSED`` can appear on it after many windows
+        were created and destroyed in one process (a queued WM close
+        message reaching a recycled window handle). Assertions therefore
+        look for the event they expect inside this window of pumping
+        rather than trusting the very first read.
+        """
+        seen = []
+        deadline = time.time() + timeout / 1000.0
+        while time.time() < deadline:
+            event, _values = window.read(timeout=20)
+            if event != ts.TIMEOUT_KEY:
+                seen.append(event)
+        return seen
+
+    def _canvas_texts(self, element):
+        """Every text item drawn on the element's canvas."""
+        canvas = element.widget
+        return [
+            str(canvas.itemcget(item, "text"))
+            for item in canvas.find_all()
+            if canvas.type(item) == "text"
+        ]
+
+    def test_tag_get_and_close_click(self):
+        tag = ts.Tag("New", closable=True, enable_events=True, key="-TAG-")
+        window = self._window([[tag]])
+        self.assertEqual(tag.text, "New")
+        self.assertEqual(tag.get(), "New")
+        # the "x" sits 9px from the right edge, vertically centered
+        self._click(window, tag.widget, tag._width - 9, tag._height // 2)
+        self.assertIn(("-TAG-", "close"), self._events(window))
+        self.assertFalse(tag.visible)
+        self.assertEqual(tag.get(), "New")  # still the text after the close
+        # a new value re-shows the closed tag and swaps the text
+        tag.update(value="Done")
+        window.tk_root.update()
+        self.assertTrue(tag.visible)
+        self.assertTrue(tag.widget.winfo_ismapped())
+        self.assertEqual(tag.get(), "Done")
+        self.assertEqual(tag.text, "Done")
+        # a click on the body posts the bare key
+        self._click(window, tag.widget, 10, tag._height // 2)
+        self.assertIn("-TAG-", self._events(window))
+        self.assertEqual(window["-TAG-"].get(), "Done")
+
+    def test_tag_effects_and_explicit_size(self):
+        seen = {}
+        for effect in ("light", "dark", "plain"):
+            tag = ts.Tag("E", effect=effect)
+            self._window([[tag]])
+            canvas = tag.widget
+            self.assertGreater(len(canvas.find_all()), 0)
+            seen[effect] = (
+                str(canvas.itemcget(tag._body_id, "fill")),
+                str(canvas.itemcget(tag._body_id, "outline")),
+                str(canvas.cget("background")),
+            )
+        # light and dark carry no outline; plain is a surface fill + outline
+        self.assertEqual(seen["light"][1], "")
+        self.assertNotEqual(seen["light"][0], seen["light"][2])
+        self.assertEqual(seen["dark"][1], "")
+        self.assertNotEqual(seen["dark"][0], seen["light"][0])
+        self.assertEqual(seen["plain"][0], seen["plain"][2])
+        self.assertNotEqual(seen["plain"][1], "")
+        sized = ts.Tag("Sized", size=(90, 26), closable=True)
+        self._window([[sized]])
+        self.assertEqual(int(sized.widget.cget("width")), 90)
+        self.assertEqual(int(sized.widget.cget("height")), 26)
+        self.assertGreater(len(sized.widget.find_all()), 0)
+
+    def test_badge_max_value_and_clear(self):
+        badge = ts.Badge(value=120, max_value=99, key="-BADGE-")
+        self._window([[badge]])
+        self.assertEqual(badge._label(), "99+")
+        self.assertEqual(badge.get(), 120)  # the raw value, not the caption
+        self.assertGreater(len(badge.widget.find_all()), 0)
+        badge.update(value=7)
+        self.assertEqual(badge._label(), "7")
+        self.assertEqual(badge.get(), 7)
+        badge.clear()
+        self.assertIsNone(badge.get())
+        self.assertEqual(badge._label(), "")
+        self.assertEqual(len(badge.widget.find_all()), 0)
+
+    def test_badge_dot_and_empty_value(self):
+        dot = ts.Badge(value=5, is_dot=True)
+        self._window([[dot]])
+        self.assertEqual(dot._label(), "")  # a dot ignores the value text
+        self.assertEqual(dot._width, 10)  # size[1] or 10
+        self.assertEqual(dot._width, dot._height)
+        self.assertEqual(len(dot.widget.find_all()), 1)
+        empty = ts.Badge()
+        self._window([[empty]])
+        self.assertIsNone(empty.get())
+        self.assertEqual(len(empty.widget.find_all()), 0)
+        self.assertEqual((empty._width, empty._height), (1, 1))
+
+    def test_avatar_initials_and_shapes(self):
+        avatar = ts.Avatar(text="Yun Luo", key="-AV-")
+        self._window([[avatar]])
+        self.assertEqual(avatar._initials(), "Yu")
+        self.assertEqual(avatar.get(), "Yun Luo")
+        self.assertGreaterEqual(len(avatar.widget.find_all()), 2)
+        square = ts.Avatar(text="AB", shape="square", size=(48, 48))
+        self._window([[square]])
+        self.assertEqual(int(square.widget.cget("width")), 48)
+        self.assertEqual(int(square.widget.cget("height")), 48)
+
+    def test_avatar_image_and_update(self):
+        avatar = ts.Avatar(data_base64=ts.DEFAULT_BASE64_ICON, key="-AV-")
+        self._window([[avatar]])
+        kinds = [avatar.widget.type(item) for item in avatar.widget.find_all()]
+        self.assertIn("image", kinds)
+        self.assertIsNotNone(avatar._photo)
+        avatar.update(text="Zed")
+        self.assertEqual(avatar.get(), "Zed")
+        self.assertEqual(avatar.text, "Zed")
+
+    def test_statistic_value_and_format(self):
+        stat = ts.Statistic("Win", value=1234, prefix="$", suffix="/mo", key="-ST-")
+        self._window([[stat]])
+        self.assertEqual(stat.get(), 1234)  # the raw value
+        self.assertEqual(stat._value_text(), "1234")
+        texts = self._canvas_texts(stat)
+        self.assertIn("Win", texts)
+        self.assertIn("$", texts)
+        self.assertIn("/mo", texts)
+        self.assertIn("1234", texts)
+        precise = ts.Statistic("P", value=3, precision=2)
+        self._window([[precise]])
+        self.assertEqual(precise._value_text(), "3.00")
+
+    def test_statistic_trends_and_update(self):
+        stat = ts.Statistic("Win", value=10, trend=12.5, key="-ST-")
+        self._window([[stat]])
+        self.assertTrue(stat._trend_direction())
+        self.assertEqual(stat._trend_label(), "12.5%")
+        self.assertIn("12.5%", self._canvas_texts(stat))
+        stat.update(value=3, label="Loss", trend=-3)
+        self.assertEqual(stat.get(), 3)
+        self.assertEqual(stat.label, "Loss")
+        self.assertFalse(stat._trend_direction())
+        texts = self._canvas_texts(stat)
+        self.assertIn("3%", texts)
+        self.assertIn("Loss", texts)
+
+    def test_empty_glyph_and_update(self):
+        empty = ts.Empty(key="-EMPTY-")
+        self._window([[empty]])
+        self.assertEqual(empty.get(), "No data")
+        self.assertGreaterEqual(len(empty.widget.find_all()), 2)  # glyph + text
+        empty.update(value="Nothing here")
+        self.assertEqual(empty.get(), "Nothing here")
+        self.assertIn("Nothing here", self._canvas_texts(empty))
+
+    def test_empty_image_variant(self):
+        empty = ts.Empty(data_base64=ts.DEFAULT_BASE64_ICON, text="")
+        self._window([[empty]])
+        kinds = [empty.widget.type(item) for item in empty.widget.find_all()]
+        self.assertIn("image", kinds)
+
+    def test_result_statuses_render(self):
+        results = [
+            ts.Result("Title " + status, "Sub", status=status, key="-R-" + status)
+            for status in ("info", "success", "warning", "error")
+        ]
+        window = self._window([[result] for result in results])
+        for result in results:
+            self.assertEqual(result.get(), result.title)
+            self.assertGreater(len(result.widget.find_all()), 0)
+        results[0].update(status="error")  # repaints without raising
+        window.tk_root.update()
+        self.assertGreater(len(results[0].widget.find_all()), 0)
+        self.assertEqual(results[0].get(), "Title info")
+
+    def test_skeleton_rows_geometry_and_animation(self):
+        small = ts.Skeleton(rows=2, key="-SMALL-")
+        tall = ts.Skeleton(rows=5, key="-TALL-")
+        self._window([[small, tall]])
+        self.assertEqual(small.get(), 2)
+        self.assertTrue(small.animated)
+        self.assertGreater(tall._height, small._height)
+        small.stop_animation()
+        small.start_animation()  # neither raises
+        small.update(rows=5)
+        self.assertEqual(int(small.widget.cget("height")), 110)  # 5*14 + 4*10
+        small.update(animated=False)
+        self.assertFalse(small.animated)
+        small.stop_animation()
+
+    def test_skeleton_avatar_variant(self):
+        skeleton = ts.Skeleton(rows=2, avatar=True, key="-SK-")
+        self._window([[skeleton]])
+        self.assertEqual(skeleton.get(), 2)
+        self.assertEqual(skeleton._height, 40)  # avatar keeps at least 40px
+        self.assertGreaterEqual(len(skeleton.widget.find_all()), 3)
+        skeleton.stop_animation()
+
+    def test_alert_effects_and_types_render(self):
+        alerts = [
+            ts.Alert("message", type=kind, title="Header", effect=effect)
+            for effect in ("light", "dark")
+            for kind in ("info", "success", "warning", "error")
+        ]
+        self._window([[alert] for alert in alerts])
+        for alert in alerts:
+            self.assertEqual(alert.get(), "message")
+            self.assertEqual(alert.title, "Header")
+            self.assertEqual(int(alert.widget.cget("highlightthickness")), 1)
+            self.assertTrue(str(alert.widget.cget("highlightbackground")))
+            self.assertEqual(str(alert._title_label.cget("text")), "Header")
+            # the description must be rendered on construction, not only
+            # after an update() call (regression: it used to start blank)
+            self.assertEqual(str(alert._text_label.cget("text")), "message")
+            self.assertGreater(len(alert._icon_canvas.find_all()), 0)
+
+    def test_alert_close_click_and_update(self):
+        alert = ts.Alert("body", title="Ti", key="-ALERT-")
+        window = self._window([[alert]])
+        self._click(window, alert._close_canvas, 8, 8)
+        self.assertIn(("-ALERT-", "close"), self._events(window))
+        self.assertFalse(alert.visible)
+        alert.update(text="changed", type="error")
+        self.assertEqual(alert.get(), "changed")
+        # the repaint keeps the labels on the bar's own background
+        self.assertEqual(
+            str(alert._text_label.cget("background")),
+            str(alert.widget.cget("background")),
+        )
+        self.assertGreater(len(alert._icon_canvas.find_all()), 0)
+
+    def test_watermark_tiling_and_update(self):
+        watermark = ts.Watermark("DRAFT", angle=0, key="-WM-")
+        self._window([[watermark]])
+        self.assertEqual(watermark.get(), "DRAFT")
+        items = watermark.widget.find_all()
+        self.assertGreater(len(items), 1)  # tiled over the grid points
+        self.assertTrue(all(watermark.widget.type(item) == "text" for item in items))
+        watermark.update(value="SECRET")
+        self.assertEqual(watermark.get(), "SECRET")
+        self.assertEqual(watermark.text, "SECRET")
+        self.assertGreater(len(watermark.widget.find_all()), 1)
+
+    def test_watermark_default_angle_renders(self):
+        watermark = ts.Watermark("DRAFT", key="-WM-")
+        self._window([[watermark]])
+        self.assertEqual(watermark._angle, -30.0)
+        # Pillow paints one rotated image patch; the fallback paints texts
+        self.assertGreater(len(watermark.widget.find_all()), 0)
+
+    def test_watermark_follows_theme(self):
+        watermark = ts.Watermark("DRAFT", size=(180, 120), key="-WM-")
+        window = self._window([[watermark]])
+        ts.theme("Slate")
+        try:
+            window.update_theme()
+            self.assertEqual(
+                str(watermark.widget.cget("background")),
+                ts.theme_background_color(),
+            )
+        finally:
+            ts.theme(None)
+            watermark.apply_theme()
+        self.assertGreater(len(watermark.widget.find_all()), 0)
+
+    def test_canvas_elements_follow_theme(self):
+        elements = [
+            ts.Tag("A", key="-TAG-"),
+            ts.Badge(3, key="-BADGE-"),
+            ts.Statistic("Count", key="-STAT-"),
+            ts.Steps(["One", "Two"], key="-STEPS-"),
+            ts.Rate(key="-RATE-"),
+            ts.Pagination(total=95, key="-PAGE-"),
+            ts.Watermark("W", key="-WM-"),
+        ]
+        window = self._window([elements])
+        ts.theme("Dusk")
+        try:
+            window.update_theme()
+            background = ts.theme_background_color()
+            for element in elements:
+                self.assertEqual(
+                    str(element.widget.cget("background")),
+                    background,
+                    msg=str(element.key),
+                )
+        finally:
+            ts.theme(None)
+            window.update_theme()
+
+
+class TestPanelElements(unittest.TestCase):
+    """Batch A panels.py: Card, Descriptions, Steps and Timeline."""
+
+    def _window(self, elements):
+        """A finalized window around ``elements`` rows (closed on cleanup)."""
+        window = ts.Window("t", elements, finalize=True)
+        self.addCleanup(window.close)
+        return window
+
+    def test_card_header_and_nested_layout(self):
+        card = ts.Card(
+            "Server",
+            [[ts.Text("Host"), ts.Input(key="-HOST-")]],
+            subtitle="prod-01",
+            extra=ts.Button("Restart", key="-RESTART-"),
+            key="-CARD-",
+        )
+        window = self._window([[card]])
+        self.assertEqual(card.get(), "Server")
+        self.assertEqual(card.title, "Server")
+        self.assertEqual(card.subtitle, "prod-01")
+        # the nested layout was built into the body, the extra into the header
+        self.assertIs(window["-HOST-"].widget.master, card._body)
+        self.assertIs(window["-RESTART-"].widget.master, card._header)
+        self.assertEqual(int(card.widget.cget("highlightthickness")), 1)
+
+    def test_card_update_and_titleless(self):
+        card = ts.Card("Title", [[ts.Text("body")]], key="-CARD-")
+        self._window([[card]])
+        card.update(title="Changed", subtitle="line two")
+        self.assertEqual(card.get(), "Changed")
+        self.assertEqual(str(card._title_label.cget("text")), "Changed")
+        self.assertEqual(str(card._subtitle_label.cget("text")), "line two")
+        bare = ts.Card(layout=[[ts.Text("no header", key="-INNER-")]], key="-BARE-")
+        window = self._window([[bare]])
+        self.assertIsNone(bare.get())
+        self.assertFalse(bare._header.winfo_manager())  # the header row collapsed
+        self.assertIsNotNone(window["-INNER-"])
+
+    def test_card_follows_theme(self):
+        card = ts.Card("T", [[ts.Text("x")]], key="-CARD-")
+        window = self._window([[card]])
+        ts.theme("Slate")
+        try:
+            window.update_theme()
+            background = ts.theme_background_color()
+            self.assertEqual(str(card.widget.cget("background")), background)
+            self.assertEqual(str(card._body.cget("background")), background)
+        finally:
+            ts.theme(None)
+            card.apply_theme()
+
+    def test_descriptions_get_columns_and_border(self):
+        descriptions = ts.Descriptions(
+            [("Host", "10.0.0.7"), ("Port", 8080), ("A", 1), ("B", 2), ("C", 3)],
+            columns=3,
+            bordered=True,
+            label_suffix=":",
+            key="-DESC-",
+        )
+        self._window([[descriptions]])
+        values = descriptions.get()
+        self.assertEqual(values["Host"], "10.0.0.7")
+        self.assertEqual(values["Port"], 8080)  # values come back as passed in
+        self.assertEqual(len(values), 5)
+        self.assertEqual(int(descriptions.widget.cget("highlightthickness")), 1)
+        # 5 pairs over 3 columns land in two grid rows
+        rows = {
+            child.grid_info()["row"] for child in descriptions.widget.winfo_children()
+        }
+        self.assertEqual(sorted(rows), [0, 1])
+        texts = [
+            str(child.cget("text")) for child in descriptions.widget.winfo_children()
+        ]
+        self.assertIn("Host:", texts)
+        mapped = ts.Descriptions({"x": 1, "y": 2})
+        self._window([[mapped]])
+        self.assertEqual(mapped.get(), {"x": 1, "y": 2})
+
+    def test_descriptions_update_rebuilds(self):
+        descriptions = ts.Descriptions([("Host", "a")], key="-DESC-")
+        self._window([[descriptions]])
+        before = len(descriptions.widget.winfo_children())
+        descriptions.update(items=[("A", 1), ("B", 2), ("C", 3), ("D", 4), ("E", 5)])
+        after = len(descriptions.widget.winfo_children())
+        self.assertNotEqual(after, before)
+        self.assertEqual(after, 10)  # 5 label/value cells
+        self.assertEqual(
+            descriptions.get(), {"A": 1, "B": 2, "C": 3, "D": 4, "E": 5}
+        )
+        texts = [
+            str(child.cget("text")) for child in descriptions.widget.winfo_children()
+        ]
+        self.assertIn("E", texts)
+        self.assertNotIn("Host", texts)
+
+    def test_steps_horizontal_states_and_geometry(self):
+        steps = ts.Steps(["One", "Two", "Three"], active=1, key="-STEPS-")
+        self._window([[steps]])
+        self.assertEqual(steps.get(), 1)
+        self.assertEqual(steps._state(0), "finish")
+        self.assertEqual(steps._state(1), "process")
+        self.assertEqual(steps._state(2), "wait")
+        self.assertGreater(len(steps.widget.find_all()), 0)
+        single = ts.Steps(["One"], key="-SINGLE-")
+        self._window([[single]])
+        # the canvas widens with the item count
+        self.assertLess(
+            int(single.widget.cget("width")), int(steps.widget.cget("width"))
+        )
+
+    def test_steps_error_status_and_update(self):
+        steps = ts.Steps(["One", "Two", "Three"], active=1, status="error", key="-S-")
+        self._window([[steps]])
+        self.assertEqual(steps._state(1), "danger")
+        steps.update(active=2, status="process")
+        self.assertEqual(steps.get(), 2)
+        self.assertEqual(steps._state(1), "finish")
+        self.assertEqual(steps._state(2), "process")
+        self.assertGreater(len(steps.widget.find_all()), 0)
+
+    def test_steps_vertical_geometry(self):
+        vertical = ts.Steps(["a", "b", "c"], direction="vertical", key="-VERT-")
+        horizontal = ts.Steps(["a", "b", "c"], key="-HOR-")
+        self._window([[vertical, horizontal]])
+        self.assertEqual(vertical.direction, "vertical")
+        # n * row_height (64), taller than the flat 70px horizontal row
+        self.assertEqual(int(vertical.widget.cget("height")), 3 * 64)
+        self.assertGreater(
+            int(vertical.widget.cget("height")), int(horizontal.widget.cget("height"))
+        )
+        self.assertGreater(len(vertical.widget.find_all()), 0)
+
+    def test_timeline_forms_and_get(self):
+        timeline = ts.Timeline(
+            [
+                "Deployed",
+                ("10:00", "Build finished"),
+                {"timestamp": "11:00", "content": "Rollback", "type": "success"},
+                ("12:00", {"content": "Warm up", "type": "warning"}),
+            ],
+            key="-TL-",
+        )
+        self._window([[timeline]])
+        self.assertEqual(
+            timeline.get(),
+            [(None, "Deployed"), ("10:00", "Build finished"), ("11:00", "Rollback"),
+             ("12:00", "Warm up")],
+        )
+        # a mapping in the pair's second slot supplies the fields, so the
+        # content is never rendered as a dict repr
+        self.assertNotIn("{", timeline._items[3][1])
+        self.assertEqual(timeline._items[3][2], "warning")
+        self.assertGreater(len(timeline.widget.find_all()), 0)
+
+    def test_timeline_update(self):
+        timeline = ts.Timeline(["first"], key="-TL-")
+        self._window([[timeline]])
+        timeline.update(items=[("12:00", "Only one"), {"content": "two"}])
+        self.assertEqual(timeline.get(), [("12:00", "Only one"), (None, "two")])
+        self.assertGreater(len(timeline.widget.find_all()), 0)
+
+
+class TestSelectionElements(unittest.TestCase):
+    """Batch A selection.py: Segmented, Rate, Pagination and Transfer."""
+
+    def _window(self, elements):
+        """A finalized window around ``elements`` rows (closed on cleanup)."""
+        window = ts.Window("t", elements, finalize=True)
+        self.addCleanup(window.close)
+        return window
+
+    def _click(self, window, widget, x, y):
+        """A real <Button-1> on ``widget``; the event lands on the bus.
+
+        Nothing is read back here — :meth:`_events` collects the events,
+        so a stray bus entry cannot swallow the click's own event.
+        """
+        window.tk_root.update()
+        widget.event_generate("<Button-1>", x=x, y=y, when="tail")
+        window.tk_root.update()
+
+    def _events(self, window, timeout=300):
+        """Every event the application-wide bus delivers within ``timeout`` ms.
+
+        A synthetic click posts into a shared bus, and on the 32-bit 3.7
+        build a stray ``WIN_CLOSED`` can appear on it after many windows
+        were created and destroyed in one process (a queued WM close
+        message reaching a recycled window handle). Assertions therefore
+        look for the event they expect inside this window of pumping
+        rather than trusting the very first read.
+        """
+        seen = []
+        deadline = time.time() + timeout / 1000.0
+        while time.time() < deadline:
+            event, _values = window.read(timeout=20)
+            if event != ts.TIMEOUT_KEY:
+                seen.append(event)
+        return seen
+
+    def test_segmented_default_and_update(self):
+        segmented = ts.Segmented(["Day", "Week", "Month"], key="-SEG-")
+        self._window([[segmented]])
+        self.assertEqual(segmented.get(), "Day")  # the first option by default
+        segmented.update(value="Week")
+        self.assertEqual(segmented.get(), "Week")
+        segmented.update(value="Missing")
+        self.assertEqual(segmented.get(), "Week")  # an unknown value is ignored
+        self.assertGreater(len(segmented.widget.find_all()), 0)
+
+    def test_segmented_pairs_and_click(self):
+        segmented = ts.Segmented([("Day", "d"), ("Week", "w")], key="-SEG-")
+        window = self._window([[segmented]])
+        self.assertEqual(segmented.get(), "d")  # (label, value) pairs
+        left, right = segmented._cells[1]
+        self._click(window, segmented.widget, int((left + right) // 2), 15)
+        self.assertIn("-SEG-", self._events(window))
+        self.assertEqual(segmented.get(), "w")
+
+    def test_segmented_readonly_ignores_click(self):
+        segmented = ts.Segmented(["a", "b"], readonly=True, key="-SEG-")
+        window = self._window([[segmented]])
+        left, right = segmented._cells[1]
+        self._click(window, segmented.widget, int((left + right) // 2), 15)
+        self.assertNotIn("-SEG-", self._events(window, timeout=200))
+        self.assertEqual(segmented.get(), "a")
+
+    def test_segmented_options_update_keeps_value(self):
+        segmented = ts.Segmented(["a", "b", "c"], default_value="b", key="-SEG-")
+        self._window([[segmented]])
+        segmented.update(options=["b", "x"])
+        self.assertEqual(segmented.get(), "b")  # still offered: kept
+        segmented.update(options=["zzz", "yyy"])
+        self.assertEqual(segmented.get(), "zzz")  # gone: back to the first
+        self.assertEqual(len(segmented._cells), 2)
+
+    def test_rate_defaults_and_update(self):
+        rate = ts.Rate(key="-RATE-")
+        self._window([[rate]])
+        self.assertEqual(rate.get(), 0.0)
+        self.assertTrue(rate._allow_half)
+        rate.update(value=4.5)
+        self.assertEqual(rate.get(), 4.5)
+        self.assertGreater(len(rate.widget.find_all()), 4)
+
+    def test_rate_half_star_click_posts_once(self):
+        rate = ts.Rate(key="-RATE-")
+        window = self._window([[rate]])
+        # the left half of the first star selects 0.5
+        self.assertEqual(rate._value_at(5), 0.5)
+        self._click(window, rate.widget, 5, 13)
+        self.assertIn("-RATE-", self._events(window))
+        self.assertEqual(rate.get(), 0.5)
+        # clicking the same value again changes nothing: no event at all
+        self._click(window, rate.widget, 5, 13)
+        self.assertNotIn("-RATE-", self._events(window, timeout=200))
+        self.assertEqual(rate.get(), 0.5)
+
+    def test_rate_readonly_and_max_value(self):
+        readonly = ts.Rate(readonly=True, key="-R-")
+        window = self._window([[readonly]])
+        self._click(window, readonly.widget, 5, 13)
+        self.assertNotIn("-R-", self._events(window, timeout=200))
+        self.assertEqual(readonly.get(), 0.0)
+        wide = ts.Rate(max_value=10, key="-W-")
+        self._window([[wide]])
+        self.assertGreater(
+            int(wide.widget.cget("width")), int(readonly.widget.cget("width"))
+        )
+
+    def test_pagination_page_count_and_validation(self):
+        pager = ts.Pagination(total=95, page_size=10, key="-PAGE-")
+        self._window([[pager]])
+        self.assertEqual(pager.page_count, 10)
+        self.assertEqual(pager.get(), 1)
+        with self.assertRaises(ValueError):
+            ts.Pagination(total=10, page_size=0)
+        with self.assertRaises(ValueError):
+            ts.Pagination(total=-1)
+
+    def test_pagination_clamps_current_page(self):
+        pager = ts.Pagination(total=95, current_page=99, key="-PAGE-")
+        self._window([[pager]])
+        self.assertEqual(pager.page_count, 10)
+        self.assertEqual(pager.get(), 10)  # clamped into [1, page_count]
+
+    def test_pagination_window_algorithm(self):
+        pager = ts.Pagination(total=95, page_size=10, pager_count=5, key="-P-")
+        self._window([[pager]])
+        self.assertEqual(pager._page_window(), [1, 2, 3, 4, "\u2026", 10])
+        pager.update(current_page=5)
+        self.assertEqual(pager._page_window(), [1, "\u2026", 4, 5, 6, "\u2026", 10])
+        pager.update(current_page=10)
+        self.assertEqual(pager._page_window(), [1, "\u2026", 7, 8, 9, 10])
+        short = ts.Pagination(total=50, page_size=10, pager_count=5, key="-S-")
+        self._window([[short]])
+        # page_count <= pager_count: every page is shown
+        self.assertEqual(short._page_window(), [1, 2, 3, 4, 5])
+
+    def test_pagination_click_and_update(self):
+        pager = ts.Pagination(total=95, current_page=5, key="-PAGE-")
+        window = self._window([[pager]])
+        box = None
+        for entry in pager._boxes:
+            if entry[4] == 6:
+                box = entry
+        self.assertIsNotNone(box)
+        x = int((box[0] + box[2]) // 2)
+        y = int((box[1] + box[3]) // 2)
+        self._click(window, pager.widget, x, y)
+        self.assertIn("-PAGE-", self._events(window))
+        self.assertEqual(pager.get(), 6)
+        pager.update(current_page=7)
+        self.assertEqual(pager.get(), 7)
+        pager.update(total=15)  # 2 pages now: the page clamps down
+        self.assertEqual(pager.page_count, 2)
+        self.assertEqual(pager.get(), 2)
+
+    def test_pagination_show_total(self):
+        pager = ts.Pagination(total=95, show_total=True, key="-PAGE-")
+        self._window([[pager]])
+        texts = [
+            str(pager.widget.itemcget(item, "text"))
+            for item in pager.widget.find_all()
+            if pager.widget.type(item) == "text"
+        ]
+        self.assertIn("Total 95", texts)
+
+    def test_transfer_get_and_moves(self):
+        transfer = ts.Transfer(["a", "b", "c"], target_items=["x"], key="-TR-")
+        self._window([[transfer]])
+        self.assertEqual(transfer.get(), ["x"])  # the target list
+        transfer._source_list.selection_set(0)
+        self.assertTrue(transfer.move_selected())
+        self.assertEqual(transfer.get(), ["x", "a"])
+        self.assertTrue(transfer.move_all())
+        self.assertEqual(transfer.get(), ["x", "a", "b", "c"])
+        self.assertFalse(transfer.move_all())  # the source is empty now
+        self.assertEqual(transfer._source_list.size(), 0)
+
+    def test_transfer_double_click_moves_one_item(self):
+        transfer = ts.Transfer(["a", "b", "c"], key="-TR-")
+        window = self._window([[transfer]])
+        window.tk_root.update()
+        box = transfer._source_list.bbox(0)
+        self.assertIsNotNone(box)
+        x = box[0] + 5
+        y = box[1] + box[3] // 2
+        # two presses in quick succession are the double click Tk sees
+        transfer._source_list.event_generate("<Button-1>", x=x, y=y, when="tail")
+        transfer._source_list.event_generate("<Button-1>", x=x, y=y, when="tail")
+        window.tk_root.update()
+        self.assertEqual(transfer.get(), ["a"])
+        self.assertEqual(transfer._source_list.size(), 2)
+
+    def test_transfer_update_and_events(self):
+        transfer = ts.Transfer(["a", "b"], enable_events=True, key="-TR-")
+        window = self._window([[transfer]])
+        transfer._source_list.selection_set(0)
+        transfer.move_selected()
+        self.assertIn("-TR-", self._events(window))
+        self.assertEqual(transfer.get(), ["a"])
+        transfer.update(source_items=["p", "q"], target_items=["z"])
+        self.assertEqual(transfer.get(), ["z"])
+        self.assertEqual(transfer._source_list.size(), 2)
+        self.assertEqual(transfer._target_list.size(), 1)
+
+
 class TestPy37Compatibility(unittest.TestCase):
     def test_no_py38_syntax(self):
         """The 3.7 floor forbids 3.8+ syntax: walrus and positional-only params."""

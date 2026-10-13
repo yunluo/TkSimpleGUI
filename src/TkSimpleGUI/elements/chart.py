@@ -41,6 +41,7 @@ from typing import List, Optional, Tuple
 import tkinter as tk
 
 from .media import Graph
+from ._paint import pil_modules as _paint_pil_modules
 from .. import _theming as theme_mod
 
 # --- default palette (cycled per series / per pie slice) ----------------------
@@ -61,20 +62,13 @@ MARKER_RADIUS = 3.0
 SCATTER_RADIUS = 4.0
 AA_SCALE = 3  # supersampling factor of the Pillow backend
 
-_PIL_MODULES = None  # cached (Image, ImageDraw), or False when unavailable
-
-
 def _pil_modules():
-    """(Image, ImageDraw) when Pillow is installed, else False (cached)."""
-    global _PIL_MODULES
-    if _PIL_MODULES is None:
-        try:
-            from PIL import Image, ImageDraw
+    """(Image, ImageDraw) when Pillow is installed, else False (cached).
 
-            _PIL_MODULES = (Image, ImageDraw)
-        except Exception:  # any import failure: fall back to Tk canvas
-            _PIL_MODULES = False
-    return _PIL_MODULES
+    The probe itself lives in ``_paint`` so the chart backend, the circular
+    avatar crop and the rotated watermark share one cache.
+    """
+    return _paint_pil_modules()
 
 
 def pil_backend_available():

@@ -324,6 +324,131 @@ def tab_fancy():
     ]
 
 
+def tab_components():
+    """Batch A: display widgets drawn on the canvas (Element Plus style).
+
+    The page is taller than most screens, so it lives in a
+    :class:`~TkSimpleGUI.ScrollableColumn` — the demo doubles as a scroll
+    container sample.
+    """
+    return [
+        [ts.TScrollableColumn(
+            _components_rows(), size=(1180, 620), expand_x=True, expand_y=True,
+            key="-SCROLL-COMPONENTS-")],
+    ]
+
+
+def _components_rows():
+    """The rows of the 展示控件 page: one card per widget family."""
+    timeline_items = [
+        ("09:31", "创建订单 SO-2026-0042"),
+        {"timestamp": "10:02", "content": "支付成功", "type": "success"},
+        {"timestamp": "10:15", "content": "库存不足，等待补货", "type": "warning"},
+    ]
+    return [
+        [ts.TCard(
+            "数据概览",
+            [[ts.TStatistic("今日销售额", 128940.5, prefix="$", precision=1,
+                            trend=12.5, key="-STAT-1-"),
+              ts.TStatistic("订单数", 1864, trend=-3.2, key="-STAT-2-"),
+              ts.TStatistic("转化率", 3.42, suffix="%", precision=2,
+                            key="-STAT-3-")]],
+            subtitle="Statistic -- 大数字 + 涨跌趋势",
+            extra=ts.TButton("刷新", key="-B-STAT-RND-"),
+            key="-CARD-STAT-"),
+         ts.TCard(
+             "订单流程",
+             [[ts.TSteps(["下单", ("支付", "3 分钟前"), "发货", "完成"],
+                         active=1, key="-STEPS-")],
+              [ts.TButton("下一步", key="-B-STEP-NEXT-"),
+               ts.TButton("重回第一步", key="-B-STEP-RESET-"),
+               ts.TButton("标记异常", key="-B-STEP-ERR-")]],
+             subtitle="Steps -- 横向步骤条，active/status 可动态更新",
+             key="-CARD-STEPS-")],
+
+        [ts.TColumn([
+            [ts.TText("标签 Tag："),
+             ts.TTag("默认", key="-TAG-1-"),
+             ts.TTag("成功", tag_color="#67c23a", key="-TAG-2-"),
+             ts.TTag("深色", effect="dark", tag_color="#409eff"),
+             ts.TTag("描边", effect="plain", tag_color="#e6a23c"),
+             ts.TTag("可关闭", closable=True, key="-TAG-CLOSE-")],
+            [ts.TText("徽章 Badge："),
+             ts.TBadge(120, max_value=99, key="-BADGE-"),
+             ts.TBadge(is_dot=True),
+             ts.TBadge(7, badge_color="#67c23a")],
+            [ts.TText("头像 Avatar："),
+             ts.TAvatar(text="云落", key="-AVATAR-"),
+             ts.TAvatar(data_base64=ts.DEFAULT_BASE64_ICON, size=44),
+             ts.TAvatar(text="AB", shape="square", background_color="#4caf50")],
+            [ts.TText("分段控制器 Segmented："),
+             ts.TSegmented(["按天", "按周", "按月"], key="-SEG-", enable_events=True),
+             ts.TText("  评分 Rate："),
+             ts.TRate(max_value=5, default_value=3.5, key="-RATE-",
+                      enable_events=True)]],
+            key="-BAND-DISPLAY-")],
+
+        [ts.TCard(
+            "订单详情",
+            [[ts.TDescriptions(
+                [("订单号", "SO-2026-0042"), ("客户", "华北制造"),
+                 ("金额", "¥ 12,890.00"), ("状态", "已支付"),
+                 ("创建时间", "2026-10-12 09:31"), ("发货仓库", "北京一号仓")],
+                columns=3, bordered=True, key="-DESC-")],
+             [ts.TPagination(total=95, page_size=10, current_page=3,
+                             show_total=True, key="-PAGE-", enable_events=True)]],
+            subtitle="Descriptions -- 描述列表 / Pagination -- 分页器",
+            key="-CARD-DESC-"),
+         ts.TCard(
+             "操作记录",
+             [[ts.TTimeline(timeline_items, key="-TIMELINE-")]],
+             subtitle="Timeline -- 时间线",
+             extra=ts.TButton("追加记录", key="-B-TL-ADD-"),
+             key="-CARD-TL-")],
+
+        [ts.TCard(
+            "结果页",
+            [[ts.TResult("支付成功", "订单已进入发货流程", status="success",
+                         size=(170, 152), key="-RES-OK-"),
+              ts.TResult("支付失败", "余额不足，请更换支付方式", status="error",
+                         size=(170, 152)),
+              ts.TResult("待确认", "请核对收货信息", status="warning",
+                         size=(170, 152)),
+              ts.TResult("处理中", None, status="info", size=(170, 152))]],
+            subtitle="Result -- 四种语义状态",
+            key="-CARD-RES-"),
+         ts.TCard("暂无数据",
+                  [[ts.TEmpty("暂无工单数据", key="-EMPTY-")]],
+                  subtitle="Empty -- 空状态", key="-CARD-EMPTY-")],
+
+        [ts.TCard(
+            "穿梭框",
+            [[ts.TTransfer(["主机 A", "主机 B", "主机 C", "主机 D"],
+                           target_items=["主机 E"], titles=("候选", "已选"),
+                           size=(16, 6), key="-TRANS-", enable_events=True)]],
+            subtitle="Transfer -- 双击或箭头按钮移动条目",
+            key="-CARD-TRANS-"),
+         ts.TColumn([
+             ts.TCard(
+                 "骨架屏",
+                 [[ts.TSkeleton(rows=3, avatar=True, key="-SKEL-")],
+                  [ts.TButton("重放加载", key="-B-SKEL-")]],
+                 subtitle="Skeleton -- 呼吸动画占位",
+                 key="-CARD-SKEL-"),
+             ts.TCard("水印", [[ts.TWatermark("内部资料", size=(320, 120),
+                                              gap=(130, 70), key="-WM-")]],
+                      subtitle="Watermark -- 平铺水印（有 Pillow 时按角度旋转）",
+                      key="-CARD-WM-")])],
+
+        [ts.TAlert("生产环境连接正常，两条告警待处理。", type="info", title="提示",
+                   key="-ALERT-INFO-", expand_x=True)],
+        [ts.TAlert("磁盘剩余空间不足 10%，请及时清理。", type="warning", title="注意",
+                   key="-ALERT-WARN-", expand_x=True)],
+        [ts.TAlert("同步失败：远端拒绝连接（已重试 3 次）。", type="error",
+                   closable=True, key="-ALERT-ERR-", expand_x=True)],
+    ]
+
+
 def tab_themes():
     """A visual swatch + preview for each of the five built-in themes.
 
@@ -435,6 +560,7 @@ def build_main_window():
         [[ts.TTab("输入控件", tab_inputs()), ts.TTab("选择控件", tab_selection()),
           ts.TTab("数据展示", tab_data()), ts.TTab("图形图表", tab_graphics()),
           ts.TTab("容器", tab_containers()), ts.TTab("趣味控件", tab_fancy()),
+          ts.TTab("展示控件", tab_components()),
           ts.TTab("主题", tab_themes()),
           ts.TTab("系统", tab_system())]],
         key="-TABS-", enable_events=False, expand_x=True, expand_y=True)
@@ -854,6 +980,91 @@ def on_gauge_random(window, values):
     log(f"仪表盘：液位 {level:.1f}% / 温度 {temperature:.1f}°C")
 
 
+# display widgets (batch A)
+@ts.bind_event("-B-STAT-RND-")
+def on_stat_random(window, values):
+    import random
+
+    window["-STAT-1-"].update(
+        value=round(random.uniform(80000, 160000), 1),
+        trend=round(random.uniform(-18, 24), 1))
+    window["-STAT-2-"].update(value=random.randint(1200, 2400),
+                              trend=round(random.uniform(-8, 12), 1))
+    log(f"统计数值已刷新：销售额 {window['-STAT-1-'].get():.1f}")
+
+
+@ts.bind_event("-B-STEP-NEXT-")
+def on_step_next(window, values):
+    steps = window["-STEPS-"]
+    steps.update(active=min(3, steps.get() + 1))
+    log(f"步骤条推进到第 {steps.get()} 步")
+
+
+@ts.bind_event("-B-STEP-RESET-")
+def on_step_reset(window, values):
+    window["-STEPS-"].update(active=0)
+    log("步骤条已回到第一步")
+
+
+@ts.bind_event("-B-STEP-ERR-")
+def on_step_error(window, values):
+    window["-STEPS-"].update(status="error")
+    log("步骤条当前步骤标记为异常（红色叉）")
+
+
+@ts.bind_event("-SEG-")
+def on_segmented(window, event, values):
+    log(f"分段控制器选择：{values['-SEG-']!r}")
+
+
+@ts.bind_event("-RATE-")
+def on_rate(window, event, values):
+    log(f"评分：{values['-RATE-']}")
+
+
+@ts.bind_event("-PAGE-")
+def on_pagination(window, event, values):
+    pager = window["-PAGE-"]
+    log(f"分页：第 {pager.get()} 页 / 共 {pager.page_count} 页")
+
+
+@ts.bind_event("-TRANS-")
+def on_transfer(window, event, values):
+    log(f"穿梭框已选：{window['-TRANS-'].get()}")
+
+
+@ts.bind_event("-B-TL-ADD-")
+def on_timeline_add(window, values):
+    import random
+
+    timeline = window["-TIMELINE-"]
+    records = list(timeline.get())
+    stamp = time.strftime("%H:%M")
+    records.append((stamp, {"timestamp": stamp, "content": "新增一条操作记录",
+                            "type": random.choice(["primary", "info"])}))
+    timeline.update(items=records)
+    log(f"时间线追加一条记录，共 {len(records)} 条")
+
+
+@ts.bind_event("-B-SKEL-")
+def on_skeleton_replay(window, values):
+    skeleton = window["-SKEL-"]
+    skeleton.update(rows=1, animated=True)
+    window.after(1200, lambda: skeleton.update(rows=3))
+    log("骨架屏重放：先一行占位，1.2 秒后恢复三行")
+
+
+@ts.bind_event([("-TAG-CLOSE-", "close")])
+def on_tag_closed(window, event, values):
+    window["-TAG-CLOSE-"].update(value="已关闭(点击恢复)")
+    log(f"标签被关闭（事件载荷 {event!r}）")
+
+
+@ts.bind_event([("-ALERT-ERR-", "close")])
+def on_alert_closed(window, event, values):
+    log("错误提示条已关闭")
+
+
 # popup family
 @ts.bind_event("-P-MSG-")
 def on_p_msg(window, values):
@@ -1153,6 +1364,18 @@ def main(argv=None):
             on_color_print(window, {})
             on_slider(window, {"-SL-": 80})
             on_w_toast(window, {})
+            # batch A display widgets
+            on_stat_random(window, {})
+            on_step_next(window, {})
+            on_step_error(window, {})
+            on_segmented(window, "-SEG-", {"-SEG-": window["-SEG-"].get()})
+            on_rate(window, "-RATE-", {"-RATE-": window["-RATE-"].get()})
+            on_pagination(window, "-PAGE-", {})
+            on_transfer(window, "-TRANS-", {})
+            on_timeline_add(window, {})
+            on_skeleton_replay(window, {})
+            on_tag_closed(window, ("-TAG-CLOSE-", "close"), {})
+            on_alert_closed(window, ("-ALERT-ERR-", "close"), {})
             deadline = time.time() + 1.5
             while time.time() < deadline:
                 window.read(timeout=100)

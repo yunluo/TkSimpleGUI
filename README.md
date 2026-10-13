@@ -32,6 +32,9 @@
 - **100% 类型标注** — `py.typed`（PEP 561），ty 零诊断，IDE 全程补全与检查
 - **超越 Tk** — 圆角按钮、图像按钮、文字进度条、全局热键、任务栏进度、
   系统托盘、日历控件、表格编辑/排序、拆分器、流式面板……Tk/ttk 没有的这里也有
+- **自绘展示控件** — Element Plus 风格的标签/徽章/头像/统计数值/空状态/结果页/
+  步骤条/时间线/骨架屏/警告条/水印/描述列表/卡片/分段控制器/评分/分页器/穿梭框：
+  全部 Canvas 自绘或原生组合，随主题自动换色，零新依赖
 - **封装彻底** — `__slots__` 全覆盖、私有属性 + `@property`、
   主题与设置走单例而非模块全局
 - **系统原生外观** — 不调 `ts.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
@@ -125,30 +128,35 @@ TkSimpleGUI/
 │   ├── constants.py            # 不可变常量
 │   ├── _theme_data.py          # 生成式主题表（160 主题）
 │   ├── _theming.py             # ThemeManager（封装的 look & feel）
+│   ├── _typing_compat.py       # 3.7 的 Literal 兼容层
 │   ├── settings.py             # Settings 单例 + set_options/get_options
-│   ├── utils.py                # rgb、Timer、平台检测、DPI 感知
+│   ├── utils.py                # rgb、Timer、平台检测、DPI 感知、i18n 翻译
 │   ├── event.py                # TkSimpleEvent 全局事件总线 + default_app
 │   ├── actions.py              # Action / ActionList（Delphi TActionList 对标）
 │   ├── user_settings.py        # UserSettings（JSON 持久化）
-│   ├── i18n.py                 # 字典翻译（Qt tr() 对标）
 │   ├── animation.py            # fade/slide/progress 动画辅助
 │   ├── hotkey.py               # 全局热键 + 任务栏进度（Win32/COM）
+│   ├── input_blocker.py        # 系统级输入屏蔽（模态加强）
 │   ├── popup.py                # 基于 Window 本体的弹窗族
 │   ├── elements/
 │   │   ├── base.py             # Element(ABC) + 右键菜单 + 网格布局引擎
+│   │   ├── _paint.py           # 自绘控件的共享绘制/调色基础层
 │   │   ├── widgets.py          # Text/Input/Combo/Listbox/Spin/Checkbox/Radio…
 │   │   ├── buttons.py          # Button 及浏览/开关/图像变体
-│   │   ├── fancy.py            # 圆角按钮/图像按钮/文字进度条
+│   │   ├── fancy.py            # 圆角按钮/图像按钮/文字进度条/仪表盘/LED
 │   │   ├── media.py            # Image/Canvas/Graph（图元句柄）
 │   │   ├── containers.py       # Frame/Column/Splitter/TabGroup/Toolbar…
 │   │   ├── calendar.py         # 内嵌月历
-│   │   ├── data.py             # Table（排序/编辑/图标）、Tree
-│   │   └── misc.py             # StatusBar/Separator/Sizegrip
+│   │   ├── chart.py            # 图表（9 种类型 + 误差棒/参考线/直方图）
+│   │   ├── display.py          # 标签/徽章/头像/统计/空状态/结果页/骨架屏/警告条/水印
+│   │   ├── panels.py           # 卡片/描述列表/步骤条/时间线
+│   │   ├── selection.py        # 分段控制器/评分/分页器/穿梭框
+│   │   └── data.py             # Table（排序/编辑/图标）、Tree
 │   └── window/
 │       ├── window.py           # Window：统一循环、层级、定时器、剪贴板
 │       └── system_tray.py      # SystemTray（托盘图标/菜单/气泡/事件）
 ├── demos/                      # 演示脚本（feature showcase + 基本模板）
-├── tests/test_package.py       # 测试套件（223 项，pytest/unittest 均可跑）
+├── tests/test_package.py       # 测试套件（267 项，pytest/unittest 均可跑）
 ├── todo.md                     # 路线图
 ├── pyproject.toml
 └── README.md
@@ -158,9 +166,10 @@ TkSimpleGUI/
 
 ```bash
 pip install -e .
-python -m pytest tests -q             # 223 项测试（每测试 30s 超时守护）
+python -m pytest tests -q             # 267 项测试（每测试 30s 超时守护）
 python -m unittest discover tests     # 同一套测试的 unittest 跑法
-python tests/check_types.py           # ty 类型检查零诊断守卫
+python tests/check_types.py           # ty 类型检查守卫
+python tests/check_syntax.py          # 3.7 语法门（用运行中解释器的 ast 解析全部 .py）
 python demos/showcase.py --smoke      # showcase 冒烟自检
 ```
 
