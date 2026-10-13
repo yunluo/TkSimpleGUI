@@ -1014,6 +1014,159 @@ class TestDataclassConfigs(unittest.TestCase):
         window.close()
 
 
+class TestCharts(unittest.TestCase):
+    """TChart: 8 types, AA raster, theme repaint, stacked/donut models."""
+
+    def test_chart_types_count(self):
+        self.assertEqual(len(ts.ChartType.ALL), 8)
+        self.assertIn("donut", ts.ChartType.ALL)
+        self.assertIn("stacked", ts.ChartType.ALL)
+
+    def _make(self, **kwargs):
+        window = ts.Window(
+            "charts", [[ts.TChart((220, 160), key="-C-", **kwargs)]],
+            finalize=True,
+        )
+        return window, window["-C-"]
+
+    def test_aa_renders_photo(self):
+        window, chart = self._make()
+        try:
+            chart.add_series("s", [1, 5, 3, 8])
+            chart.redraw()
+            kinds = {chart.widget.type(i) for i in chart.widget.find_all()}
+            self.assertIn("image", kinds)
+        finally:
+            window.close()
+
+    def test_vector_fallback(self):
+        window, chart = self._make(chart_type="bar", anti_alias=False)
+        try:
+            chart.add_series("s", [1, 5, 3], labels=["a", "b", "c"])
+            chart.redraw()
+            kinds = {chart.widget.type(i) for i in chart.widget.find_all()}
+            self.assertNotIn("image", kinds)
+            self.assertIn("rectangle", kinds)
+        finally:
+            window.close()
+
+    def test_donut_and_stacked_models(self):
+        window, chart = self._make(chart_type="donut")
+        try:
+            chart.add_series("split", [("x", 45), ("y", 25), ("z", 30)])
+            chart.redraw()
+            self.assertEqual(len(chart._pie_labels), 3)
+            chart._chart_type = ts.ChartType.STACKED
+            chart.clear_series()
+            chart.add_series("a", [1, 2], labels=["r1", "r2"])
+            chart.add_series("b", [3, 4])
+            chart.redraw()
+            self.assertEqual(chart.series_names, ["a", "b"])
+            kinds = {chart.widget.type(i) for i in chart.widget.find_all()}
+            self.assertIn("image", kinds)
+        finally:
+            window.close()
+
+    def test_update_data_redraws(self):
+        window, chart = self._make()
+        try:
+            chart.add_series("s", [1, 2, 3])
+            chart.update_data("s", [9, 9, 9])
+            self.assertEqual(chart._series[0].values, [9, 9, 9])
+        finally:
+            window.close()
+
+    def test_legend_positions_render(self):
+        for position in ("top", "bottom", "left", "right"):
+            window, chart = self._make(legend_position=position)
+            try:
+                chart.add_series("甲", [1, 5, 3])
+                chart.add_series("乙", [4, 2, 6])
+                chart.redraw()
+                kinds = {chart.widget.type(i) for i in chart.widget.find_all()}
+                self.assertIn("image", kinds, msg=f"position={position}")
+            finally:
+                window.close()
+
+    def test_legend_position_invalid_rejected(self):
+        with self.assertRaises(ValueError):
+            ts.TChart(legend_position="diagonal")
+
+    def test_horizontal_legend_shrinks_plot(self):
+        window, chart = self._make(legend_position="bottom")
+        try:
+            chart.add_series("s", [1, 5, 3])
+            bottom_legend = chart._plot_rect()[3]
+            chart._legend_position = "right"
+            self.assertLess(bottom_legend, chart._plot_rect()[3])
+        finally:
+            window.close()
+
+    def test_chart_follows_theme(self):
+        window, chart = self._make()
+        try:
+            chart.add_series("s", [1, 5, 3, 8])
+            chart.redraw()
+            ts.theme("Slate")
+            slate_bg = ts.theme_background_color()
+            window.update_theme()
+            self.assertEqual(
+                str(chart.widget.cget("background")), slate_bg
+            )
+        finally:
+            window.close()
+            ts.theme(None)
+
+
+class TestChartBackend(unittest.TestCase):
+    """Optional Pillow rendering backend, with the Tk vector fallback."""
+
+    def test_backend_detection_follows_pillow(self):
+        from TkSimpleGUI.elements import chart as chart_mod
+        try:
+            import PIL  # noqa: F401
+            installed = True
+        except ImportError:
+            installed = False
+        self.assertEqual(chart_mod.pil_backend_available(), installed)
+
+    def test_fallback_renders_without_pil(self):
+        # anti_alias=False must produce pure vector figures on any machine
+        window = ts.Window(
+            "fb", [[ts.TChart((220, 160), chart_type="line", key="-C-",
+                              anti_alias=False)]],
+            finalize=True,
+        )
+        try:
+            chart = window["-C-"]
+            chart.add_series("s", [1, 5, 3, 8])
+            chart.redraw()
+            kinds = {chart.widget.type(i) for i in chart.widget.find_all()}
+            self.assertNotIn("image", kinds)
+            self.assertIn("line", kinds)
+        finally:
+            window.close()
+
+    def test_pil_frame_matches_canvas(self):
+        from TkSimpleGUI.elements.chart import pil_backend_available
+        if not pil_backend_available():
+            self.skipTest("Pillow not installed")
+        window = ts.Window(
+            "pil", [[ts.TChart((120, 80), chart_type="pie", key="-C-")]],
+            finalize=True,
+        )
+        try:
+            chart = window["-C-"]
+            chart.add_series("s", [("a", 30), ("b", 20), ("c", 50)])
+            chart.redraw()
+            kinds = {chart.widget.type(i) for i in chart.widget.find_all()}
+            self.assertIn("image", kinds)
+            frame = chart._images[-1]
+            self.assertEqual((frame.width(), frame.height()), (120, 80))
+        finally:
+            window.close()
+
+
 class TestFirstBatch(unittest.TestCase):
     """Batch 1: validation, calendar, splitter, scrollable column, timers, find/replace."""
 
@@ -1661,11 +1814,11 @@ class TestLineA(unittest.TestCase):
 
 
 class TestChart(unittest.TestCase):
-    """TChart: line/bar/hbar/scatter/area/pie on the Graph coordinate system."""
+    """TChart: 8 chart types on the Graph coordinate system."""
 
-    def _chart(self, kind):
+    def _chart(self, kind, **kwargs):
         chart = ts.TChart((300, 180), chart_type=kind, key="-C-",
-                          background_color="#ffffff")
+                          background_color="#ffffff", **kwargs)
         window = ts.Window("t", [[chart]], finalize=True)
         self.addCleanup(window.close)
         return chart
@@ -1679,9 +1832,11 @@ class TestChart(unittest.TestCase):
         chart.add_series("A", [3, 7, 2, 9], labels=["a", "b", "c", "d"])
         chart.add_series("B", [5, 4, 8, 3])
         chart.redraw()
-        # markers (4+4 ovals) + 1 polyline + axes(2) + grid + ticks + legend
+        # one raster frame (image) + axes/grid/ticks/legend vector items
         figures = chart.widget.find_all()
-        self.assertGreater(len(figures), 10)
+        self.assertGreater(len(figures), 5)
+        kinds = {chart.widget.type(i) for i in figures}
+        self.assertIn("image", kinds)
         self.assertEqual(chart.series_names, ["A", "B"])
 
     def test_bar_grouped(self):
@@ -1689,12 +1844,13 @@ class TestChart(unittest.TestCase):
         chart.add_series("E", [12, 30, 8], labels=["x", "y", "z"])
         chart.add_series("W", [9, 24, 16])
         chart.redraw()
-        # 2 series x 3 bars = 6 rectangles + axes/grid/ticks/legend
+        # one raster frame (image) + axes/grid/ticks/legend vector items
         figures = chart.widget.find_all()
-        self.assertGreater(len(figures), 8)
+        self.assertGreater(len(figures), 5)
 
     def test_pie_slices_and_legend(self):
-        chart = self._chart("pie")
+        # vector path: every slice is its own canvas figure
+        chart = self._chart("pie", anti_alias=False)
         chart.add_series("share", [("alpha", 30), ("beta", 20), ("gamma", 50)])
         chart.redraw()
         figures = chart.widget.find_all()
@@ -1713,7 +1869,7 @@ class TestChart(unittest.TestCase):
     def test_all_types_render(self):
         for kind in ts.ChartType.ALL:
             chart = self._chart(kind)
-            if kind == "pie":
+            if kind in ("pie", "donut"):
                 chart.add_series("s", [("a", 1), ("b", 2)])
             else:
                 chart.add_series("s", [1, 3, 2], labels=["a", "b", "c"])

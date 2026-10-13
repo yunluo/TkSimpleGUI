@@ -12,6 +12,8 @@ Demonstrates the framework defaults:
   ``if event == ...:`` chains)
 * popups are closable from the title bar X; the OK / Cancel buttons are
   one of the many ways to answer
+
+UI strings are Chinese (menu/button labels double as event names).
 """
 import os
 import sys
@@ -28,21 +30,21 @@ app = ts.default_app()
 def make_main_window():
     """A focused, beginner-friendly layout (no menus, no tabs, no toolbars)."""
     task_list = ts.Frame(
-        "Tasks",
+        "任务清单",
         [
-            [ts.Text("Live keystroke events:"),
+            [ts.Text("实时按键事件："),
              ts.Input(key="lot1", size=(24, 1), enable_events=True)],
-            [ts.Text("Press Enter to fire an event:"),
+            [ts.Text("按回车触发事件："),
              ts.Input(key="lot2", size=(24, 1))],
-            [ts.Button("About"), ts.Button("Save config")],
-            [ts.Text("Live:", size=(6, 1)), ts.Text("", key="lot3", size=(40, 1))],
-            [ts.Text("Enter:", size=(6, 1)), ts.Text("", key="lot4", size=(40, 1))],
+            [ts.Button("关于"), ts.Button("保存配置")],
+            [ts.Text("实时：", size=(6, 1)), ts.Text("", key="lot3", size=(40, 1))],
+            [ts.Text("回车：", size=(6, 1)), ts.Text("", key="lot4", size=(40, 1))],
         ],
         size=(440, 200),
     )
     return ts.Window(
-        "Basic TkSimpleGUI window",
-        [[task_list], [ts.StatusBar("ready", key="-STATUS-", expand_x=True)]],
+        "TkSimpleGUI 基础窗口",
+        [[task_list], [ts.StatusBar("就绪", key="-STATUS-", expand_x=True)]],
         resizable=True,
         finalize=True,
     )
@@ -55,23 +57,23 @@ def on_lot1(window, values):
 
 @app.bind_event("lot2")
 def on_lot2(window, values):
-    window["lot4"].update("you typed: " + str(values.get("lot2", "")))
+    window["lot4"].update("你输入了：" + str(values.get("lot2", "")))
 
 
-@app.bind_event("About")
+@app.bind_event("关于")
 def on_about(window, values):
     ts.popup(
         "TkSimpleGUI " + ts.__version__,
-        "Recommended pattern: bind_event + Window.run()",
-        title="About",
+        "推荐写法：bind_event + Window.run()",
+        title="关于",
     )
-    window["-STATUS-"].update("about shown")
+    window["-STATUS-"].update("已显示关于")
 
 
-@app.bind_event("Save config")
+@app.bind_event("保存配置")
 def on_save_config(window, values):
-    ts.popup("config saved (demo only)")
-    window["-STATUS-"].update("config saved")
+    ts.popup("配置已保存（仅演示）")
+    window["-STATUS-"].update("配置已保存")
 
 
 def main():
@@ -79,7 +81,7 @@ def main():
     # the on_close hook intercepts the title bar X; the popup gives the
     # user a chance to cancel an accidental click
     window.on_close = lambda w: ts.popup_yes_no(
-        "Close the basic window demo?", title="Exit") == "Yes"
+        "确定关闭基础窗口演示吗？", title="退出") == "Yes"
     try:
         app.run_event(window)
     finally:
