@@ -8,7 +8,7 @@
 
 - [x] 全新 OO 重写（5c0f61d）：Element ABC/模板方法、ThemeManager 单例、原生默认外观
 - [x] 主题重设计（840b4ff）：160 套 -> 5 套（System/Slate/Daylight/Dusk/Sage），全部低饱和、耐看、工业/个人两用
-- [x] P0 能力补齐（c6e4431）：metadata / pad / expand_x / expand_y / justification / right_click_menu / disabled 构造参数；颜色字体参数全覆盖 + ttk 派生样式；Window 运行时 API（maximize/minimize/normal/restore/alpha/size/move_to_center/hide/set_icon…）；perform_long_operation；右键菜单
+- [x] P0 能力补齐（c6e4431）：metadata / pad / expand_x / expand_y / justification / right_click_menu / disabled 构造参数；颜色字体参数全覆盖 + ttk 派生样式；Window 运行时 API（maximize/minimize/normal/restore/alpha/size/move_to_center/hide/set_icon…）；start_task（原名 perform_long_operation）；右键菜单
 - [x] tk/ttk 深挖 + 默认 logo（8beed18）：Graph 图元句柄（oval/arc/polygon/image + delete/move/relocate/bring/send/get_figures_at_location）、Table 表头排序、Multiline 原生 undo/redo/彩色 print/clear、Button 图片+compound、剪贴板、set_min_size、set_dpi_awareness、Tk 字标双尺寸 iconphoto（`DEFAULT_BASE64_ICON`，默认已改为跟随解释器图标）
 - [x] 第一批（70412d5）：Entry 校验、Calendar、Splitter、ScrollableColumn、窗体级右键、popup_get_font、after/every 定时器、popup_find/replace
 - [x] 第二批（0cb9bd1）：CheckList、Toolbar、toggle Button、LabeledEdit、KeyValueEditor、FlowPanel、Tree/Table 行图标、Table 单元格编辑、Shape
@@ -128,6 +128,57 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
       **Tag 的"×"在 32 位 3.7 上点不动**（Tk 8.6.9 细线命中原点判定不可靠，改成右侧 18px 区域命中）、
       **Timeline 收到 `("10:02", {…})` 时把字典 repr 画出来**（第二个槽位是 mapping 时按字段解析）
 
+## ✅ 日志进日志框（Output 控件，2026-10-13）
+
+用户口径："我要的日志是显示到 output 模块控件"。不做独立日志窗口、不引入第三方
+日志库——`Output`（只读 Multiline）本身就是日志框，本批次在它上面加日志层。
+
+- [x] **`src/TkSimpleGUI/logger.py`（新）**：`Logger(element, timestamp="%H:%M:%S",
+      max_lines=2000, min_level="debug", colors=None, mirror=None, drain_ms=100)`
+      - 级别 `debug/info/success/warning/error/critical`，配色复用批次 A 的语义色
+        （info = 控件主题字色，success/warning/error 与 Alert/Result 同一套红黄绿），
+        `color=` 单行覆盖，`timestamp=` 改写或关闭
+      - 环形上限：`line_count` 超限即 `delete("1.0", "N.0")` 裁头部，长跑不涨内存
+      - 文件镜像：`mirror="run.log"`（纯文本、逐行 flush、logger 负责关闭）
+      - **线程安全**：主线程直写；工作线程进 queue，由主线程 100ms 定时器排空
+        （`start_task` 里写日志不再崩 Tk）
+      - **标准库桥接**：`attach_logging("INFO", "myapp")` 挂 `logging.Handler` 并把
+        目标 logger 级别一并调好（可 `detach_logging()` 还原，重复 attach 不叠加）
+- [x] **控件侧**：`Multiline` 增加 `log(*args, level=...)` / `logger(**options)`（惰性
+      创建、`_logger` 槽位）/ `line_count`（内容行数，尾部换行不算一行）；`Output` 继承
+- [x] **一行式**：包根 `ts.log("...", key="-LOG-", level=...)`（无对象写入，找不到
+      日志框返回 False）+ `ts.find_log_element(key=None, window=None)`；查找规则 =
+      指定 key 或最新窗口的第一个 Output/Multiline
+- [x] **`Window.elements` 公开属性**（按布局顺序列出全部元素，含无 key 的）
+- [x] 顺手修掉一个既有 bug：**`Output` 被 print 一次就变可编辑**（`_end_state()` 只看
+      构造参数，现在 Output 恒定以 disabled 收尾）
+- [x] showcase：日志随手可用（`log()` 助手改走 `ts.log`）、新增「按级别写日志」
+      「标准 logging 桥接」「模拟长任务日志」三个按钮；smoke 路径覆盖前两个
+- [x] 日志面板截图目检（五级配色/对齐/桥接前缀）
+
+## 🔧 start_task 语义对齐修复（2026-10-13）
+
+审查发现 `Window.start_task`（原 `perform_long_operation`）把**返回值本身当成事件**投递：
+绑在 `end_key` 上的处理器永远收不到（showcase 完成回调是死代码、README 示例静默失效），
+返回值不可哈希时还会在派发器里报 "unhashable type"。现已对齐上游 PySimpleGUI 契约：
+
+- [x] **事件 = `end_key`，载荷 = 返回值**：完成时 `values["-DONE-"]` 是返回值（返回 None 也
+      照投，`key in values` 即"完成"）；`write_event_value(key, *value)` 支持可选载荷
+      （用 `*value` 而非 `value=None`：显式 None 载荷与"无载荷"仍可区分）
+- [x] **失败通道**：worker 抛异常——含 `SystemExit` 这类 BaseException（否则 UI 等不到
+      事件永久卡住）——异常对象作为载荷投递（`isinstance(values[end_key], BaseException)`
+      判定），同时经 `TkSimpleGUI.task` logger 报出完整 traceback（日志框桥接该 logger
+      即可看见），不再只进 stderr
+- [x] **线程安全**：worker 只入队——`write_event_value` 把事件交给 `Window._pending_posts`，
+      主线程在下一次泵（`_pump_all_roots` → `_drain_pending_posts`）做值快照并上总线；
+      hotkey 泵线程同样受益。实测快照线程从 `Thread-5` 变回 `MainThread`
+- [x] 顺带：`func` 非 callable 同步 `TypeError`；线程命名 `start_task:<函数名>`；默认键
+      `-THREAD DONE-` 并发语义与 `BaseException` 判定写进文档串；showcase 新增
+      「后台任务（失败）」按钮 + smoke 端到端断言（事件 / 载荷 / 日志框文本）
+- [x] 测试 284 → 291 → 298（日志批 +7、start_task 修复 +1、Alert close/reopen +1、
+      Rate/Pagination/Steps 键盘 +3、Empty 紧凑/legacy +1、Tag 真实 click +1）
+      载荷、不可哈希返回值、快照线程身份、载荷合并与单参兼容）
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
@@ -138,7 +189,7 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m pytest tests -q`（267 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 测试：`python -m pytest tests -q`（298 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
 - 类型：`python tests/check_types.py`（ty 守卫；找不到 ty 时返回非零。注意 PATH 上的 ty 0.0.53 会对既有
   `elements/buttons.py` 报 34 条 ttk stub 误报——基线如此，与本批次无关；`D:\bin\ty.exe`（0.0.32）零诊断）
 - Lint：`ruff check src tests demos`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）

@@ -3,10 +3,13 @@
 
 import ast
 import ctypes
+import logging
 import os
 import queue
 import re
 import sys
+import tempfile
+import threading
 import time
 import tkinter as tk
 import unittest
@@ -574,23 +577,138 @@ class TestWindowManagement(unittest.TestCase):
         self.assertEqual(info["sticky"], "e")
         window.close()
 
-    def test_perform_long_operation(self):
+    def test_start_task(self):
         window = ts.Window("t", [[ts.Text("x")]], finalize=True)
-        thread = window.perform_long_operation(lambda: "-RESULT-")
+        thread = window.start_task(lambda: 42, end_key="-DONE-")
         self.assertTrue(thread.daemon)
-        event, _values = window.read(timeout=3000)
-        self.assertEqual(event, "-RESULT-")
+        self.assertEqual(thread.name, "start_task:<lambda>")
+        event, values = window.read(timeout=3000)
+        self.assertEqual(event, "-DONE-")
+        self.assertEqual(values["-DONE-"], 42)
         window.close()
 
-    def test_perform_long_operation_window_arg(self):
+    def test_start_task_handler_bound_to_end_key_fires(self):
+        app = ts.TkSimpleEvent()
+        seen = []
+
+        def on_done(window, values):
+            seen.append(values["-DONE-"])
+
+        app.bind_event("-DONE-")(on_done)
+        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window.start_task(lambda: ["a", "b"], end_key="-DONE-")
+        event, values = window.read(timeout=3000)
+        self.assertEqual(event, "-DONE-")
+        app.apply_event(window, event, values)
+        self.assertEqual(seen, [["a", "b"]])  # unhashable payloads dispatch fine
+        window.close()
+
+    def test_start_task_none_result(self):
+        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window.start_task(lambda: None, end_key="-DONE-")
+        event, values = window.read(timeout=3000)
+        self.assertEqual(event, "-DONE-")
+        self.assertIn("-DONE-", values)
+        self.assertIsNone(values["-DONE-"])
+        window.close()
+
+    def test_start_task_failure_delivers_exception(self):
+        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+
+        def boom():
+            raise RuntimeError("boom")
+
+        with self.assertLogs("TkSimpleGUI.task", level="ERROR") as captured:
+            window.start_task(boom, end_key="-DONE-")
+            event, values = window.read(timeout=3000)
+        self.assertEqual(event, "-DONE-")
+        self.assertIsInstance(values["-DONE-"], RuntimeError)
+        self.assertIn("boom", captured.output[0])
+        window.close()
+
+    def test_start_task_worker_exit_delivers_event(self):
+        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+
+        def quit_worker():
+            raise SystemExit(3)
+
+        with self.assertLogs("TkSimpleGUI.task", level="ERROR"):
+            window.start_task(quit_worker, end_key="-DONE-")
+            event, values = window.read(timeout=3000)
+        self.assertEqual(event, "-DONE-")
+        self.assertIsInstance(values["-DONE-"], SystemExit)
+        window.close()
+
+    def test_start_task_rejects_non_callable(self):
+        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        with self.assertRaises(TypeError):
+            window.start_task(42)
+        window.close()
+
+    def test_start_task_window_arg(self):
         window = ts.Window("t", [[ts.Text("x")]], finalize=True)
 
         def worker(win):
-            win.write_event_value("-FROM-WORKER-")
+            win.write_event_value("-FROM-WORKER-", "payload")
 
-        window.perform_long_operation(worker, end_key=None)
-        event, _values = window.read(timeout=3000)
+        window.start_task(worker, end_key=None)
+        event, values = window.read(timeout=3000)
         self.assertEqual(event, "-FROM-WORKER-")
+        self.assertEqual(values["-FROM-WORKER-"], "payload")
+        window.close()
+
+    def test_start_task_values_snapshot_runs_on_main_thread(self):
+        original = ts.Window._snapshot_values
+        threads = []
+
+        def spy(self):
+            threads.append(threading.current_thread().name)
+            return original(self)
+
+        ts.Window._snapshot_values = spy
+        window = ts.Window("t", [[ts.Text("x", key="-T-")]], finalize=True)
+        try:
+            window.start_task(lambda: "-R-", end_key="-DONE-")
+            event, values = window.read(timeout=3000)
+        finally:
+            ts.Window._snapshot_values = original
+            window.close()
+        self.assertEqual(event, "-DONE-")
+        self.assertEqual(values["-DONE-"], "-R-")
+        self.assertTrue(threads)
+        self.assertEqual(set(threads), {"MainThread"})
+
+    def test_write_event_value_payload(self):
+        window = ts.Window("t", [[ts.Text("x", key="-T-")]], finalize=True)
+        window.write_event_value("-E-", {"n": 1})
+        event, values = window.read(timeout=500)
+        self.assertEqual(event, "-E-")
+        self.assertEqual(values["-E-"], {"n": 1})
+        self.assertEqual(values["-T-"], "x")  # payload merges into the snapshot
+        window.write_event_value("-PLAIN-")  # one argument: event only
+        event, values = window.read(timeout=500)
+        self.assertEqual(event, "-PLAIN-")
+        self.assertNotIn("-PLAIN-", values)
+        # explicit None is a real payload (not the same as omitting it)
+        window.write_event_value("-NULL-", None)
+        event, values = window.read(timeout=500)
+        self.assertEqual(event, "-NULL-")
+        self.assertIn("-NULL-", values)
+        self.assertIsNone(values["-NULL-"])
+        # keyword form works (PySimpleGUI-compatible signature)
+        window.write_event_value(key="-KW-", value=1)
+        event, values = window.read(timeout=500)
+        self.assertEqual(event, "-KW-")
+        self.assertEqual(values["-KW-"], 1)
+        window.close()
+
+    def test_start_task_rejects_unhashable_end_key(self):
+        """A bad end_key must fail at the call site, not deep inside the pump."""
+        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        with self.assertRaises(TypeError):
+            window.start_task(lambda: 1, end_key=["bad"])
+        with self.assertRaises(TypeError):
+            window.write_event_value(["bad"], "x")
         window.close()
 
     def test_window_management_api(self):
@@ -2875,6 +2993,21 @@ class TestDisplayElements(unittest.TestCase):
         self.assertEqual(int(sized.widget.cget("height")), 26)
         self.assertGreater(len(sized.widget.find_all()), 0)
 
+    def test_tag_close_button_uses_native_event(self):
+        """A real click on the close button (event_generate on the button
+        itself, not the canvas) closes the tag — the dispatch goes through
+        tk's native button command, not canvas pixel-hunting."""
+        tag = ts.Tag("X", closable=True, key="-T-")
+        window = self._window([[tag]])
+        for _ in range(3):
+            window.tk_root.update()
+        # the embedded close button exists and is mapped
+        self.assertTrue(tag._close_button.winfo_ismapped())
+        tag._close_button.event_generate("<Button-1>", x=4, y=8, when="tail")
+        window.tk_root.update()
+        self.assertIn(("-T-", "close"), self._events(window))
+        self.assertFalse(tag.visible)
+
     def test_badge_max_value_and_clear(self):
         badge = ts.Badge(value=120, max_value=99, key="-BADGE-")
         self._window([[badge]])
@@ -2905,7 +3038,7 @@ class TestDisplayElements(unittest.TestCase):
     def test_avatar_initials_and_shapes(self):
         avatar = ts.Avatar(text="Yun Luo", key="-AV-")
         self._window([[avatar]])
-        self.assertEqual(avatar._initials(), "Yu")
+        self.assertEqual(avatar._initials, "Yu")
         self.assertEqual(avatar.get(), "Yun Luo")
         self.assertGreaterEqual(len(avatar.widget.find_all()), 2)
         square = ts.Avatar(text="AB", shape="square", size=(48, 48))
@@ -2965,6 +3098,21 @@ class TestDisplayElements(unittest.TestCase):
         self._window([[empty]])
         kinds = [empty.widget.type(item) for item in empty.widget.find_all()]
         self.assertIn("image", kinds)
+
+    def test_empty_compact_one_line_default(self):
+        """No size passed → one-line compact layout (icon + caption in a
+        row, not the old 110-px hero)."""
+        empty = ts.Empty("nothing here", key="-E-")
+        self._window([[empty]])
+        # the compact icon is 16 px wide; default box is much shorter
+        self.assertLessEqual(int(empty.widget.cget("height")), 22)
+        texts = self._canvas_texts(empty)
+        self.assertIn("nothing here", texts)
+        # explicit legacy size still triggers the centred hero layout
+        legacy = ts.Empty("big", size=(160, 110), key="-E2-")
+        self._window([[legacy]])
+        self.assertEqual(int(legacy.widget.cget("height")), 110)
+        self.assertIn("big", self._canvas_texts(legacy))
 
     def test_result_statuses_render(self):
         results = [
@@ -3035,6 +3183,20 @@ class TestDisplayElements(unittest.TestCase):
             str(alert.widget.cget("background")),
         )
         self.assertGreater(len(alert._icon_canvas.find_all()), 0)
+
+    def test_alert_close_reopen_and_property(self):
+        alert = ts.Alert("info", key="-A-")
+        window = self._window([[alert]])
+        self.assertFalse(alert.closed)
+        alert.close()
+        self.assertTrue(alert.closed)
+        self.assertIn(("-A-", "close"), self._events(window))
+        # closing twice is a no-op
+        alert.close()
+        self.assertTrue(alert.closed)
+        alert.reopen()
+        self.assertFalse(alert.closed)
+        self.assertTrue(alert.visible)
 
     def test_watermark_tiling_and_update(self):
         watermark = ts.Watermark("DRAFT", angle=0, key="-WM-")
@@ -3462,6 +3624,266 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(transfer.get(), ["z"])
         self.assertEqual(transfer._source_list.size(), 2)
         self.assertEqual(transfer._target_list.size(), 1)
+
+    # --- keyboard parity -----------------------------------------------------------
+    def _key(self, window, widget, keysym):
+        """Give the canvas focus then synthesise a <Key> event.
+
+        Retry once on the second pump: under load (full 3.7 chunk suite)
+        the first focus + event can be eaten by a still-pending timer from
+        an earlier test. Two pumps is enough to make the assertion stable.
+        """
+        window.tk_root.update()
+        widget.focus_set()
+        widget.event_generate("<Key>", keysym=keysym, when="tail")
+        for _ in range(3):
+            window.tk_root.update()
+
+    def test_rate_keyboard_steps_and_clamps(self):
+        rate = ts.Rate(max_value=5, default_value=2, key="-R-")
+        window = self._window([[rate]])
+        self._key(window, rate.widget, "Right")
+        self.assertEqual(rate.get(), 3)
+        self._key(window, rate.widget, "End")
+        self.assertEqual(rate.get(), 5)
+        self._key(window, rate.widget, "Right")  # clamped
+        self.assertEqual(rate.get(), 5)
+        self._key(window, rate.widget, "Home")
+        self.assertEqual(rate.get(), 0)
+        self._key(window, rate.widget, "Left")  # clamped
+        self.assertEqual(rate.get(), 0)
+
+    def test_pagination_keyboard_navigates(self):
+        pagination = ts.Pagination(total=120, page_size=10, current_page=3,
+                                   key="-P-")
+        window = self._window([[pagination]])
+        self._key(window, pagination.widget, "Right")
+        self.assertEqual(pagination.get(), 4)
+        self._key(window, pagination.widget, "End")
+        self.assertEqual(pagination.get(), 12)  # page_count = ceil(120/10)
+        self._key(window, pagination.widget, "Home")
+        self.assertEqual(pagination.get(), 1)
+        self._key(window, pagination.widget, "Left")
+        self.assertEqual(pagination.get(), 1)  # already on first page
+
+    def test_steps_keyboard_navigates(self):
+        steps = ts.Steps(["A", "B", "C", "D"], active=1, key="-S-")
+        window = self._window([[steps]])
+        self._key(window, steps.widget, "Right")
+        self.assertEqual(steps.active, 2)
+        self._key(window, steps.widget, "End")
+        self.assertEqual(steps.active, 3)
+        self._key(window, steps.widget, "Home")
+        self.assertEqual(steps.active, 0)
+        self._key(window, steps.widget, "Left")
+        self.assertEqual(steps.active, 0)
+
+
+class TestLogger(unittest.TestCase):
+    """Logging into an Output / Multiline element (Logger + ts.log)."""
+
+    def _out(self, **kwargs):
+        element = ts.Output(size=(40, 6), key="-LOG-", **kwargs)
+        window = ts.Window("log", [[element]], finalize=True)
+        self.addCleanup(window.close)
+        return window, element
+
+    def _lines(self, element):
+        return element.get().splitlines()
+
+    def test_log_writes_formatted_line(self):
+        _window, out = self._out()
+        out.log("connected")
+        lines = self._lines(out)
+        self.assertEqual(len(lines), 1)
+        self.assertRegex(lines[0], r"^\d{2}:\d{2}:\d{2} INFO    connected$")
+        # the widget stays read-only for the user
+        self.assertEqual(str(out._text.cget("state")), "disabled")
+
+    def test_level_label_and_semantic_colors(self):
+        _window, out = self._out()
+        out.log("plain info")
+        out.log("bad", level="error")
+        out.log("warn", level="warning")
+        out.log("good", level="success")
+        info_tags = out._text.tag_names("1.0")
+        self.assertEqual(tuple(info_tags), ())  # info keeps the theme color
+        error_tags = out._text.tag_names("2.0")
+        self.assertTrue(error_tags)
+        color = out._text.tag_cget(error_tags[-1], "foreground")
+        self.assertEqual(str(color), "#f56c6c")
+        warn_tag = out._text.tag_names("3.0")[-1]
+        self.assertEqual(str(out._text.tag_cget(warn_tag, "foreground")), "#e6a23c")
+        ok_tag = out._text.tag_names("4.0")[-1]
+        self.assertEqual(str(out._text.tag_cget(ok_tag, "foreground")), "#67c23a")
+
+    def test_color_override_wins(self):
+        _window, out = self._out()
+        out.log("custom", level="error", color="#1565c0")
+        tag = out._text.tag_names("1.0")[-1]
+        self.assertEqual(str(out._text.tag_cget(tag, "foreground")), "#1565c0")
+
+    def test_timestamp_can_be_disabled_or_reshaped(self):
+        _window, out = self._out()
+        plain = out.logger(timestamp="")
+        plain.info("no stamp")
+        self.assertEqual(self._lines(out)[0], "INFO    no stamp")
+        plain.write("per line", timestamp="%Y")
+        self.assertRegex(self._lines(out)[1], r"^\d{4} INFO    per line$")
+
+    def test_min_level_filters_lines(self):
+        window, out = self._out()
+        logger = ts.Logger(out, min_level="warning")
+        logger.debug("dropped")
+        logger.info("dropped too")
+        logger.warning("kept")
+        logger.error("kept as well")
+        window.tk_root.update()
+        self.assertEqual(len(self._lines(out)), 2)
+        self.assertIn("kept", out.get())
+        self.assertEqual(logger.level, "warning")
+
+    def test_max_lines_ring_buffer(self):
+        _window, out = self._out()
+        logger = ts.Logger(out, max_lines=3)
+        for index in range(5):
+            logger.info(f"m{index}")
+        self.assertEqual(out.line_count, 3)
+        self.assertEqual(logger.lines, 3)
+        text = out.get()
+        self.assertNotIn("m0", text)
+        self.assertNotIn("m1", text)
+        self.assertIn("m4", text)
+        self.assertEqual(logger.max_lines, 3)
+
+    def test_mirror_writes_plain_text_file(self):
+        _window, out = self._out()
+        path = os.path.join(tempfile.mkdtemp(), "run.log")
+        logger = ts.Logger(out, mirror=path)
+        logger.info("first")
+        logger.error("second")
+        logger.close()
+        with open(path, encoding="utf-8") as handle:
+            content = handle.read()
+        self.assertIn("first", content)
+        self.assertIn("second", content)
+        self.assertIn("ERROR", content)
+        self.assertNotIn("#f56c6c", content)  # colors stay on screen
+        self.assertEqual(len(content.splitlines()), 2)
+
+    def test_clear_and_line_count(self):
+        window, out = self._out()
+        out.log("one")
+        out.log("two")
+        self.assertEqual(out.line_count, 2)
+        logger = out.logger()
+        logger.clear()
+        window.tk_root.update()
+        self.assertEqual(out.line_count, 0)
+        self.assertEqual(out.get(), "")
+
+    def test_line_count_before_creation(self):
+        self.assertEqual(ts.Output("", size=(20, 3)).line_count, 0)
+
+    def test_attach_logging_bridges_stdlib(self):
+        window, out = self._out()
+        logger = out.logger()
+        name = "tksg.test.bridge"
+        logger.attach_logging("INFO", name)
+        try:
+            logging.getLogger(name).warning("from logging")
+        finally:
+            pass
+        window.tk_root.update()
+        self.assertIn("from logging", out.get())
+        self.assertIn("tksg.test.bridge:", out.get())
+        # attaching twice must not duplicate lines
+        logger.attach_logging("INFO", name)
+        logging.getLogger("tksg.test.bridge").warning("once")
+        window.tk_root.update()
+        self.assertEqual(out.get().count("once"), 1)
+        logger.detach_logging()
+        logging.getLogger(name).warning("after detach")
+        window.tk_root.update()
+        self.assertNotIn("after detach", out.get())
+
+    def test_attach_logging_level_filters(self):
+        window, out = self._out()
+        logger = out.logger()
+        name = "tksg.test.level"
+        logger.attach_logging("WARNING", name)
+        try:
+            logging.getLogger(name).info("dropped")
+            logging.getLogger(name).warning("kept")
+            window.tk_root.update()
+            self.assertNotIn("dropped", out.get())
+            self.assertIn("kept", out.get())
+        finally:
+            logger.detach_logging()
+            logging.getLogger(name).setLevel(logging.NOTSET)
+
+    def test_worker_thread_lines_are_marshalled(self):
+        window, out = self._out()
+        logger = ts.Logger(out)
+
+        def worker():
+            for index in range(5):
+                logger.info(f"thread {index}")
+
+        thread = threading.Thread(target=worker)
+        thread.start()
+        thread.join()
+        deadline = time.time() + 5.0
+        while time.time() < deadline and out.line_count < 5:
+            window.read(timeout=50)
+        self.assertEqual(out.line_count, 5)
+        self.assertIn("thread 4", out.get())
+
+    def test_flush_writes_queued_lines(self):
+        window, out = self._out()
+        logger = ts.Logger(out)
+        thread = threading.Thread(target=lambda: logger.info("queued"))
+        thread.start()
+        thread.join()
+        logger.flush()
+        window.tk_root.update()
+        self.assertEqual(out.line_count, 1)
+        self.assertIn("queued", out.get())
+
+    def test_module_level_log_finds_the_box(self):
+        window, out = self._out()
+        self.assertTrue(ts.log("by key", key="-LOG-"))
+        self.assertTrue(ts.log("by lookup"))
+        window.tk_root.update()
+        self.assertIn("by key", out.get())
+        self.assertIn("by lookup", out.get())
+        self.assertIs(ts.find_log_element(key="-LOG-"), out)
+        self.assertIs(ts.find_log_element(window=window), out)
+        self.assertIsNone(ts.find_log_element(key="-MISSING-"))
+
+    def test_module_level_log_without_box_returns_false(self):
+        ts.Window.close_all()
+        self.assertFalse(ts.log("nowhere to go"))
+
+    def test_window_elements_lists_everything(self):
+        anonymous = ts.Text("no key here")
+        element = ts.Output(size=(40, 6), key="-LOG-")
+        window = ts.Window("log", [[element], [anonymous]], finalize=True)
+        self.addCleanup(window.close)
+        elements = window.elements
+        self.assertIsInstance(elements, tuple)
+        self.assertIn(element, elements)
+        self.assertIn(anonymous, elements)
+
+    def test_write_after_close_is_quiet(self):
+        window, out = self._out()
+        path = os.path.join(tempfile.mkdtemp(), "late.log")
+        logger = ts.Logger(out, mirror=path)
+        window.close()
+        logger.info("late line")  # must not raise
+        logger.close()
+        with open(path, encoding="utf-8") as handle:
+            self.assertIn("late line", handle.read())
 
 
 class TestPy37Compatibility(unittest.TestCase):

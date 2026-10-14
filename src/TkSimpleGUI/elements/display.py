@@ -120,6 +120,13 @@ class Tag(Element):
 
         tag = ts.Tag("New", closable=True, key="-TAG-")
         tag.update(tag_color="#67c23a")
+
+    On a desktop the chip-as-detached-widget is a niche — a tag is more
+    often the *content* of a richer row (a listbox cell, a tree row).
+    The implementation therefore stays minimal: a canvas pill plus, when
+    ``closable=True``, a real ``tk.Button`` placed on top of the "x"
+    glyph so the close click goes through tk's native event dispatch
+    (no more "did I land on the thin diagonal?" pixel-hunting).
     """
 
     __slots__ = (
@@ -134,10 +141,14 @@ class Tag(Element):
         "_height",
         "_body_id",
         "_text_id",
+        "_close_button",
+        "_close_window",
     )
 
     _body_id: Optional[int]
     _text_id: Optional[int]
+    _close_button: Optional[tk.Button]
+    _close_window: Optional[int]
 
     _CLOSE_ZONE = 18  # right-hand strip reserved for the "x", in pixels
 
@@ -182,6 +193,8 @@ class Tag(Element):
         self._height = 0
         self._body_id = None
         self._text_id = None
+        self._close_button = None
+        self._close_window = None
 
     # --- geometry -------------------------------------------------------------
     def _font_spec(self):
@@ -192,7 +205,7 @@ class Tag(Element):
         height = self._size[1] or 22
         target = widget if widget is not None else self._widget
         text_width = _paint.measure_text(target, self._text, self._font_spec())
-        reserve = 18 if self._closable else 0
+        reserve = self._CLOSE_ZONE if self._closable else 0
         width = self._size[0] or max(40, text_width + 20 + reserve)
         return (int(width), int(height))
 
@@ -223,6 +236,35 @@ class Tag(Element):
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
+        if self._closable:
+            # embed a real Button inside the canvas via create_window — it
+            # still shows up as a canvas item (so the existing widget
+            # contract holds) but the click goes through tk's native event
+            # dispatch instead of pixel-hunting on a thin diagonal.
+            self._close_button = tk.Button(
+                canvas,
+                text="\u2715",  # multiplication sign
+                relief="flat",
+                borderwidth=0,
+                padx=0, pady=0,
+                background=colors["surface"],
+                activebackground=colors["surface"],
+                foreground=_paint.shade(
+                    self._tag_color or colors["accent"], colors, 0.30
+                ),
+                font=("TkDefaultFont", 9),
+                cursor="hand2",
+            )
+            # bind on the button itself so the click never bubbles up to
+            # the canvas's <Button-1> (which would otherwise suppress the
+            # body post but also swallow the close trigger)
+            self._close_button.bind("<Button-1>", self._on_close_event, add="+")
+            self._close_window = canvas.create_window(
+                self._width - self._CLOSE_ZONE, 0,
+                window=self._close_button,
+                width=self._CLOSE_ZONE, height=self._height,
+                anchor="nw",
+            )
         return canvas
 
     def _draw(self, canvas):
@@ -252,8 +294,10 @@ class Tag(Element):
             fill=ink,
             font=self._font_spec(),
         )
+        # still draw the × glyph on the canvas so the visual matches even
+        # when the click is routed to the button (the button is a flat
+        # blank tile over the glyph, so users see the cross)
         if self._closable:
-            # the close "x" sits 9px from the right edge, vertically centered
             _paint.cross(
                 canvas,
                 self._width - 9,
@@ -272,29 +316,56 @@ class Tag(Element):
         self._height = int(height)
         self._widget.configure(width=self._width, height=self._height)
         self._draw(self._widget)
+        if self._closable and self._close_button is not None and self._close_window is not None:
+            self._widget.coords(self._close_window, self._width - self._CLOSE_ZONE, 0)
+            self._widget.itemconfigure(
+                self._close_window, width=self._CLOSE_ZONE, height=self._height
+            )
 
     def apply_theme(self):
         if self._widget is not None:
             self._draw(self._widget)
+            if self._closable and self._close_button is not None:
+                colors = _paint.palette(self._widget)
+                self._close_button.configure(
+                    background=colors["surface"],
+                    activebackground=colors["surface"],
+                    foreground=_paint.shade(
+                        self._tag_color or colors["accent"], colors, 0.30
+                    ),
+                )
         return self
+
+    def _on_close_event(self, _event):
+        """Close trigger (kept for back-compat — no current callers)."""
+        return self._perform_close()
+
+    def _perform_close(self):
+        """Shared body for both the close button and the canvas hit zone."""
+        self.hide()
+        if self._key is not None:
+            self._post_event((self._key, "close"))
+        return "break"
 
     # --- interaction ------------------------------------------------------------
     def _bind_events(self):
+        # the body still posts clicks on the canvas; the embedded close
+        # button doubles up: real mouse clicks land on it (tk dispatch),
+        # synthesised events (event_generate on the canvas) fall through
+        # to _on_click which detects the close zone by pixel x.
         self._widget.bind("<Button-1>", self._on_click)
+        if self._closable and self._close_button is not None:
+            # let the real button command fire on real clicks (so the
+            # event is delivered even if the canvas somehow misses it)
+            self._close_button.configure(command=self._perform_close)
 
     def _on_click(self, event):
-        # The close "x" is hit as a rectangular zone rather than through
-        # canvas line overlap: Tk builds differ in how precisely a point
-        # must sit on a thin diagonal line to count as overlapping (the
-        # 32-bit 3.7 build misses the exact crossing point entirely).
         if self._closable and event.x >= self._width - self._CLOSE_ZONE:
-            self.hide()
-            if self._key is not None:
-                self._post_event((self._key, "close"))
-            return
-        overlapping = set(self._widget.find_overlapping(event.x, event.y, event.x, event.y))
-        if self._body_id in overlapping and self._enable_events:
+            self._perform_close()
+            return "break"
+        if self._enable_events:
             self._post_event()
+        return None
 
     # --- state ----------------------------------------------------------------
     @property
@@ -518,6 +589,7 @@ class Avatar(Element):
 
     __slots__ = (
         "_text",
+        "_initials",
         "_filename",
         "_data_base64",
         "_shape",
@@ -531,10 +603,12 @@ class Avatar(Element):
     )
 
     _photo: Optional[tk.PhotoImage]
+    _initials: str
 
     def __init__(
         self,
         text=None,
+        initials=None,
         filename=None,
         data_base64=None,
         size=40,
@@ -565,6 +639,13 @@ class Avatar(Element):
             metadata=metadata,
         )
         self._text = "" if text is None else str(text)
+        # explicit initials override the default "first 2 chars of text"
+        # slice; the default slice is fine for an English name like
+        # "Yun Luo" -> "Yu", but the user can spell out exactly what should
+        # appear (CJK name: ts.Avatar("云落", initials="云"))
+        self._initials = (
+            str(text)[:2] if initials is None else str(initials)
+        )
         self._filename = filename
         self._data_base64 = data_base64
         self._shape = str(shape or "circle").lower()
@@ -585,8 +666,8 @@ class Avatar(Element):
             return self._font
         return ("TkDefaultFont", max(1, int(min(self._width, self._height) * 0.40)), "bold")
 
-    def _initials(self) -> str:
-        return str(self._text or "")[:2]
+    def _initials_text(self) -> str:
+        return self._initials
 
     # --- images -------------------------------------------------------------------
     def _has_image(self) -> bool:
@@ -652,7 +733,7 @@ class Avatar(Element):
             return
         fill = self._background_color or colors["accent"]
         self._draw_shape(canvas, fill, "")
-        initials = self._initials()
+        initials = self._initials
         if initials:
             canvas.create_text(
                 self._width / 2.0,
@@ -980,10 +1061,17 @@ class Statistic(Element):
 
 
 class Empty(Element):
-    """The "no data" placeholder: an icon above a short caption.
+    """The "no data" placeholder: a small inline icon next to a muted
+    caption.
 
-    A document glyph is drawn by default; ``filename`` / ``data_base64``
-    replace it with an image. ``text=""`` drops the caption::
+    The web "no data" page (a giant illustration + headline + CTA) maps
+    to a desktop idiom of a single line of greyed text — the action is
+    already on the surrounding toolbar, so a CTA would be a duplicate.
+    The default icon is a 16×16 dog-eared document outline; pass
+    ``filename=`` / ``data_base64=`` to override. ``text=""`` drops the
+    caption; the icon stays. ``size=(w, h)`` still accepts an explicit
+    box (the old web-style 110 px hero size keeps working for code that
+    passed it)::
 
         ts.Empty("No records yet")
     """
@@ -1002,10 +1090,15 @@ class Empty(Element):
 
     _photo: Optional[tk.PhotoImage]
 
+    # backward-compatible default; the new compact "one-line" sizing kicks
+    # in only when the caller leaves size alone
+    _LEGACY_DEFAULT = (160, 110)
+    _COMPACT_ICON = 16
+
     def __init__(
         self,
         text="No data",
-        size=(160, 110),
+        size=None,
         font=None,
         text_color=None,
         icon_color=None,
@@ -1020,6 +1113,8 @@ class Empty(Element):
         right_click_menu=None,
         metadata=None,
     ):
+        if size is None:
+            size = (None, None)
         super().__init__(
             key=key,
             size=_as_pair(size),
@@ -1037,8 +1132,16 @@ class Empty(Element):
         self._icon_color = icon_color
         self._filename = filename
         self._data_base64 = data_base64
-        self._width = int(self._size[0] or 160)
-        self._height = int(self._size[1] or 110)
+        # If the caller did not pin a size, default to a one-line box
+        # that hugs the icon + caption. If they did pass one, honour it
+        # verbatim (back-compat for the 160×110 web-style hero).
+        requested_w, requested_h = self._size
+        if requested_w is None and requested_h is None:
+            self._width = self._COMPACT_ICON + 6 + 140  # icon + gap + ~text
+            self._height = self._COMPACT_ICON
+        else:
+            self._width = int(requested_w or self._LEGACY_DEFAULT[0])
+            self._height = int(requested_h or self._LEGACY_DEFAULT[1])
         self._photo = None
 
     # --- geometry -------------------------------------------------------------
@@ -1057,17 +1160,39 @@ class Empty(Element):
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
         self._photo = None
+        # Detect the legacy "big box" path: any caller-supplied width OR
+        # height above the compact icon size keeps the centred-illustration
+        # layout. Otherwise we lay out icon | caption in a single row.
+        legacy = (
+            self._width > self._COMPACT_ICON * 2
+            or self._height > self._COMPACT_ICON * 2
+        )
         if not self._draw_icon(canvas, colors):
-            self._draw_document(canvas, colors)
+            if legacy:
+                self._draw_document_centered(canvas, colors)
+            else:
+                self._draw_document_inline(canvas, colors)
         if self._text:
-            canvas.create_text(
-                self._width / 2.0,
-                self._height - 10,
-                anchor="s",
-                text=self._text,
-                fill=self._text_color or colors["muted"],
-                font=self._font or ("TkDefaultFont", 9),
-            )
+            if legacy:
+                canvas.create_text(
+                    self._width / 2.0,
+                    self._height - 6,
+                    anchor="s",
+                    text=self._text,
+                    fill=self._text_color or colors["muted"],
+                    font=self._font or ("TkDefaultFont", 9),
+                )
+            else:
+                # icon + 6 px gap + caption, vertically centred
+                icon = self._COMPACT_ICON
+                canvas.create_text(
+                    icon + 6 + 2,
+                    self._height / 2.0,
+                    anchor="w",
+                    text=self._text,
+                    fill=self._text_color or colors["muted"],
+                    font=self._font or ("TkDefaultFont", 9),
+                )
 
     def _draw_icon(self, canvas, colors) -> bool:
         """Try the image icon; False falls back to the document glyph."""
@@ -1081,13 +1206,23 @@ class Empty(Element):
         except Exception:
             self._photo = None
             return False
-        canvas.create_image(
-            self._width / 2.0, self._height * 0.40, anchor="center", image=self._photo
+        legacy = (
+            self._width > self._COMPACT_ICON * 2
+            or self._height > self._COMPACT_ICON * 2
         )
+        if legacy:
+            canvas.create_image(
+                self._width / 2.0, self._height * 0.40, anchor="center", image=self._photo
+            )
+        else:
+            canvas.create_image(
+                self._COMPACT_ICON / 2.0, self._height / 2.0, anchor="center",
+                image=self._photo,
+            )
         return True
 
-    def _draw_document(self, canvas, colors):
-        """The classic dog eared document outline."""
+    def _draw_document_centered(self, canvas, colors):
+        """The classic dog-eared document outline (legacy big-box layout)."""
         color = self._icon_color or _paint.blend(colors["track"], colors["ink"], 0.72)
         height = min(self._height * 0.42, 54.0)
         width = height * 0.78
@@ -1099,10 +1234,26 @@ class Empty(Element):
         _paint.rounded_polygon(
             canvas, x0, y0, x1, y1, 3, fill="", outline=color, width=2
         )
-        # the corner triangle paints over the rounded corner it folds down
         canvas.create_polygon(
             x1 - fold, y0, x1, y0 + fold, x1 - fold, y0 + fold,
             fill=colors["surface"], outline=color, width=2,
+        )
+
+    def _draw_document_inline(self, canvas, colors):
+        """16x16 dog-eared outline laid out at the left of the caption."""
+        color = self._icon_color or _paint.blend(colors["track"], colors["ink"], 0.72)
+        icon = self._COMPACT_ICON
+        x0 = 0
+        y0 = (self._height - icon) / 2.0
+        x1 = x0 + icon * 0.78
+        y1 = y0 + icon
+        fold = max(3.0, icon * 0.22)
+        _paint.rounded_polygon(
+            canvas, x0, y0, x1, y1, 2, fill="", outline=color, width=1
+        )
+        canvas.create_polygon(
+            x1 - fold, y0, x1, y0 + fold, x1 - fold, y0 + fold,
+            fill=colors["surface"], outline=color, width=1,
         )
 
     def apply_theme(self):
@@ -1701,10 +1852,35 @@ class Alert(Element):
         if self._enable_events:
             self._post_event()
 
-    def _on_close_click(self, _event):
+    @property
+    def closed(self):
+        """Whether the user has dismissed this alert. Read-only;
+        flip with :meth:`close` / :meth:`reopen`."""
+        return not self._visible
+
+    def close(self):
+        """Programmatic equivalent of clicking the "×" — hides the bar
+        (posts ``(key, "close")`` if the element has a key)."""
+        if not self._visible:
+            return self
+        self._perform_close()
+        return self
+
+    def reopen(self):
+        """Re-show a closed alert (counterpart of :meth:`close`)."""
+        if self._visible:
+            return self
+        self.unhide()
+        return self
+
+    def _perform_close(self):
+        """Shared body for the click and the :meth:`close` method."""
         self.hide()
         if self._key is not None:
             self._post_event((self._key, "close"))
+
+    def _on_close_click(self, _event):
+        self._perform_close()
 
     # --- state ----------------------------------------------------------------
     @property

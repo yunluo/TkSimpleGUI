@@ -2,6 +2,7 @@
 """The :class:`Window` class: layout hosting, event loop and element lookup."""
 
 import contextlib
+import logging
 import queue
 import threading
 import time
@@ -21,6 +22,35 @@ WindowPoint = Tuple[int, int]
 # Sizes/locations accept None components ("let the wm decide").
 OptionalPoint = Tuple[Optional[int], Optional[int]]
 
+# Distinguishes "no payload given" from an explicit ``None`` payload. Kept
+# as a private singleton (not a kwarg of ``value=None``) so callers can
+# explicitly pass ``None`` as a real payload — ``write_event_value("-K-")``
+# sends an event only, while ``write_event_value("-K-", None)`` puts a
+# ``None`` in the values dict.
+class _NoPayload:
+    """Sentinel for "no payload given" — distinct from an explicit ``None``."""
+
+    __slots__ = ()
+
+    def __repr__(self):
+        return "<no payload>"
+
+
+_NO_PAYLOAD = _NoPayload()
+
+# Failed start_task workers are reported here; attach the project's logging
+# bridge (Logger.attach_logging) to see them in a log box.
+_task_logger = logging.getLogger("TkSimpleGUI.task")
+
+
+def _func_name(func):
+    """Readable name of a task callable (thread name, log record)."""
+    return getattr(func, "__name__", None) or repr(func)
+
+
+def _log_task_error(func, error):
+    """Report a failed :meth:`Window.start_task` worker through logging."""
+    _task_logger.error("start_task %s failed", _func_name(func), exc_info=error)
 
 
 class Window:
@@ -92,6 +122,11 @@ class Window:
     # application; any Window.read() (or ts.main_loop) consumes events
     # raised by ANY window, so multi window support is inherent.
     _event_bus: "queue.Queue[Any]" = queue.Queue()
+
+    # Events posted by worker threads (start_task workers, the hotkey pump
+    # thread) wait here until the main thread forwards them onto the bus at
+    # its next pump — worker threads never read tk widgets themselves.
+    _pending_posts: "queue.Queue[Any]" = queue.Queue()
 
     # Typed views of the slots (runtime stays __slots__-based).
     _title: str
@@ -356,6 +391,7 @@ class Window:
         for window in list(cls._open_windows):
             window.close()
         cls._event_bus = queue.Queue()  # drop stale events
+        cls._pending_posts = queue.Queue()  # and events still awaiting forwarding
         return cls
 
     @classmethod
@@ -681,17 +717,49 @@ class Window:
         if action is not None:
             action.trigger(self, values)
 
-    def _post_event(self, key):
+    def _post_event(self, key, value=_NO_PAYLOAD):
         """Queue an event on the global bus (elements/user code; consumed by
-        any ``Window.read`` or ``ts.main_loop``)."""
+        any ``Window.read`` or ``ts.main_loop``).
+
+        Safe from any thread: off the main thread the event is handed to
+        :attr:`_pending_posts` and the main thread forwards it onto the bus
+        at its next pump, so no tk widget is ever read from a worker thread.
+        The values snapshot is taken **at delivery time** on the main thread,
+        not when the worker posted — payloads may overlap with later element
+        updates.
+        """
         if self._closed:
             return
+        if threading.current_thread() is not threading.main_thread():
+            Window._pending_posts.put((self, key, value))
+            return
+        self._post_event_now(key, value)
+
+    def _post_event_now(self, key, value=_NO_PAYLOAD):
+        """The main-thread half of :meth:`_post_event`: action normalization,
+        values snapshot and the actual bus put. With ``value`` given it
+        overrides ``key`` in the values dict (PySimpleGUI convention)."""
         if self._action_by_text and isinstance(key, str):
             action = self._action_by_text.get(key)
             if action is not None:
                 key = action.key
         values = self._snapshot_values()
+        if value is not _NO_PAYLOAD:
+            values[key] = value
         Window._event_bus.put((self, key, values))
+
+    @classmethod
+    def _drain_pending_posts(cls):
+        """Forward worker-thread events onto the bus (main thread only;
+        called from :meth:`_pump_all_roots`). Events whose window was closed
+        between post and drain are dropped silently."""
+        while True:
+            try:
+                window, key, value = cls._pending_posts.get_nowait()
+            except queue.Empty:
+                return
+            if not window._closed:
+                window._post_event_now(key, value)
 
     def _snapshot_values(self):
         """Values snapshot at post time (bus consumers need it even for
@@ -704,34 +772,68 @@ class Window:
                 values[key] = None
         return values
 
-    def write_event_value(self, value):
-        """Queue a custom event from user code."""
-        self._post_event(value)
+    def write_event_value(self, key, value=_NO_PAYLOAD):
+        """Queue a custom event; the one call that is safe from a worker
+        thread (it only enqueues — the main thread does the work).
+
+        The event is posted as ``key``. With ``value`` given it also lands
+        in the values dict under ``key`` — that is the convention
+        :meth:`start_task` uses to deliver results and failures. A second
+        positional argument or a ``value=`` keyword is treated as a real
+        payload, so an explicit ``None`` is distinguishable from "no payload
+        at all". Ordering is not guaranteed across thread boundaries; the
+        values snapshot is taken at delivery time on the main thread, not
+        at the worker's post.
+        """
+        self._post_event(key, value)
         return self
 
-    def perform_long_operation(self, func, end_key=C.DEFAULT_THREAD_KEY):
+    def start_task(self, func, end_key=C.DEFAULT_THREAD_KEY):
         """Run ``func`` in a background thread without blocking the GUI.
 
-        With the default ``end_key`` the thread's return value is posted as
-        an event (``end_key`` itself when the function returns ``None``;
-        on an exception ``end_key`` is posted and the traceback re-raised in
-        the worker thread). Pass ``end_key=None`` to receive this window as
-        the ``func`` argument and post events yourself with
-        :meth:`write_event_value`.
+        When the task finishes, ``end_key`` is posted as an event and the
+        return value lands in ``values[end_key]``; a task that raises
+        delivers the exception object instead — test with
+        ``isinstance(values[end_key], BaseException)``. Failures are also
+        reported through the ``TkSimpleGUI.task`` logger, so an attached log
+        box shows the traceback. Give concurrent tasks distinct ``end_key``
+        values: the default ``-THREAD DONE-`` is shared.
+
+        Pass ``end_key=None`` to receive this window as the ``func``
+        argument and post events yourself with :meth:`write_event_value`
+        (only the logger reports failures then). Returns the started
+        ``threading.Thread``. Events whose window was closed between
+        the worker finishing and the next pump are dropped silently.
         """
+        if not callable(func):
+            raise TypeError(f"func must be callable, got {type(func).__name__}")
+        if end_key is not None:
+            # end_key must be hashable: it becomes a dict key both in the
+            # values snapshot (values[end_key] = payload) and on the bus.
+            # Checking here turns a "TypeError inside the pump" crash into a
+            # fail-fast at the call site. The same check is done by
+            # write_event_value, so a custom key there fails fast too.
+            hash(end_key)
         if end_key is None:
             def target():
-                func(self)
+                try:
+                    func(self)
+                except BaseException as error:
+                    # BaseException on purpose: a worker calling sys.exit()
+                    # must not leave the UI waiting forever for an event
+                    # that never comes.
+                    _log_task_error(func, error)
         else:
             def target():
                 try:
                     result = func()
-                except Exception:
-                    self._post_event(end_key)
-                    raise
-                self.write_event_value(result if result is not None else end_key)
-        thread = threading.Thread(target=target)
-        thread.daemon = True
+                except BaseException as error:
+                    _log_task_error(func, error)
+                    self.write_event_value(end_key, error)
+                else:
+                    self.write_event_value(end_key, result)
+        thread = threading.Thread(
+            target=target, name="start_task:" + _func_name(func), daemon=True)
         thread.start()
         return thread
 
@@ -824,7 +926,9 @@ class Window:
     @classmethod
     def _pump_all_roots(cls):
         """Process tk events for every open window's root (one interpreter,
-        one message loop — pumping each keeps all windows responsive)."""
+        one message loop — pumping each keeps all windows responsive) and
+        forward events posted by worker threads onto the bus."""
+        cls._drain_pending_posts()
         for window in list(cls._open_windows):
             if not window._root_alive():
                 window._mark_closed()
@@ -872,6 +976,11 @@ class Window:
     def find_element(self, key):
         """Return the element with the given key or ``None``."""
         return self._elements_by_key.get(key)
+
+    @property
+    def elements(self):
+        """Every element of the window, in layout order (keyed or not)."""
+        return tuple(self._elements)
 
     def find_element_with_focus(self):
         """Return the element holding the keyboard focus, or ``None``."""

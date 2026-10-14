@@ -480,9 +480,47 @@ class Rate(Element):
             self._hover = None
             self._redraw()
 
+    def _on_key(self, event):
+        """Keyboard parity for the rating: Left/Right step by 1, Home/End
+        jump to the ends, 0 clears. Each press posts a TkSimpleEvent only
+        if the value actually changed (mirrors the click handler)."""
+        if self._readonly:
+            return "break"
+        symbol = getattr(event, "keysym", "")
+        if symbol == "Left":
+            step = -1
+        elif symbol == "Right":
+            step = 1
+        elif symbol == "Home":
+            step = -(self._max_value)
+        elif symbol == "End":
+            step = self._max_value
+        elif symbol in ("0", "BackSpace"):
+            new = 0
+            if new == self._value:
+                return "break"
+            self._value = new
+            self._redraw()
+            if self._enable_events:
+                self._post_event()
+            return "break"
+        else:
+            return None
+        new = max(0, min(self._max_value, int(round(self._value)) + step))
+        if new == self._value:
+            return "break"
+        self._value = float(new)
+        self._redraw()
+        if self._enable_events:
+            self._post_event()
+        return "break"
+
     def _bind_events(self):
         self._widget.bind("<Button-1>", self._on_click)
         self._widget.bind("<Motion>", self._on_motion)
+        self._widget.bind("<Key>", self._on_key)
+        # the canvas must take focus for key events to reach it
+        self._widget.bind("<Button-1>", lambda _e: self._widget.focus_set(), add="+")
         self._widget.bind("<Leave>", self._on_leave)
 
     # --- public API ----------------------------------------------------------
@@ -773,10 +811,32 @@ class Pagination(Element):
             self._hover = None
             self._redraw()
 
+    def _on_key(self, event):
+        """Keyboard parity for the pager: Left/Right move one page,
+        Home/End jump to the first/last page. Posts the key only when the
+        page actually changes (mirrors :meth:`_goto`)."""
+        symbol = getattr(event, "keysym", "")
+        if symbol == "Left":
+            self._goto(self._current_page - 1)
+            return "break"
+        if symbol == "Right":
+            self._goto(self._current_page + 1)
+            return "break"
+        if symbol == "Home":
+            self._goto(1)
+            return "break"
+        if symbol == "End":
+            self._goto(self.page_count)
+            return "break"
+        return None
+
     def _bind_events(self):
         self._widget.bind("<Button-1>", self._on_click)
         self._widget.bind("<Motion>", self._on_motion)
         self._widget.bind("<Leave>", self._on_leave)
+        self._widget.bind("<Key>", self._on_key)
+        # the canvas must take focus for key events to reach it
+        self._widget.bind("<Button-1>", lambda _e: self._widget.focus_set(), add="+")
 
     # --- public API ----------------------------------------------------------
     def get(self):
@@ -924,17 +984,23 @@ class Transfer(Element):
         )
 
     def _make_arrows(self, master, colors):
-        """The middle column of four move buttons."""
+        """A single row of four move buttons between the two listboxes.
+
+        Order left-to-right: all-target, sel-target, sel-source, all-source.
+        Single-row layout matches the keyboard-friendly convention of
+        native list-merge controls (vs. the 2×2 grid ported from the web
+        twin-listbox, which doubles vertical space with no extra info).
+        """
         frame = tk.Frame(master, background=colors["surface"])
         commands = (
-            (_CHEVRON_RIGHT, partial(self.move_selected, to_target=True)),
             (_DOUBLE_RIGHT, partial(self.move_all, to_target=True)),
+            (_CHEVRON_RIGHT, partial(self.move_selected, to_target=True)),
             (_CHEVRON_LEFT, partial(self.move_selected, to_target=False)),
             (_DOUBLE_LEFT, partial(self.move_all, to_target=False)),
         )
-        for row, (label, command) in enumerate(commands):
+        for column, (label, command) in enumerate(commands):
             button = ttk.Button(frame, text=label, width=3, command=command)
-            button.grid(row=row, column=0, pady=2, sticky="ew")
+            button.grid(row=0, column=column, padx=2, sticky="ew")
             self._buttons.append(button)
         return frame
 
@@ -944,14 +1010,26 @@ class Transfer(Element):
         width, height = self._list_size()
         self._source_list = self._make_listbox(frame, width, height)
         self._target_list = self._make_listbox(frame, width, height)
-        self._source_title = self._make_title(frame, self._titles[0], colors)
-        self._target_title = self._make_title(frame, self._titles[1], colors)
         self._arrows = self._make_arrows(frame, colors)
-        self._source_title.grid(row=0, column=0, sticky="w", padx=(0, 6), pady=(0, 2))
-        self._target_title.grid(row=0, column=2, sticky="w", padx=(6, 0), pady=(0, 2))
+        # column titles are optional: a desktop list with a single-line
+        # toolbar of action arrows usually does not need a verbose header
+        # row, and the source/target semantic is clear from the arrow
+        # direction. Pass titles=("Source", "Target") to restore the
+        # header row (still the default for back-compat).
+        show_titles = any(self._titles)
+        if show_titles:
+            self._source_title = self._make_title(frame, self._titles[0], colors)
+            self._target_title = self._make_title(frame, self._titles[1], colors)
+            self._source_title.grid(row=0, column=0, sticky="w",
+                                    padx=(0, 6), pady=(0, 2))
+            self._target_title.grid(row=0, column=2, sticky="w",
+                                    padx=(6, 0), pady=(0, 2))
+        else:
+            self._source_title = None
+            self._target_title = None
         self._source_list.grid(row=1, column=0, sticky="nsew")
         self._target_list.grid(row=1, column=2, sticky="nsew")
-        self._arrows.grid(row=1, column=1, padx=4, sticky="n")
+        self._arrows.grid(row=1, column=1, padx=4, sticky="")
         frame.rowconfigure(1, weight=1)
         frame.columnconfigure(0, weight=1)
         frame.columnconfigure(2, weight=1)

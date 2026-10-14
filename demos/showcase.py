@@ -58,11 +58,13 @@ _THEME_MENU_LABELS = {
 }
 
 
-def log(text, color=None):
-    """Append one line to the bottom event log (optionally colored)."""
-    window = _state["window"]
-    if window is not None and "-LOG-" in window:
-        window["-LOG-"].print(time.strftime("[%H:%M:%S] ") + text, text_color=color)
+def log(text, color=None, level="info"):
+    """Append one line to the bottom event log (optionally colored).
+
+    ``ts.log`` finds the ``-LOG-`` Output by itself — no window lookup and
+    no timestamp juggling in user code, the Logger stamps the line.
+    """
+    ts.log(text, key="-LOG-", color=color, level=level)
 
 
 def require_window():
@@ -508,6 +510,7 @@ def tab_system():
         [ts.Column([[ts.TText("Toast 气泡 / 后台任务 / 定时器")],
                     [ts.TButton("Toast 气泡", key="-W-TOAST-"),
                      ts.TButton("后台任务（2 秒）", key="-W-WORK-"),
+                     ts.TButton("后台任务（失败）", key="-W-WORK-FAIL-"),
                      ts.TTextProgressBar(100, current_value=0, size=(20, 14),
                                          key="-PB-WORK-"),
                      ts.TButton("计时开", key="-W-TIMER-"),
@@ -570,8 +573,13 @@ def build_main_window():
         [ts.TMenu(menu_def)],
         [toolbar],
         [tabs],
-        [ts.TColumn([[ts.TText("事件日志（右键复制/清空）")], [log_element]],
-                    expand_x=True)],
+        [ts.TColumn(
+            [[ts.TText("事件日志（ts.log 写入 / 右键复制或清空）"),
+              ts.TButton("按级别写日志", key="-B-LOG-LEVELS-"),
+              ts.TButton("标准 logging 桥接", key="-B-LOG-BRIDGE-"),
+              ts.TButton("模拟长任务日志", key="-B-LOG-THREAD-")],
+             [log_element]],
+            expand_x=True)],
         [ts.TStatusBar("", key="-STATUS-", expand_x=True), ts.TSizegrip()],
     ]
     window = ts.Window(
@@ -1065,6 +1073,49 @@ def on_alert_closed(window, event, values):
     log("错误提示条已关闭")
 
 
+# logging: ts.log one-liners, level colors and the stdlib bridge
+@ts.bind_event("-B-LOG-LEVELS-")
+def on_log_levels(window, values):
+    log("普通信息（info，跟随主题字色）")
+    log("操作成功（success，绿色）", level="success")
+    log("磁盘空间偏低（warning，琥珀色）", level="warning")
+    log("通道 7 断线（error，红色）", level="error")
+    log("调试细节（debug，灰色）", level="debug")
+
+
+@ts.bind_event("-B-LOG-BRIDGE-")
+def on_log_bridge(window, values):
+    import logging
+
+    logger = window["-LOG-"].logger()
+    if not _state.get("log_bridge"):
+        logger.attach_logging("INFO", "工业采集")
+        logger.attach_logging("WARNING", "TkSimpleGUI.task")  # 后台任务失败也进框
+        _state["log_bridge"] = True
+        log("标准 logging 已桥接（logger=工业采集 + TkSimpleGUI.task）", level="success")
+    logging.getLogger("工业采集").info("采样周期 100ms")
+    logging.getLogger("工业采集").warning("通道 3 噪声偏大")
+    logging.getLogger("工业采集").error("通道 7 断线")
+
+
+@ts.bind_event("-B-LOG-THREAD-")
+def on_log_thread(window, values):
+    """The worker-thread path: Logger queues, the Tk thread drains."""
+    import threading
+
+    logger = window["-LOG-"].logger()
+    steps = 4
+
+    def worker():
+        for index in range(1, steps + 1):
+            logger.info(f"后台采样 {index}/{steps}")
+            time.sleep(0.25)
+        logger.success("后台任务完成")
+
+    threading.Thread(target=worker, daemon=True).start()
+    log("已启动工作线程：Logger 排队，回到主线程写入日志框")
+
+
 # popup family
 @ts.bind_event("-P-MSG-")
 def on_p_msg(window, values):
@@ -1170,14 +1221,30 @@ def on_w_work(window, values):
     ts.animate_progress(window, "-PB-WORK-", 100,
                         duration_ms=1800, steps=18,
                         on_done=lambda: window["-PB-WORK-"].update(current_value=0))
-    window.perform_long_operation(
+    window.start_task(
         lambda: (time.sleep(2), "后台任务完成")[1], end_key="-WORK-DONE-")
     log("后台线程已启动（界面保持响应）")
 
 
 @ts.bind_event("-WORK-DONE-")
 def on_work_done(window, values):
-    log("perform_long_operation 返回 -WORK-DONE-", color="#2e7d32")
+    log(f"start_task 完成：{values['-WORK-DONE-']}", color="#2e7d32")
+
+
+@ts.bind_event("-W-WORK-FAIL-")
+def on_w_work_fail(window, values):
+    def explode():
+        time.sleep(0.8)
+        raise RuntimeError("采样板卡无响应")
+
+    window.start_task(explode, end_key="-WORK-FAIL-")
+    log("已启动一个会失败的后台任务（异常进日志框）", level="warning")
+
+
+@ts.bind_event("-WORK-FAIL-")
+def on_work_fail(window, values):
+    error = values["-WORK-FAIL-"]
+    log(f"start_task 失败并回传：{error!r}", level="error")
 
 
 @ts.bind_event("-W-TIMER-")
@@ -1376,9 +1443,24 @@ def main(argv=None):
             on_skeleton_replay(window, {})
             on_tag_closed(window, ("-TAG-CLOSE-", "close"), {})
             on_alert_closed(window, ("-ALERT-ERR-", "close"), {})
-            deadline = time.time() + 1.5
-            while time.time() < deadline:
-                window.read(timeout=100)
+            # logging
+            on_log_levels(window, {})
+            on_log_bridge(window, {})
+            # background tasks end to end: event + payload + handler + log box
+            on_w_work(window, {})
+            on_w_work_fail(window, {})
+            deadline = time.time() + 3.5
+            results = {}
+            while time.time() < deadline and len(results) < 2:
+                event, values = window.read(timeout=100)
+                ts.default_app().apply_event(window, event, values)
+                if event in ("-WORK-DONE-", "-WORK-FAIL-"):
+                    results[event] = values[event]
+            assert results.get("-WORK-DONE-") == "后台任务完成", results
+            assert isinstance(results.get("-WORK-FAIL-"), RuntimeError), results
+            text = window["-LOG-"].get()
+            assert "start_task 完成：" in text, text
+            assert "start_task 失败并回传：" in text, text
             window.close()
             print("SMOKE OK")
             return 0

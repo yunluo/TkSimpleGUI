@@ -3,7 +3,7 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, cast, Optional
+from typing import Any, Dict, cast, Optional, TYPE_CHECKING
 from .._typing_compat import Literal
 
 from .base import Element, InputElement
@@ -11,6 +11,9 @@ from .. import constants as C
 from .. import enums as E
 from .. import _theming as theme_mod
 import contextlib
+
+if TYPE_CHECKING:  # the logger imports this module's Multiline lazily
+    from ..logger import Logger
 
 
 
@@ -1292,10 +1295,12 @@ class Multiline(InputElement):
         "_wrap",
         "_scroll_y",
         "_text",
+        "_logger",
     )
 
     # the inner tk.Text of the composite (container + optional scrollbar)
     _text: tk.Text
+    _logger: Optional["Logger"]
 
     def __init__(
         self,
@@ -1339,6 +1344,7 @@ class Multiline(InputElement):
         self._wrap = str(wrap) if str(wrap) in ("word", "char", "none") else "word"
         self._scroll_y = bool(scroll_y)
         self._text = None  # ty: ignore[invalid-assignment]
+        self._logger = None
 
     def _create_widget(self, master):
         kwargs = theme_mod.theme_manager.input_kwargs(
@@ -1429,6 +1435,55 @@ class Multiline(InputElement):
             self._text.insert("end", text)
         self._text.see("end")
         self._text.configure(state=self._end_state())
+        return self
+
+    @property
+    def line_count(self) -> int:
+        """Text lines currently held (0 while empty).
+
+        The trailing newline every :meth:`print` leaves behind does not
+        count as a line of its own, so the number matches what the user
+        sees — and what the log ring buffer trims against.
+        """
+        if self._text is None:
+            return 0
+        content = self._text.get("1.0", "end-1c")
+        if not content:
+            return 0
+        lines = content.count("\n") + 1
+        if content.endswith("\n"):
+            # the newline every write leaves behind terminates the last
+            # line, it does not open a line of its own
+            lines -= 1
+        return lines
+
+    def logger(self, **options) -> "Logger":
+        """This element's :class:`~TkSimpleGUI.Logger`, created on first use.
+
+        ``options`` configure it at creation time (``timestamp``,
+        ``max_lines``, ``min_level``, ``colors``, ``mirror``); calls after
+        the first one return the same logger and ignore them::
+
+            out.logger(max_lines=500, mirror="run.log").info("started")
+        """
+        if self._logger is None:
+            from ..logger import Logger
+
+            self._logger = Logger(self, **options)
+        return self._logger
+
+    def log(self, *args, **kwargs):
+        """Append one log line: timestamp, level label and level color.
+
+        ``level`` picks the semantic color (debug / info / success /
+        warning / error / critical), ``color`` overrides it for this line,
+        ``timestamp`` overrides the stamp format::
+
+            out.log("connected")
+            out.log("sync failed", level="error")
+        """
+        kwargs.setdefault("level", "info")
+        self.logger().write(*args, **kwargs)
         return self
 
     def link(self, text, key=None, text_color="#0563c1", underline=True):
@@ -1549,6 +1604,16 @@ class Output(Multiline):
         container = super()._create_widget(master)
         self._text.configure(state="disabled")
         return container
+
+    def _end_state(self):
+        """Always lock again after a write.
+
+        The base implementation only reflects the ``disabled`` constructor
+        flag, so a plain Output would turn editable as soon as something
+        printed into it; an Output is read-only by definition and all
+        programmatic writes re-enable the widget for their own duration.
+        """
+        return "disabled"
 
 
 class ProgressBar(Element):

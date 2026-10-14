@@ -71,14 +71,14 @@ def _parse_steps(items):
 
 
 def _parse_timeline(items):
-    """Normalise the three accepted timeline entry forms to 4-tuples.
+    """Normalise the accepted timeline entry forms to 4-tuples.
 
-    A plain string is content only, ``(timestamp, content)`` adds a time
-    line, and a dict may also carry ``type`` (semantic dot color) and
-    ``color`` (an explicit dot color that wins over the type). A mapping
-    in the second slot of the pair — ``("10:02", {"content": ..., ...})``
-    — supplies the fields, with the pair's first element as the fallback
-    timestamp, so either spelling reads naturally.
+    Preferred spellings: a plain string for content only, or a
+    ``(timestamp, content[, type[, color]])`` tuple. Dicts
+    (``{"timestamp": ..., "content": ..., "type": ..., "color": ...}``)
+    are still accepted for code that prefers explicit keys, and a mapping
+    may also be placed in the pair's second slot — both are equivalent
+    and parsed the same way.
     """
     entries: List[TimelineItem] = []
     for item in items:
@@ -643,7 +643,37 @@ class Steps(Element):
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, width, height, colors["surface"])
         self._draw(canvas)
+        # the canvas must take focus for key events to reach it
+        canvas.bind("<Button-1>", lambda _e: canvas.focus_set(), add="+")
         return canvas
+
+    def _bind_events(self):
+        """Keyboard parity for the stepper: Left/Right/Home/End move
+        ``active`` and re-render. The widget only takes focus after a
+        click — without that the keys would never reach it on macOS/Win."""
+        self._widget.bind("<Left>", self._on_key)
+        self._widget.bind("<Right>", self._on_key)
+        self._widget.bind("<Home>", self._on_key)
+        self._widget.bind("<End>", self._on_key)
+
+    def _on_key(self, event):
+        if not self._items:
+            return "break"
+        symbol = getattr(event, "keysym", "")
+        if symbol == "Left":
+            target = max(0, self._active - 1)
+        elif symbol == "Right":
+            target = min(len(self._items) - 1, self._active + 1)
+        elif symbol == "Home":
+            target = 0
+        elif symbol == "End":
+            target = len(self._items) - 1
+        else:
+            return None
+        if target != self._active:
+            self._active = target
+            self._draw(self._widget)
+        return "break"
 
     def _draw(self, canvas):
         """Redraw every figure from a freshly resolved palette."""

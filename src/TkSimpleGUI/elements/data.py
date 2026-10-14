@@ -180,22 +180,16 @@ class Table(Element):
             tree.item(item_id, image=self._load_image_spec(spec))
 
     # --- data binding (lightweight TDataSource) ---------------------------------------
-    def bind(self, records=None, headings=None, **kwargs):  # ty: ignore[invalid-method-override]
-        """Bind a list of dicts (or objects) as the table contents.
+    def set_records(self, records, headings=None):
+        """Replace the table contents with a list of records (dicts or
+        attribute-bearing objects).
 
-        Columns come from ``headings`` (explicit order) or from the union of
-        record keys in first-appearance order. Rebuilds the widget columns
-        and rows; the original records stay available through
-        :attr:`selected_records` and stay in sync with cell edits.
-
-        The ``records`` parameter reuses the ``bind`` name for TkSimpleGUI
-        compatibility (``Table.bind(records)``); the keyword names
-        intentionally differ from :meth:`Element.bind`, whose tk event
-        binding is still reachable via ``super().bind(event_pattern)`` when
-        ``records`` is not a sequence — hence the accepted override warning.
+        Columns come from ``headings`` (explicit order) or from the union
+        of record keys in first-appearance order. The original records stay
+        available through :attr:`selected_records` and stay in sync with
+        cell edits. Preferred name; ``bind(records)`` remains as a
+        TkSimpleGUI-compatibility alias.
         """
-        if not isinstance(records, (list, tuple)):
-            return super().bind(records, **kwargs)
         self._records = list(records)
         if headings is not None:
             columns = [str(heading) for heading in headings]
@@ -217,6 +211,13 @@ class Table(Element):
         if self._widget is not None:
             self._rebuild_widget()
         return self
+
+    def bind(self, records=None, **kwargs):  # ty: ignore[invalid-method-override]
+        """TkSimpleGUI-compat alias for :meth:`set_records` (or for
+        :meth:`Element.bind` if ``records`` is not a sequence)."""
+        if not isinstance(records, (list, tuple)):
+            return super().bind(records, **kwargs)
+        return self.set_records(records)
 
     def _rebuild_widget(self):
         columns = [f"col{i}" for i in range(len(self._headings))]

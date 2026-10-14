@@ -35,6 +35,10 @@
 - **自绘展示控件** — Element Plus 风格的标签/徽章/头像/统计数值/空状态/结果页/
   步骤条/时间线/骨架屏/警告条/水印/描述列表/卡片/分段控制器/评分/分页器/穿梭框：
   全部 Canvas 自绘或原生组合，随主题自动换色，零新依赖
+- **日志直接进日志框** — `Output` 就是日志框：`out.log("...")` 一行落笔，
+  级别配色（debug/info/success/warning/error）+ 时间戳 + 行数上限（环形缓冲）+
+  可选文件镜像；`ts.log(...)` 一行式无对象写入，`Logger.attach_logging()`
+  把标准 `logging` 桥接进来，工作线程写入也不会崩 Tk
 - **封装彻底** — `__slots__` 全覆盖、私有属性 + `@property`、
   主题与设置走单例而非模块全局
 - **系统原生外观** — 不调 `ts.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
@@ -111,10 +115,49 @@ layout = [
     [ts.Text("Body", config=label_style)],
 ]
 
-cfg = ts.WindowConfig(title="Settings", size=(420, 280), resizable=True)
-window = ts.Window(config=cfg)
-window.layout(layout).finalize()
+cfg = ts.WindowConfig(title="Settings", size=(420, 280), resizable=True,
+                      layout=layout)
+window = ts.Window(config=cfg, finalize=True)   # 布局进 config，或直接 layout=
 ```
+
+## 日志写进日志框（Output 控件）
+
+`Output` 就是日志框，日志层直接长在它上面——没有第二个输出通道：
+
+```python
+log_box = ts.Output(size=(90, 12), key="-LOG-")
+
+log_box.log("采样已启动")                     # INFO，主题字色
+log_box.log("通道 3 噪声偏大", level="warning")  # 琥珀色
+log_box.log("通道 7 断线", level="error")      # 与错误提示条同一个红
+
+# 一行式：key 可省（默认取最新窗口里的第一个 Output）
+ts.log("任意位置写一行", key="-LOG-")
+
+# 需要更正式的日志：行数上限（环形缓冲）、文件镜像、标准 logging 桥接
+logger = log_box.logger(max_lines=500, mirror="run.log")
+logger.attach_logging("INFO")                 # logging.* 也进这个框
+logging.getLogger("采集服务").warning("队列积压")  # → 12:03:44 WARNING 采集服务: 队列积压
+
+# 工作线程里也能安全写（Logger 排队，回到 Tk 线程落笔）
+def sample_channels():
+    logger.info("开始采样")
+    return "12 个通道"
+
+window.start_task(sample_channels, end_key="-DONE-")
+
+@ts.bind_event("-DONE-")
+def on_done(window, values):
+    result = values["-DONE-"]             # 成功=返回值；失败=异常对象
+    if isinstance(result, BaseException):
+        logger.error(f"采集失败：{result}")  # traceback 也会进 TkSimpleGUI.task
+    else:
+        logger.success(f"采集完成：{result}")
+```
+
+级别：`debug`（灰）/ `info`（主题字色）/ `success`（绿）/ `warning`（琥珀）/
+`error`、`critical`（红）；每行自带时间戳（`timestamp="%H:%M:%S"`，可改可关），
+`color=` 可按业务覆盖。找关键字用 `search_all()`，右键菜单可复制/清空。
 
 ## 目录结构
 
@@ -156,7 +199,7 @@ TkSimpleGUI/
 │       ├── window.py           # Window：统一循环、层级、定时器、剪贴板
 │       └── system_tray.py      # SystemTray（托盘图标/菜单/气泡/事件）
 ├── demos/                      # 演示脚本（feature showcase + 基本模板）
-├── tests/test_package.py       # 测试套件（267 项，pytest/unittest 均可跑）
+├── tests/test_package.py       # 测试套件（298 项，pytest/unittest 均可跑）
 ├── todo.md                     # 路线图
 ├── pyproject.toml
 └── README.md
@@ -166,7 +209,7 @@ TkSimpleGUI/
 
 ```bash
 pip install -e .
-python -m pytest tests -q             # 267 项测试（每测试 30s 超时守护）
+python -m pytest tests -q             # 298 项测试（每测试 30s 超时守护）
 python -m unittest discover tests     # 同一套测试的 unittest 跑法
 python tests/check_types.py           # ty 类型检查守卫
 python tests/check_syntax.py          # 3.7 语法门（用运行中解释器的 ast 解析全部 .py）

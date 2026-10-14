@@ -251,6 +251,9 @@ from .input_blocker import block_input, unblock_input
 from .user_settings import UserSettings
 from .animation import fade_in, fade_out, slide, animate_progress
 
+# --- logging into an Output / Multiline element ----------------------------------------
+from .logger import Logger, find_log_element, log
+
 # --- popups ------------------------------------------------------------------------------
 from .popup import (
     popup,
@@ -331,6 +334,8 @@ TImageButton = ImageButton
 TTextProgressBar = TextProgressBar
 TGauge = Gauge
 TLED = LED
+# Honest name: this draws a seven-segment digit display, not a true LED.
+TSevenSegment = LED
 TChart = Chart
 TTag = Tag
 TBadge = Badge
@@ -393,6 +398,7 @@ __all__ = [
     "default_app", "run_application", "bind_event", "on_event",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "block_input", "unblock_input",
+    "Logger", "find_log_element", "log",
     "ElementOptions", "WindowConfig",
     "Translator", "_", "translate", "set_translations", "add_translation",
     "clear_translations",
@@ -412,7 +418,7 @@ __all__ = [
     "TKeyValueEditor", "TFlowPanel", "TCalendar", "TTab", "TTabGroup",
     "TMenu", "TTable", "TTree", "TStatusBar", "TVerticalSeparator",
     "THorizontalSeparator", "TSizegrip", "TMenubutton", "TScrollbar",
-    "TRoundButton", "TImageButton", "TTextProgressBar", "TGauge", "TLED",
+    "TRoundButton", "TImageButton", "TTextProgressBar", "TGauge", "TLED", "TSevenSegment",
     "TChart",
     "TTag", "TBadge", "TAvatar", "TStatistic", "TEmpty", "TResult",
     "TSkeleton", "TAlert", "TWatermark", "TCard", "TDescriptions", "TSteps",
