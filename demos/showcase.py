@@ -1308,7 +1308,7 @@ def on_tray_create(window, values):
 @ts.bind_event("-S-NOTIFY-")
 def on_tray_notify(window, values):
     if _TRAY["obj"] is not None:
-        _TRAY["obj"].ShowMessage("TkSimpleGUI", "一条托盘气泡通知")
+        _TRAY["obj"].show_message("TkSimpleGUI", "一条托盘气泡通知")
     else:
         ts.popup_notify("请先创建托盘")
 

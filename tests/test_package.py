@@ -1946,7 +1946,7 @@ class TestLineA(unittest.TestCase):
 
     def test_multiline_scrollbar_wrap(self):
         multiline = ts.Multiline(
-            "\n".join(f"line {i}" for i in range(50)),
+            "\r\n".join(f"line {i}" for i in range(50)),
             size=(30, 4), scroll_y=True, wrap="none", key="-ML-",
         )
         window = ts.Window("t", [[multiline]], finalize=True)
@@ -2054,7 +2054,7 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_scrollbar_element(self):
-        multiline = ts.Multiline("\n".join(f"line {i}" for i in range(60)),
+        multiline = ts.Multiline("\r\n".join(f"line {i}" for i in range(60)),
                                  size=(20, 3), key="-ML-")
         scrollbar = ts.Scrollbar(multiline, orientation="v")
         window = ts.Window("t", [[multiline, scrollbar]], finalize=True)
@@ -2742,7 +2742,7 @@ class TestRunEntry(unittest.TestCase):
         )
         self.assertEqual(
             result.returncode, 0,
-            msg=f"showcase --smoke failed:\nstdout={result.stdout}\n"
+            msg=f"showcase --smoke failed:\r\nstdout={result.stdout}\r\n"
                 f"stderr={result.stderr}",
         )
         self.assertIn("SMOKE OK", result.stdout)
@@ -2806,6 +2806,31 @@ class TestRunEntry(unittest.TestCase):
             result.returncode, 0, output + result.stderr.decode("utf-8", "replace")
         )
         self.assertIn("TRAY RUN OK", output)
+
+    @unittest.skipUnless(ts.running_windows(), "SystemTray is Windows only")
+    def test_system_tray_snake_case_api(self):
+        """Public methods are snake_case; PascalCase aliases point at the
+        same callables so existing user code keeps working."""
+        tray = ts.SystemTray()
+        self.addCleanup(tray.close)
+        # snake_case is the primary name
+        for name in ("show_message", "update", "hide", "unhide"):
+            self.assertTrue(
+                callable(getattr(tray, name)),
+                "{} should be callable on SystemTray".format(name),
+            )
+        # PascalCase aliases resolve to the same underlying functions
+        # (bound method objects compare unequal even when they wrap the
+        # same __func__, so check that instead).
+        self.assertIs(tray.ShowMessage.__func__, tray.show_message.__func__)
+        self.assertIs(tray.Update.__func__, tray.update.__func__)
+        self.assertIs(tray.Hide.__func__, tray.hide.__func__)
+        self.assertIs(tray.UnHide.__func__, tray.unhide.__func__)
+        # hide/unhide flip the _created flag without raising
+        tray.hide()
+        self.assertFalse(tray._created)
+        tray.unhide()
+        self.assertTrue(tray._created)
 
 
 class TestEventManager(unittest.TestCase):

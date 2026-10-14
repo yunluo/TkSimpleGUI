@@ -8,8 +8,8 @@ tray events fire while a window is being read; a standalone (windowless)
 tray creates its own hidden Tk root to pump with::
 
     tray = ts.SystemTray(menu=["Show", "---", "Exit"])
-    event, _ = tray.Read(timeout=100)   # menu item text / __CLICKED__ / ...
-    tray.ShowMessage("Hello", "Body")
+    event, _ = tray.read(timeout=100)   # menu item text / __CLICKED__ / ...
+    tray.show_message("Hello", "Body")
     tray.close()
 
 On non-Windows platforms the constructor raises ``RuntimeError``.
@@ -255,7 +255,7 @@ class SystemTray:
             user32.DestroyMenu(menu)
 
     # --- public API ----------------------------------------------------------
-    def ShowMessage(self, title, message, messageicon=NIIF_INFO):
+    def show_message(self, title, message, messageicon=NIIF_INFO):
         """Show a balloon notification."""
         if not self._created:
             return self
@@ -271,7 +271,11 @@ class SystemTray:
         shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notify_data))
         return self
 
-    def Update(self, tooltip=None, icon=None):
+    # TkSimpleGUI-style PascalCase alias for back-compat (snake_case is the
+    # PEP 8 primary name; the alias is kept for code that predates it).
+    ShowMessage = show_message
+
+    def update(self, tooltip=None, icon=None):
         """Change the tooltip or icon."""
         if tooltip is not None:
             self._tooltip = tooltip
@@ -288,8 +292,10 @@ class SystemTray:
             shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notify_data))
         return self
 
-    def Hide(self):
-        """Remove the icon from the tray (can be shown again via UnHide)."""
+    Update = update
+
+    def hide(self):
+        """Remove the icon from the tray (can be shown again via :meth:`unhide`)."""
         if self._created:
             notify_data = _NotifyIconData()
             notify_data.hWnd = self._hwnd
@@ -298,11 +304,15 @@ class SystemTray:
             self._created = False
         return self
 
-    def UnHide(self):
+    Hide = hide
+
+    def unhide(self):
         """Put the icon back into the tray."""
         if not self._created:
             self._add_icon()
         return self
+
+    UnHide = unhide
 
     def read(self, timeout=None):
         """Pump events and return ``(event, None)``.
@@ -329,7 +339,7 @@ class SystemTray:
 
     def close(self):
         """Remove the icon and release the tray resources."""
-        self.Hide()
+        self.hide()
         if self._hwnd:
             _ICONS.pop(self._hwnd, None)
             ctypes.windll.user32.DestroyWindow(self._hwnd)
@@ -341,8 +351,8 @@ class SystemTray:
         return self
 
     # --- PSG style aliases -----------------------------------------------------
-    ShowMsg = ShowMessage
-    notify = ShowMessage
+    ShowMsg = show_message
+    notify = show_message
 
     def run(self, app=None):
         """Start a tray-only application loop with THIS tray icon as root.
