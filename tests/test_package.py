@@ -429,6 +429,15 @@ class TestWindow(unittest.TestCase):
         self.assertEqual(event, "-CUSTOM-")
         window.close()
 
+    def test_window_find_element_alias_removed(self):
+        # FindElement (the PSG PascalCase alias) was removed; only the
+        # snake_case find_element and the element() shortcut remain
+        window = ts.Window("t", [[ts.Text("x", key="-X-")]], finalize=True)
+        self.addCleanup(window.close)
+        self.assertTrue(callable(window.find_element))
+        self.assertTrue(callable(window.element))
+        self.assertFalse(hasattr(window, "FindElement"))
+
 
 class TestElementOptions(unittest.TestCase):
     """P0 element level options: metadata, pad/expand, right click menu."""
@@ -2809,23 +2818,22 @@ class TestRunEntry(unittest.TestCase):
 
     @unittest.skipUnless(ts.running_windows(), "SystemTray is Windows only")
     def test_system_tray_snake_case_api(self):
-        """Public methods are snake_case; PascalCase aliases point at the
-        same callables so existing user code keeps working."""
+        """Public methods are snake_case; PascalCase aliases were removed
+        (snake_case is the only supported spelling now)."""
         tray = ts.SystemTray()
         self.addCleanup(tray.close)
-        # snake_case is the primary name
+        # snake_case is the primary (and only) name
         for name in ("show_message", "update", "hide", "unhide"):
             self.assertTrue(
                 callable(getattr(tray, name)),
                 "{} should be callable on SystemTray".format(name),
             )
-        # PascalCase aliases resolve to the same underlying functions
-        # (bound method objects compare unequal even when they wrap the
-        # same __func__, so check that instead).
-        self.assertIs(tray.ShowMessage.__func__, tray.show_message.__func__)
-        self.assertIs(tray.Update.__func__, tray.update.__func__)
-        self.assertIs(tray.Hide.__func__, tray.hide.__func__)
-        self.assertIs(tray.UnHide.__func__, tray.unhide.__func__)
+        # the old PascalCase spellings no longer exist
+        for legacy in ("ShowMessage", "Update", "Hide", "UnHide", "ShowMsg"):
+            self.assertFalse(
+                hasattr(tray, legacy),
+                "{} is a removed alias; use the snake_case name".format(legacy),
+            )
         # hide/unhide flip the _created flag without raising
         tray.hide()
         self.assertFalse(tray._created)

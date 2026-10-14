@@ -271,10 +271,6 @@ class SystemTray:
         shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notify_data))
         return self
 
-    # TkSimpleGUI-style PascalCase alias for back-compat (snake_case is the
-    # PEP 8 primary name; the alias is kept for code that predates it).
-    ShowMessage = show_message
-
     def update(self, tooltip=None, icon=None):
         """Change the tooltip or icon."""
         if tooltip is not None:
@@ -292,8 +288,6 @@ class SystemTray:
             shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notify_data))
         return self
 
-    Update = update
-
     def hide(self):
         """Remove the icon from the tray (can be shown again via :meth:`unhide`)."""
         if self._created:
@@ -304,15 +298,11 @@ class SystemTray:
             self._created = False
         return self
 
-    Hide = hide
-
     def unhide(self):
         """Put the icon back into the tray."""
         if not self._created:
             self._add_icon()
         return self
-
-    UnHide = unhide
 
     def read(self, timeout=None):
         """Pump events and return ``(event, None)``.
@@ -351,7 +341,6 @@ class SystemTray:
         return self
 
     # --- PSG style aliases -----------------------------------------------------
-    ShowMsg = show_message
     notify = show_message
 
     def run(self, app=None):

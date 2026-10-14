@@ -998,8 +998,6 @@ class Window:
         """Alias of :meth:`find_element`."""
         return self.find_element(key)
 
-    FindElement = find_element
-
     def keys(self):
         """All registered element keys."""
         return list(self._elements_by_key.keys())
