@@ -13,13 +13,10 @@ Static checkers resolve the TYPE_CHECKING branch to ``typing.Literal``.
 import sys
 from typing import TYPE_CHECKING
 
-if TYPE_CHECKING:  # pragma: no cover - static only
+if TYPE_CHECKING or sys.version_info >= (3, 8):  # pragma: no cover - static / 3.8+
     from typing import Literal
 
-elif sys.version_info >= (3, 8):  # pragma: no cover - version dependent
-    from typing import Literal
-
-else:  # pragma: no cover - version dependent
+else:  # pragma: no cover - version dependent (3.7 floor)
     from typing_extensions import Literal
 
 

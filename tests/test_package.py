@@ -2826,13 +2826,13 @@ class TestRunEntry(unittest.TestCase):
         for name in ("show_message", "update", "hide", "unhide"):
             self.assertTrue(
                 callable(getattr(tray, name)),
-                "{} should be callable on SystemTray".format(name),
+                f"{name} should be callable on SystemTray",
             )
         # the old PascalCase spellings no longer exist
         for legacy in ("ShowMessage", "Update", "Hide", "UnHide", "ShowMsg"):
             self.assertFalse(
                 hasattr(tray, legacy),
-                "{} is a removed alias; use the snake_case name".format(legacy),
+                f"{legacy} is a removed alias; use the snake_case name",
             )
         # hide/unhide flip the _created flag without raising
         tray.hide()

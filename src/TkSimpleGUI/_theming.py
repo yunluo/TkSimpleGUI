@@ -90,7 +90,7 @@ _THEME_KEY_ALIASES = {
 }
 
 
-class ThemeManager(object):
+class ThemeManager:
     """Encapsulated look and feel state.
 
     ``name is None`` means *native*: no colors are overridden and ttk widgets
@@ -339,9 +339,9 @@ class ThemeManager(object):
         Derived styles are cached so widgets asking for the same combination
         share one style.
         """
-        effective = dict(
-            (key, value) for key, value in options.items() if value is not None
-        )
+        effective = {
+            key: value for key, value in options.items() if value is not None
+        }
         if not effective:
             return base
         style = ttk.Style(master)
@@ -410,29 +410,29 @@ class ThemeManager(object):
         style.configure("TLabel", background=bg, foreground=fg)
 
         # --- buttons: flat-ish surfaces with depth, quiet disabled state ----
-        button_config = dict(
-            background=btn_bg, foreground=btn_fg,
-            bordercolor=_blend(btn_bg, "#000000", 0.25),
-            lightcolor=_blend(btn_bg, "#ffffff", 0.08),
-            darkcolor=_blend(btn_bg, "#000000", 0.20),
-        )
-        button_map = dict(
-            background=[("disabled", disabled_bg), ("pressed", pressed),
-                        ("active", hover)],
-            foreground=[("disabled", disabled_fg)],
-        )
+        button_config = {
+            "background": btn_bg, "foreground": btn_fg,
+            "bordercolor": _blend(btn_bg, "#000000", 0.25),
+            "lightcolor": _blend(btn_bg, "#ffffff", 0.08),
+            "darkcolor": _blend(btn_bg, "#000000", 0.20),
+        }
+        button_map = {
+            "background": [("disabled", disabled_bg), ("pressed", pressed),
+                           ("active", hover)],
+            "foreground": [("disabled", disabled_fg)],
+        }
         for base in ("TButton", "TMenubutton"):
             style.configure(base, **button_config)
             style.map(base, **button_map)
 
         # --- entries: quiet border, accent focus ring, dim disabled field ---
-        entry_map = dict(
-            fieldbackground=[("disabled", disabled_field), ("readonly", input_bg)],
-            foreground=[("disabled", muted)],
-            bordercolor=[("focus", accent)],
-            lightcolor=[("focus", accent)],
-            darkcolor=[("focus", accent)],
-        )
+        entry_map = {
+            "fieldbackground": [("disabled", disabled_field), ("readonly", input_bg)],
+            "foreground": [("disabled", muted)],
+            "bordercolor": [("focus", accent)],
+            "lightcolor": [("focus", accent)],
+            "darkcolor": [("focus", accent)],
+        }
         for base in ("TEntry", "TSpinbox", "TCombobox"):
             style.configure(
                 base, fieldbackground=input_bg, foreground=input_fg,
@@ -670,7 +670,6 @@ def theme_add_new(name, colors):
 
 def theme_global():
     """Baseline compatibility: returns the name to apply at startup (native)."""
-    return None
 
 
 # --- ttk engine themes (clam/vista/aqua/alt/default…) -------------------------

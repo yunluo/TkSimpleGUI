@@ -209,7 +209,7 @@ TkSimpleGUI/
 
 ```bash
 pip install -e .
-python -m pytest tests -q             # 298 项测试（每测试 30s 超时守护）
+python -m pytest tests -q             # 300 项测试（每测试 30s 超时守护）
 python -m unittest discover tests     # 同一套测试的 unittest 跑法
 python tests/check_types.py           # ty 类型检查守卫
 python tests/check_syntax.py          # 3.7 语法门（用运行中解释器的 ast 解析全部 .py）

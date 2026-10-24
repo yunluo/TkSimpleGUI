@@ -10,11 +10,14 @@ import shutil
 import subprocess
 import sys
 
-# explicit override wins, then PATH, then the known local install
+# explicit override wins, then the known-good pinned install, then PATH.
+# Order matters: newer ty releases (0.0.53+) report ~34 ttk-stub false
+# positives on the **kwargs forwarding in elements/buttons.py, so the pinned
+# binary is the reference gate; set TY_BIN to force a specific checker.
 TY_CANDIDATES = [
     os.environ.get("TY_BIN"),
-    shutil.which("ty"),
     r"D:\bin\ty.exe",
+    shutil.which("ty"),
 ]
 
 

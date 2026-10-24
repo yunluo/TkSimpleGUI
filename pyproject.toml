@@ -94,15 +94,27 @@ ignore = [
     # ``import TkSimpleGUI as sg`` is the ecosystem spelling users copy from
     # the docs; enforcing CamelCase module aliases there would break it.
     "N813",
+    # PEP 263 coding declarations are deliberate policy: the 3.7 floor predates
+    # UTF-8-default source encoding, and a file that gains non-ASCII text later
+    # must already carry the declaration -- "unnecessary coding comment" is noise.
+    "UP009",
 ]
 
 [tool.ruff.lint.per-file-ignores]
 # package-root __init__ intentionally imports after function definitions
-# (module-shadowing rule: exported names shadow same-named submodules)
-"src/TkSimpleGUI/__init__.py" = ["E402"]
+# (module-shadowing rule: exported names shadow same-named submodules).
+# N999 derives the module name from the CamelCase package directory itself
+# (the ecosystem spelling -- same reasoning as the N813 ignore above).
+"src/TkSimpleGUI/__init__.py" = ["E402", "N999"]
+"src/TkSimpleGUI/__main__.py" = ["N999"]
+"src/TkSimpleGUI/elements/__init__.py" = ["N999"]
+"src/TkSimpleGUI/window/__init__.py" = ["N999"]
 "tests/*" = ["E402"]
 # generated theme table: one theme dict per line, pure data
 "src/TkSimpleGUI/_theme_data.py" = ["E501"]
+# configure_ttk is one declarative ttk style table per theme; splitting it
+# would scatter related options across helpers for no readability gain.
+"src/TkSimpleGUI/_theming.py" = ["PLR0915"]
 # Literal[...] option strings (ttk option values) are flagged as undefined
 # forward references because ruff cannot resolve the _typing_compat
 # conditional import; only these four files use typed Literal options and

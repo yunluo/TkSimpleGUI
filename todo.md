@@ -175,9 +175,10 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 - [x] 顺带：`func` 非 callable 同步 `TypeError`；线程命名 `start_task:<函数名>`；默认键
       `-THREAD DONE-` 并发语义与 `BaseException` 判定写进文档串；showcase 新增
       「后台任务（失败）」按钮 + smoke 端到端断言（事件 / 载荷 / 日志框文本）
-- [x] 测试 284 → 291 → 298（日志批 +7、start_task 修复 +1、Alert close/reopen +1、
-      Rate/Pagination/Steps 键盘 +3、Empty 紧凑/legacy +1、Tag 真实 click +1）
-      载荷、不可哈希返回值、快照线程身份、载荷合并与单参兼容）
+- [x] 测试 284 → 291 → 298 → 300（日志批 +7、start_task 修复 +1、Alert close/reopen +1、
+      Rate/Pagination/Steps 键盘 +3、Empty 紧凑/legacy +1、Tag 真实 click +1、
+      SystemTray snake_case 与别名删除 +2；覆盖绑定 end_key 处理器触发、None 返回、
+      异常载荷、不可哈希返回值、快照线程身份、载荷合并与单参兼容）
 
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
