@@ -4,7 +4,7 @@
 :class:`Element` is the abstract base of every widget. Subclasses implement
 ``_create_widget``; the template method :meth:`Element._build` orchestrates
 creation, post configuration and event binding. State is fully encapsulated:
-subclasses declare ``__slots__`` and expose behaviour through properties and
+subclasses declare ``__slots__`` and expose behavior through properties and
 methods instead of public attributes.
 
 Every element also carries the shared layout hints (``pad``, ``expand_x``,
@@ -251,7 +251,7 @@ class Element(metaclass=ElementBaseMeta):
 
     # --- grid integration ---------------------------------------------------------
     def _grid_into(self, master, row, column, default_pad, default_justification):
-        """Grid the widget honouring pad/expand/justification hints.
+        """Grid the widget honoring pad/expand/justification hints.
 
         Called by :meth:`Window._build_layout`. Returns ``(expand_x, expand_y)``
         so the caller can configure matching row/column weights.
@@ -632,12 +632,12 @@ def _validate_layout(layout):
 def _parse_pad(pad):
     """Normalize a pad spec (number, (x, y) or ((l, r), (t, b))) to 4 numbers."""
     if pad is None:
-        return (0, 0, 0, 0)
+        return 0, 0, 0, 0
     if isinstance(pad, (int, float)):
-        return (pad, pad, pad, pad)
+        return pad, pad, pad, pad
     if len(pad) == 2 and isinstance(pad[0], (list, tuple)):
-        return (pad[0][0], pad[0][1], pad[1][0], pad[1][1])
-    return (pad[0], pad[0], pad[1], pad[1])
+        return pad[0][0], pad[0][1], pad[1][0], pad[1][1]
+    return pad[0], pad[0], pad[1], pad[1]
 
 
 def theme_window_kwargs():

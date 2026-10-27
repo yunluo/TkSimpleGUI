@@ -59,7 +59,7 @@ _LABEL_WIDTH = 7  # "warning" is the longest level name
 
 
 def _level_name(level) -> str:
-    """Normalise a level argument to a known level name."""
+    """Normalize a level argument to a known level name."""
     name = str(level or "info").lower()
     return name if name in _LEVEL_RANK else "info"
 

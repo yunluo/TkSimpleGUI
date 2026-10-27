@@ -7,7 +7,7 @@ same few things Tk does not offer out of the box:
 - **Concrete colors for the active theme.** :func:`palette` resolves the
   theme manager into hex values (surface / ink / muted / accent / border /
   track). It also works for the native look: platform defaults are sampled
-  from throwaway widgets and normalised with ``winfo_rgb``, so even system
+  from throwaway widgets and normalized with ``winfo_rgb``, so even system
   colors ("SystemButtonFace") can be blended into readable shades.
 - **Rounded shapes.** Tk has no rounded rectangle; :func:`rounded_polygon`
   and :func:`capsule` draw the classic smooth-polygon forms.
@@ -77,7 +77,7 @@ def to_hex(widget, color, fallback: Color = "#808080") -> Color:
     """Best effort ``#rrggbb`` for any Tk color (named / system colors).
 
     ``winfo_rgb`` resolves names Tk knows ("SystemButtonFace", "gray70")
-    to real channel values; hex input is normalised, anything else falls
+    to real channel values; hex input is normalized, anything else falls
     back so callers always receive a blendable color.
     """
     rgb = theme_mod._parse_hex(color)
@@ -322,7 +322,7 @@ def system_font_file(family=None):
 
     Pillow renders text from font *files*; Tk fonts are not files. The
     lookup walks the platform font directories for the requested family
-    (normalised name match) and then for a handful of common fallbacks.
+    (normalized name match) and then for a handful of common fallbacks.
     ``None`` means "no usable file" — callers keep their pure Tk path.
     """
     import os
