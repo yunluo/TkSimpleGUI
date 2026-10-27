@@ -6,9 +6,9 @@ expects, so ``ts.Anchor.NW`` can be passed anywhere ``"nw"`` is accepted —
 with IDE completion, typo protection (AttributeError instead of a silent
 wrong layout) and discoverability.
 
-    ts.Text("hi", anchor=ts.Anchor.CENTER)          # instead of "center"
-    ts.Input(justify=ts.Justify.RIGHT)              # instead of "right"
-    ts.Frame("T", layout, label_anchor=ts.Anchor.SE)
+    ts.TText("hi", anchor=ts.Anchor.CENTER)          # instead of "center"
+    ts.TInput(justify=ts.Justify.RIGHT)              # instead of "right"
+    ts.TFrame("T", layout, label_anchor=ts.Anchor.SE)
     element.bind(ts.EventType.DOUBLE_CLICK)         # instead of "<Double-1>"
 """
 
@@ -23,7 +23,7 @@ class _TkEnum(str, Enum):
 
 
 class Anchor(_TkEnum):
-    """The 9-point anchor grid (tk ``anchor`` option / Frame title)."""
+    """The 9-point anchor grid (tk ``anchor`` option / TFrame title)."""
 
     NW = "nw"
     N = "n"

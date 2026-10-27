@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
-"""Canvas-drawn widgets that Tk cannot do natively.
+"""TCanvas-drawn widgets that Tk cannot do natively.
 
-- :class:`RoundButton`  — rounded / circular button with hover state
-- :class:`ImageButton`  — an arbitrary image acting as a button
-- :class:`TextProgressBar` — progress bar with centered percentage text
-- :class:`LED` — seven-segment numeric display
+- :class:`TRoundButton`  — rounded / circular button with hover state
+- :class:`TImageButton`  — an arbitrary image acting as a button
+- :class:`TTextProgressBar` — progress bar with centered percentage text
+- :class:`TLED` — seven-segment numeric display
 
 All of them post events through the regular window queue, support the
 shared Element options, and keep their figure ids alive on the element.
@@ -182,12 +182,12 @@ class _CanvasButton(Element):
         super()._post_event(key)
 
 
-class RoundButton(_CanvasButton):
+class TRoundButton(_CanvasButton):
     """A rounded-rectangle (or circular) canvas button.
 
     Tk buttons are always rectangular; this draws its own figure::
 
-        ts.RoundButton("Go", radius=14, fill_color="#e91e63", key="-GO-")
+        ts.TRoundButton("Go", radius=14, fill_color="#e91e63", key="-GO-")
     """
 
     __slots__ = ("_radius", "_text")
@@ -259,7 +259,7 @@ class RoundButton(_CanvasButton):
         return self
 
 
-class ImageButton(_CanvasButton):
+class TImageButton(_CanvasButton):
     """An arbitrary image acting as a button (PNG/GIF, base64 or file).
 
     Any non-transparent pixel of the image is clickable — something a
@@ -358,13 +358,13 @@ class ImageButton(_CanvasButton):
             self._widget.itemconfigure(self._background_id, image=self._photo)
 
 
-class TextProgressBar(Element):
+class TTextProgressBar(Element):
     """A progress bar with centered percentage text (canvas-drawn).
 
     ttk.Progressbar cannot overlay text; this draws the bar and the label
     as canvas figures::
 
-        bar = ts.TextProgressBar(100, key="-PB-", bar_color="#4caf50")
+        bar = ts.TTextProgressBar(100, key="-PB-", bar_color="#4caf50")
         bar.update(current_value=42)   # shows "42%"
     """
 
@@ -509,12 +509,7 @@ class TextProgressBar(Element):
             self.unhide() if visible else self.hide()
         return self
 
-    def update_bar(self, current_value, max_value=None):
-        """TkSimpleGUI compatibility alias for :meth:`update`."""
-        return self.update(current_value=current_value, max_value=max_value)
-
-
-class Gauge(Element):
+class TGauge(Element):
     """An analog dial gauge for industrial HMI panels (canvas-drawn).
 
     A 270-degree arc with optional colored alarm zones (green / yellow /
@@ -793,16 +788,16 @@ class Gauge(Element):
         return self
 
 
-class LED(Element):
-    """A seven-segment LED display for numbers (canvas-drawn).
+class TLED(Element):
+    """A seven-segment TLED display for numbers (canvas-drawn).
 
     Classic calculator/clock rendering: digits are built from seven
     segments with dark "off" segments visible behind, giving the look of
-    a real LED unit. Supports a leading minus sign, decimal points and a
+    a real TLED unit. Supports a leading minus sign, decimal points and a
     blinking-clock colon separator. The digit size scales to fit the
     configured digit count::
 
-        led = ts.TLED(42, digits=4, color="#ff3b30", key="-LED-")
+        led = ts.TLED(42, digits=4, color="#ff3b30", key="-TLED-")
         led.update(1997)          # -> "_199" style zero padding? no: right-aligned
         clock.update("12:34")     # colon supported when allow_colon=True
     """

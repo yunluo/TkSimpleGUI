@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Shared painting toolkit for the canvas-drawn elements.
 
-The self-drawn widgets (Tag, Badge, Avatar, Steps, Rate, ...) all need the
+The self-drawn widgets (TTag, TBadge, TAvatar, TSteps, TRate, ...) all need the
 same few things Tk does not offer out of the box:
 
 - **Concrete colors for the active theme.** :func:`palette` resolves the
@@ -14,7 +14,7 @@ same few things Tk does not offer out of the box:
 - **Small vector glyphs.** :func:`cross`, :func:`check_mark` and
   :func:`triangle` build the close "x", the check mark and trend arrows.
 - **Polygon clipping** for the half rating stars (:func:`clip_left_half`).
-- **Text measuring** (:func:`measure_text`) so capsules can size to their
+- **TText measuring** (:func:`measure_text`) so capsules can size to their
   label in any font, including CJK.
 
 Semantic status colors (info / success / warning / danger) follow the
@@ -176,7 +176,7 @@ def rounded_polygon(canvas, x0, y0, x1, y1, radius, **kwargs) -> int:
     """A closed rounded rectangle as a smooth canvas polygon.
 
     Tk has no native rounded rectangle; the smooth-polygon approximation
-    below is the classic trick (it is what RoundButton has always used).
+    below is the classic trick (it is what TRoundButton has always used).
     """
     points = [
         x0 + radius, y0,

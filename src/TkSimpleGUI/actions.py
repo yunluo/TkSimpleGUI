@@ -28,10 +28,10 @@ class Action:
         self.metadata = metadata
 
     def to_button(self, **kwargs):
-        """A :class:`~TkSimpleGUI.elements.buttons.Button` for this action."""
-        from .elements.buttons import Button
+        """A :class:`~TkSimpleGUI.elements.buttons.TButton` for this action."""
+        from .elements.buttons import TButton
 
-        return Button(self.text, key=self.key, **kwargs)
+        return TButton(self.text, key=self.key, **kwargs)
 
     def to_menu_entry(self):
         """The menu definition label for this action (its text)."""

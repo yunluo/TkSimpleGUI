@@ -180,6 +180,48 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
       SystemTray snake_case 与别名删除 +2；覆盖绑定 end_key 处理器触发、None 返回、
       异常载荷、不可哈希返回值、快照线程身份、载荷合并与单参兼容）
 
+## 🧹 剥离 PySimpleGUI 兼容层（2026-10-27）
+
+定位决策：不与 PySimpleGUI 兼容，历史残留与不良 API 全部舍弃。本次删除 32 个遗产名，
+公开 `__all__` 收敛到 241 项，一个概念只保留一个名字：
+
+- [x] **纯别名删除**：`InputText`（≡Input）、`version`/`port`、`MsgBox`（≡popup）、
+      `popup_quick`/`popup_quick_message`/`popup_timed`/`popup_non_blocking`（≡popup_no_buttons
+      /popup_auto_close）、`Window.element`（≡find_element）、`child_windows`（≡children）、
+      `restore`（≡normal）、`SystemTray.Read`/`notify`、`ProgressBar`/`TextProgressBar` 的
+      `update_bar`（≡update）、`Table.bind(records)`（按参数类型切换语义的坏 API，
+      调用点改 `set_records`）、`ttk_button_class`（无调用的遗留钩子）、`theme_global`
+      （空函数体死代码）
+- [x] **PSG 遗产删除**：`running_trinket`/`running_replit`（PSG 网页 IDE 环境探测）、
+      `Translator`/`_`/`translate`/`set_translations` 全家（零使用的 i18n）、`THIS_ROW`/
+      `WRITE_ONLY_KEY`（零使用哨兵）、`WINDOW_CLOSED`/`EVENT_TIMEOUT`/`EVENT_TIMER`
+      双拼哨兵、`RELIEF_*` 与裸 `FLAT`/`SOLID` 等 12 个常量（`Relief` 枚举已覆盖）、
+      `DEFAULT_WINDOW_ICON`（暗示一个并不存在的默认图标）
+- [x] **改名去 PSG 腔**：`list_of_look_and_feel_values`→`theme_list`、`theme_add_new`→
+      `theme_add`、`LOOK_AND_FEEL_TABLE`→`THEMES`；删 `set_options`/`get_options`，
+      改导出 `ts.settings` 单例（包内 6 处 `settings_mod.settings` 同步改直连导入，
+      规避「包属性重绑后 `from . import settings` 拿到实例」的模块影子陷阱）
+- [x] **popup 家族收敛**：`popup` 删无实现的 `button_color` 形参、`popup_no_buttons` 删被
+      忽略的 `non_blocking` 形参；保留 17 个真实弹窗（`popup_get_file/folder/date/font`、
+      `popup_find/replace` 等）；修正 `display._on_close_event` 的过时注释（实为真实关闭
+      按钮处理器，并非"无调用者的兼容遗留"）
+- [x] **保留项（非 PSG 包袱，有意为之）**：`read()`/`(event, values)` 命令式 API、
+      `OptionMenu`（非只读 Combo，对应真实 Tk 控件）、`itemconfig`/`itemconfigure`
+      （tkinter 本就双名）
+- [x] **T 前缀扶正（同日追加，用户拍板"T 开头是我的特点，必须要"）**：61 个控件类直接
+      改名 TText/TInput/TButton…，非 T 拼写整体删除（顺带删 `bind_event` 的 `on_event`
+      双名）；整仓脚本重命名（词边界 + `tk.`/`ttk.`/`PIL.` 限定保护），并修复两类误伤——
+      Tk 概念词（`<Button-1>` 事件串 ×30、`Tab.TFrame` 样式名、`*TCombobox*Listbox`
+      option 串、注释 `Alt+Tab`、_paint 的 PIL `(Image, ImageDraw)` 元组）与点号调用
+      漏网（`ts.Text` 限定形式需第二遍补齐）；`test_t_prefix_is_the_only_spelling`
+      断言 63 个非 T 拼写全部 AttributeError
+- [x] 测试 300 → 299：删 Translator/i18n 测试（-1）；新增 `test_removed_legacy_names`
+      断言 33 个遗产名 AttributeError，tray/window 层补别名移除断言；start_task 失败
+      用例改截止期限泵循环——3.7 全量套件下 worker 线程调度可被推迟 >3s（环境级现象：
+      32 位 3.7 + 数百窗口 churn；单测 0.2s、类隔离 1.6s 内完成，正常使用无影响）
+- [x] ruff 两份二进制均已自动升级至 0.17.2，新版启用 PLR0917（位置参数过多），与
+      PLR0913 同理进 ignore——位置参数构造正是本框架的布局调用约定
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS

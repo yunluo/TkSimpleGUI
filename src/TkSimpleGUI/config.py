@@ -7,7 +7,7 @@ and passed as ``config=`` — useful for sharing one look across many widgets
 or building layouts from data::
 
     opts = ts.ElementOptions(pad=(10, 4), expand_x=True,
-                             right_click_menu=["&Menu", ["Refresh"]])
+                             right_click_menu=["&TMenu", ["Refresh"]])
     ts.TInput("", config=opts)
     ts.TText("hi", config=opts)
 

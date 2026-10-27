@@ -7,15 +7,15 @@ Usage::
     import TkSimpleGUI as sg
 
     layout = [
-        [ts.Text("Hello")],
-        [ts.Input(key="-IN-"), ts.Button("OK")],
+        [ts.TText("Hello")],
+        [ts.TInput(key="-IN-"), ts.TButton("OK")],
     ]
     window = ts.Window("Demo", layout)
     event, values = window.read()
     window.close()
 """
 
-from ._version import __version__, version, __author__, __email__, __license__, port
+from ._version import __version__, __author__, __email__, __license__
 
 from . import constants as C  # noqa: F401
 
@@ -41,13 +41,8 @@ from .enums import (
 # --- constants ---------------------------------------------------------------
 from .constants import (
     WIN_CLOSED,
-    WINDOW_CLOSED,
     TIMEOUT_KEY,
-    EVENT_TIMEOUT,
     TIMER_KEY,
-    EVENT_TIMER,
-    THIS_ROW,
-    WRITE_ONLY_KEY,
     ButtonType,
     Location,
     DEFAULT_ELEMENT_SIZE,
@@ -58,17 +53,10 @@ from .constants import (
     DEFAULT_AUTOCLOSE_TIME,
     DEFAULT_PROGRESS_BAR_SIZE,
     COLOR_SYSTEM_DEFAULT,
-    RELIEF_RAISED,
-    RELIEF_SUNKEN,
-    RELIEF_FLAT,
-    RELIEF_RIDGE,
-    RELIEF_GROOVE,
-    RELIEF_SOLID,
     BROWSE_FILES_DELIMITER,
     FILE_TYPES_ALL_FILES,
     DEFAULT_BASE64_ICON,
     DEFAULT_BASE64_ICON_SMALL,
-    DEFAULT_WINDOW_ICON,
     BLANK_BASE64,
 )
 
@@ -76,20 +64,12 @@ from .constants import (
 from .utils import (
     rgb,
     Timer,
-    Translator,
-    _,
-    translate,
-    set_translations,
-    add_translation,
-    clear_translations,
     timer_start,
     timer_stop,
     formatted_datetime_now,
     running_windows,
     running_linux,
     running_mac,
-    running_trinket,
-    running_replit,
     set_dpi_awareness,
     font_families,
     font_measure,
@@ -97,13 +77,13 @@ from .utils import (
 )
 
 # --- settings -------------------------------------------------------------------
-from .settings import set_options, get_options
+from .settings import settings
 
 # --- theme -----------------------------------------------------------------------
 from ._theming import (
     theme,
     theme_manager,
-    list_of_look_and_feel_values,
+    theme_list,
     theme_background_color,
     theme_text_color,
     theme_button_color,
@@ -112,10 +92,10 @@ from ._theming import (
     theme_progress_bar_color,
     theme_slider_color,
     theme_border_width,
-    theme_add_new,
+    theme_add,
     ttk_theme,
     ttk_themes,
-    LOOK_AND_FEEL_TABLE,
+    THEMES,
 )
 
 # --- elements ----------------------------------------------------------------------
@@ -123,71 +103,70 @@ from .elements import (
     Element,
     InputElement,
     ContainerElement,
-    Text,
-    Input,
-    InputText,
-    Combo,
-    OptionMenu,
-    Listbox,
-    Spin,
-    Checkbox,
-    CheckList,
-    Radio,
-    Slider,
-    Multiline,
-    Output,
-    ProgressBar,
-    Button,
-    Submit,
-    CloseButton,
-    Image,
-    Canvas,
-    Graph,
-    Shape,
-    Frame,
-    Column,
-    Splitter,
-    ScrollableColumn,
-    Toolbar,
-    LabeledEdit,
-    KeyValueEditor,
-    FlowPanel,
-    Calendar,
-    Tab,
-    TabGroup,
-    Menu,
-    Table,
-    Tree,
-    StatusBar,
-    VerticalSeparator,
-    HorizontalSeparator,
-    Sizegrip,
-    Menubutton,
-    Scrollbar,
-    RoundButton,
-    ImageButton,
-    TextProgressBar,
-    Gauge,
-    LED,
-    Chart,
+    TText,
+    TInput,
+    TCombo,
+    TOptionMenu,
+    TListbox,
+    TSpin,
+    TCheckbox,
+    TCheckList,
+    TRadio,
+    TSlider,
+    TMultiline,
+    TOutput,
+    TProgressBar,
+    TButton,
+    TSubmit,
+    TCloseButton,
+    TImage,
+    TCanvas,
+    TGraph,
+    TShape,
+    TFrame,
+    TColumn,
+    TSplitter,
+    TScrollableColumn,
+    TToolbar,
+    TLabeledEdit,
+    TKeyValueEditor,
+    TFlowPanel,
+    TCalendar,
+    TTab,
+    TTabGroup,
+    TMenu,
+    TTable,
+    TTree,
+    TStatusBar,
+    TVerticalSeparator,
+    THorizontalSeparator,
+    TSizegrip,
+    TMenubutton,
+    TScrollbar,
+    TRoundButton,
+    TImageButton,
+    TTextProgressBar,
+    TGauge,
+    TLED,
+    TChart,
     ChartType,
-    Tag,
-    Badge,
-    Avatar,
-    Statistic,
-    Empty,
-    Result,
-    Skeleton,
-    Alert,
-    Watermark,
-    Card,
-    Descriptions,
-    Steps,
-    Timeline,
-    Segmented,
-    Rate,
-    Pagination,
-    Transfer,
+    TTag,
+    TBadge,
+    TAvatar,
+    TStatistic,
+    TEmpty,
+    TResult,
+    TSkeleton,
+    TAlert,
+    TWatermark,
+    TCard,
+    TDescriptions,
+    TSteps,
+    TTimeline,
+    TSegmented,
+    TRate,
+    TPagination,
+    TTransfer,
     validate_integer,
     validate_float,
     validate_regex,
@@ -224,11 +203,6 @@ def bind_event(event_names):
     return default_app().bind_event(event_names)
 
 
-def on_event(event_names):
-    """Alias of :func:`bind_event` (reads naturally as a decorator)."""
-    return default_app().bind_event(event_names)
-
-
 def main_loop(window, app=None):
     """Run the single application event loop (user code never writes one).
 
@@ -251,7 +225,7 @@ from .input_blocker import block_input, unblock_input
 from .user_settings import UserSettings
 from .animation import fade_in, fade_out, slide, animate_progress
 
-# --- logging into an Output / Multiline element ----------------------------------------
+# --- logging into an TOutput / TMultiline element ----------------------------------------
 from .logger import Logger, find_log_element, log
 
 # --- popups ------------------------------------------------------------------------------
@@ -264,13 +238,7 @@ from .popup import (
     popup_error,
     popup_scrolled,
     popup_no_buttons,
-    popup_non_blocking,
-    popup_quick,
-    popup_quick_message,
     popup_auto_close,
-    popup_timed,
-    popup_annoying,
-    popup_no_titlebar,
     popup_notify,
     popup_get_text,
     popup_get_file,
@@ -279,150 +247,56 @@ from .popup import (
     popup_get_font,
     popup_find,
     popup_replace,
-    popup_error_with_traceback,
-    MsgBox,
 )
 
-# --- T-prefixed aliases (uniform prefix rule) --------------------------------------------
-# Every widget is also importable by its own name with a "T" prefix
-# (TText = Text, TButton = Button, TRoundButton = RoundButton, ...) —
-# a single mechanical rule, no renames. Both spellings are the same class;
-# existing ts.Text style code keeps working.
-TText = Text
-TInput = Input
-TInputText = InputText
-TCombo = Combo
-TOptionMenu = OptionMenu
-TListbox = Listbox
-TSpin = Spin
-TCheckbox = Checkbox
-TCheckList = CheckList
-TRadio = Radio
-TSlider = Slider
-TMultiline = Multiline
-TOutput = Output
-TProgressBar = ProgressBar
-TButton = Button
-TSubmit = Submit
-TCloseButton = CloseButton
-TImage = Image
-TCanvas = Canvas
-TGraph = Graph
-TShape = Shape
-TFrame = Frame
-TColumn = Column
-TSplitter = Splitter
-TScrollableColumn = ScrollableColumn
-TToolbar = Toolbar
-TLabeledEdit = LabeledEdit
-TKeyValueEditor = KeyValueEditor
-TFlowPanel = FlowPanel
-TCalendar = Calendar
-TTab = Tab
-TTabGroup = TabGroup
-TMenu = Menu
-TTable = Table
-TTree = Tree
-TStatusBar = StatusBar
-TVerticalSeparator = VerticalSeparator
-THorizontalSeparator = HorizontalSeparator
-TSizegrip = Sizegrip
-TMenubutton = Menubutton
-TScrollbar = Scrollbar
-TRoundButton = RoundButton
-TImageButton = ImageButton
-TTextProgressBar = TextProgressBar
-TGauge = Gauge
-TLED = LED
-# Honest name: this draws a seven-segment digit display, not a true LED.
-TSevenSegment = LED
-TChart = Chart
-TTag = Tag
-TBadge = Badge
-TAvatar = Avatar
-TStatistic = Statistic
-TEmpty = Empty
-TResult = Result
-TSkeleton = Skeleton
-TAlert = Alert
-TWatermark = Watermark
-TCard = Card
-TDescriptions = Descriptions
-TSteps = Steps
-TTimeline = Timeline
-TSegmented = Segmented
-TRate = Rate
-TPagination = Pagination
-TTransfer = Transfer
 
 __all__ = [
-    "__version__", "version", "__author__", "__email__", "__license__", "port",
-    "WIN_CLOSED", "WINDOW_CLOSED", "TIMEOUT_KEY", "EVENT_TIMEOUT", "TIMER_KEY",
-    "EVENT_TIMER", "THIS_ROW", "WRITE_ONLY_KEY",
+    "__version__", "__author__", "__email__", "__license__",
+    "WIN_CLOSED", "TIMEOUT_KEY", "TIMER_KEY",
     "SelectMode", "ButtonType", "Location",
     "DEFAULT_ELEMENT_SIZE", "DEFAULT_BUTTON_ELEMENT_SIZE", "DEFAULT_MARGINS",
     "DEFAULT_ELEMENT_PADDING", "DEFAULT_FONT", "DEFAULT_AUTOCLOSE_TIME",
     "DEFAULT_PROGRESS_BAR_SIZE", "COLOR_SYSTEM_DEFAULT",
-    "RELIEF_RAISED", "RELIEF_SUNKEN", "RELIEF_FLAT", "RELIEF_RIDGE",
-    "RELIEF_GROOVE", "RELIEF_SOLID",
     "BROWSE_FILES_DELIMITER", "FILE_TYPES_ALL_FILES",
-    "DEFAULT_BASE64_ICON", "DEFAULT_BASE64_ICON_SMALL", "DEFAULT_WINDOW_ICON",
+    "DEFAULT_BASE64_ICON", "DEFAULT_BASE64_ICON_SMALL",
     "BLANK_BASE64",
     "rgb", "Timer", "timer_start", "timer_stop", "formatted_datetime_now",
-    "running_windows", "running_linux", "running_mac", "running_trinket",
-    "running_replit", "set_dpi_awareness",
+    "running_windows", "running_linux", "running_mac", "set_dpi_awareness",
     "font_families", "font_measure", "font_actual",
-    "set_options", "get_options",
-    "theme", "theme_manager", "list_of_look_and_feel_values",
+    "settings",
+    "theme", "theme_manager", "theme_list",
     "theme_background_color", "theme_text_color", "theme_button_color",
     "theme_input_background_color", "theme_input_text_color",
     "theme_progress_bar_color", "theme_slider_color", "theme_border_width",
-    "theme_add_new", "LOOK_AND_FEEL_TABLE",
+    "theme_add", "THEMES",
     "ttk_theme", "ttk_themes",
     "Element", "InputElement", "ContainerElement",
-    "Text", "Input", "InputText", "Combo", "OptionMenu", "Listbox", "Spin",
-    "Checkbox", "CheckList", "Radio", "Slider", "Multiline", "Output",
-    "ProgressBar", "Button", "Submit", "CloseButton", "Image", "Canvas",
-    "Graph", "Shape", "Frame", "Column", "Splitter", "ScrollableColumn",
-    "Toolbar", "LabeledEdit", "KeyValueEditor", "FlowPanel", "Calendar",
-    "Tab", "TabGroup", "Menu", "Table", "Tree",
-    "StatusBar", "VerticalSeparator", "HorizontalSeparator", "Sizegrip",
-    "Menubutton", "Scrollbar",
-    "RoundButton", "ImageButton", "TextProgressBar", "Gauge", "LED",
-    "Chart", "ChartType",
-    "Tag", "Badge", "Avatar", "Statistic", "Empty", "Result", "Skeleton",
-    "Alert", "Watermark", "Card", "Descriptions", "Steps", "Timeline",
-    "Segmented", "Rate", "Pagination", "Transfer",
+    "TText", "TInput", "TCombo", "TOptionMenu", "TListbox", "TSpin",
+    "TCheckbox", "TCheckList", "TRadio", "TSlider", "TMultiline", "TOutput",
+    "TProgressBar", "TButton", "TSubmit", "TCloseButton", "TImage", "TCanvas",
+    "TGraph", "TShape", "TFrame", "TColumn", "TSplitter", "TScrollableColumn",
+    "TToolbar", "TLabeledEdit", "TKeyValueEditor", "TFlowPanel", "TCalendar",
+    "TTab", "TTabGroup", "TMenu", "TTable", "TTree",
+    "TStatusBar", "TVerticalSeparator", "THorizontalSeparator", "TSizegrip",
+    "TMenubutton", "TScrollbar",
+    "TRoundButton", "TImageButton", "TTextProgressBar", "TGauge", "TLED",
+    "TChart", "ChartType",
+    "TTag", "TBadge", "TAvatar", "TStatistic", "TEmpty", "TResult", "TSkeleton",
+    "TAlert", "TWatermark", "TCard", "TDescriptions", "TSteps", "TTimeline",
+    "TSegmented", "TRate", "TPagination", "TTransfer",
     "validate_integer", "validate_float", "validate_regex",
     "Window", "SystemTray", "TkSimpleEvent", "singleton_window", "main_loop",
-    "default_app", "run_application", "bind_event", "on_event",
+    "default_app", "run_application", "bind_event",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "block_input", "unblock_input",
     "Logger", "find_log_element", "log",
     "ElementOptions", "WindowConfig",
-    "Translator", "_", "translate", "set_translations", "add_translation",
-    "clear_translations",
     "fade_in", "fade_out", "slide", "animate_progress", "dbg",
     "popup", "popup_ok", "popup_yes_no", "popup_ok_cancel", "popup_cancel",
-    "popup_error", "popup_scrolled", "popup_no_buttons", "popup_non_blocking",
-    "popup_quick", "popup_quick_message", "popup_auto_close", "popup_timed",
-    "popup_annoying", "popup_no_titlebar", "popup_notify", "popup_get_text",
+    "popup_error", "popup_scrolled", "popup_no_buttons", "popup_auto_close",
+    "popup_notify", "popup_get_text",
     "popup_get_file", "popup_get_folder", "popup_get_date",
     "popup_get_font", "popup_find", "popup_replace",
-    "popup_error_with_traceback", "MsgBox",
-    "TText", "TInput", "TInputText", "TCombo", "TOptionMenu", "TListbox",
-    "TSpin", "TCheckbox", "TCheckList", "TRadio", "TSlider", "TMultiline",
-    "TOutput", "TProgressBar", "TButton", "TSubmit", "TCloseButton",
-    "TImage", "TCanvas", "TGraph", "TShape", "TFrame", "TColumn",
-    "TSplitter", "TScrollableColumn", "TToolbar", "TLabeledEdit",
-    "TKeyValueEditor", "TFlowPanel", "TCalendar", "TTab", "TTabGroup",
-    "TMenu", "TTable", "TTree", "TStatusBar", "TVerticalSeparator",
-    "THorizontalSeparator", "TSizegrip", "TMenubutton", "TScrollbar",
-    "TRoundButton", "TImageButton", "TTextProgressBar", "TGauge", "TLED", "TSevenSegment",
-    "TChart",
-    "TTag", "TBadge", "TAvatar", "TStatistic", "TEmpty", "TResult",
-    "TSkeleton", "TAlert", "TWatermark", "TCard", "TDescriptions", "TSteps",
-    "TTimeline", "TSegmented", "TRate", "TPagination", "TTransfer",
     "Anchor", "LabelAnchor", "Justify", "Relief", "Orientation", "Compound",
     "State", "WrapMode", "ProgressMode", "SelectMode", "Cursor",
     "EventType", "Color",
@@ -434,7 +308,7 @@ def dbg(*args, **kwargs):
     text = " ".join(
         str(arg) if not isinstance(arg, str) else arg for arg in args
     )
-    return popup_quick(text, title=kwargs.get("title", "Debug"))
+    return popup_no_buttons(text, title=kwargs.get("title", "Debug"))
 
 
 def main(argv=None):
@@ -454,7 +328,7 @@ def main(argv=None):
     if options.version:
         print("TkSimpleGUI", __version__)
     elif options.themes:
-        for name in list_of_look_and_feel_values():
+        for name in theme_list():
             print(name)
     else:
         parser.print_help()

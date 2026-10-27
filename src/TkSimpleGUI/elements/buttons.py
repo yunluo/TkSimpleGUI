@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Button elements for TkSimpleGUI."""
+"""TButton elements for TkSimpleGUI."""
 
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser
@@ -12,7 +12,7 @@ from .. import _theming as theme_mod
 
 
 
-class Button(Element):
+class TButton(Element):
     """A clickable button (ttk based for a native look).
 
     Clicking posts the button's key into the window event queue. Browse
@@ -343,17 +343,8 @@ class Button(Element):
         return self
 
 
-def ttk_button_class():
-    """Legacy hook: the ttk button class used for a native look.
-
-    Buttons are always ttk based since TkSimpleGUI styles per-widget colors
-    through ttk styles; the function is kept for backward compatibility.
-    """
-    return ttk.Button
-
-
-class Submit(Button):
-    """Button whose click also closes the window (returns its key)."""
+class TSubmit(TButton):
+    """TButton whose click also closes the window (returns its key)."""
 
     __slots__ = ()
 
@@ -363,8 +354,8 @@ class Submit(Button):
             self._window._post_event(C.WIN_CLOSED)
 
 
-class CloseButton(Button):
-    """Button that closes its window without posting an event."""
+class TCloseButton(TButton):
+    """TButton that closes its window without posting an event."""
 
     __slots__ = ()
 
@@ -373,8 +364,8 @@ class CloseButton(Button):
             self._window._post_event(C.WIN_CLOSED)
 
 
-class Menubutton(Element):
-    """A standalone ttk dropdown button (Toolbar uses these internally).
+class TMenubutton(Element):
+    """A standalone ttk dropdown button (TToolbar uses these internally).
 
     Selecting a menu item posts the item's label into the window queue.
     """

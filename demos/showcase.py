@@ -7,7 +7,7 @@ Demonstrates the **recommended style**:
   default event manager (no explicit imports)
 - ``Action`` -- actions shared between menus, toolbars and shortcuts
 - ``parent=`` -- window hierarchy (child window demo, cascading close)
-- T-prefix naming, Toast, RoundButton, TextProgressBar, slider bubbles...
+- T-prefix naming, Toast, TRoundButton, TTextProgressBar, slider bubbles...
 
 Run::
 
@@ -61,7 +61,7 @@ _THEME_MENU_LABELS = {
 def log(text, color=None, level="info"):
     """Append one line to the bottom event log (optionally colored).
 
-    ``ts.log`` finds the ``-LOG-`` Output by itself — no window lookup and
+    ``ts.log`` finds the ``-LOG-`` TOutput by itself — no window lookup and
     no timestamp juggling in user code, the Logger stamps the line.
     """
     ts.log(text, key="-LOG-", color=color, level=level)
@@ -74,27 +74,27 @@ def require_window():
 
 # ---------------------------------------------------------------- tab layouts --
 def tab_inputs():
-    band_top = ts.Column([
-        [ts.Column([[ts.TText("整数校验（仅允许数字）")],
+    band_top = ts.TColumn([
+        [ts.TColumn([[ts.TText("整数校验（仅允许数字）")],
                     [ts.TInput("", key="-IN-NUM-", size=(12, 1), validate="key",
                               validate_command=ts.validate_integer,
                               enable_events=True)]]),
-         ts.Column([[ts.TText("密码框")],
+         ts.TColumn([[ts.TText("密码框")],
                     [ts.TInput("", key="-IN-PASS-", size=(12, 1), password_char="*")],
                     [ts.TCheckbox("显示密码", key="-CB-SHOW-", enable_events=True)]]),
-         ts.Column([[ts.TLabeledEdit("用户名", "yunluo", key="-IN-USER-")],
+         ts.TColumn([[ts.TLabeledEdit("用户名", "yunluo", key="-IN-USER-")],
                     [ts.TButton("提交表单", key="-SUBMIT-")]]),
-         ts.Column([[ts.TText("微调框")],
+         ts.TColumn([[ts.TText("微调框")],
                     [ts.TSpin([str(n) for n in range(1, 11)], initial_value="5",
                               key="-SP-", enable_events=True)]])],
     ])
-    band_slider = ts.Column([
+    band_slider = ts.TColumn([
         [ts.TText("滑杆联动进度条（拖动时显示数值气泡）：")],
         [ts.TSlider((0, 100), default_value=30, key="-SL-",
                     enable_events=True, size=(18, 15), show_value=True),
          ts.TProgressBar(100, current_value=30, size=(20, 12), key="-PB-SL-")],
     ])
-    band_multiline = ts.Column([
+    band_multiline = ts.TColumn([
         [ts.TMultiline("多行文本区（撤销/重做、彩色输出、查找替换）\n",
                        key="-ML-", size=(56, 5))],
         [ts.TButton("彩色输出", key="-B-COLOR-"), ts.TButton("撤销", key="-B-UNDO-"),
@@ -105,8 +105,8 @@ def tab_inputs():
 
 
 def tab_selection():
-    band = ts.Column([
-        [ts.Column([[ts.TText("下拉框")],
+    band = ts.TColumn([
+        [ts.TColumn([[ts.TText("下拉框")],
                     [ts.TCombo(["红色", "绿色", "蓝色"], default_value="红色",
                               key="-CMB-", enable_events=True)],
                     [ts.TText("选项菜单")],
@@ -116,20 +116,20 @@ def tab_selection():
                     [ts.TSpin(["低", "中", "高"], initial_value="中",
                              key="-SP2-", enable_events=True)]],
                    ),
-         ts.Column([[ts.TText("列表框（多选）")],
+         ts.TColumn([[ts.TText("列表框（多选）")],
                     [ts.TListbox(["选项一", "选项二", "选项三", "选项四"],
                                 size=(14, 4), select_mode=ts.SelectMode.EXTENDED,
                                 key="-LB-", enable_events=True)]]),
-         ts.Column([[ts.TText("复选框")],
+         ts.TColumn([[ts.TText("复选框")],
                     [ts.TCheckbox("勾选 A", key="-CBA-", enable_events=True)],
                     [ts.TCheckbox("勾选 B", key="-CBB-", enable_events=True)]]),
-         ts.Column([[ts.TText("复选列表")],
+         ts.TColumn([[ts.TText("复选列表")],
                     [ts.TCheckList(["西瓜", "苹果", "香蕉"],
                                   default_checked=["苹果"], key="-CKL-",
                                   enable_events=True)],
                     [ts.TButton("全选", key="-B-CKALL-"),
                      ts.TButton("全不选", key="-B-CKNONE-")]]),
-         ts.Column([[ts.TText("单选（互斥）")],
+         ts.TColumn([[ts.TText("单选（互斥）")],
                     [ts.TRadio("方案一", "plan", default=True, key="-R1-",
                               enable_events=True)],
                     [ts.TRadio("方案二", "plan", key="-R2-", enable_events=True)],
@@ -148,21 +148,21 @@ def tab_data():
     table = ts.TTable([], headings=[], key="-TB-", enable_edit=True,
                       row_icons=[ICON16, ICON16, ICON16, ICON16], num_rows=5,
                       auto_size_columns=False, col_widths=[10, 8, 10])
-    table.bind(records)
+    table.set_records(records)
     tree = ts.TTree(headings=["节点"], show_headings=False, num_rows=6, key="-TREE-")
     kv = ts.TKeyValueEditor([("主机", "localhost"), ("端口", "5432")], key="-KV-")
-    band = ts.Column([
-        [ts.Column([[ts.TText("表格：点表头排序 / 双击编辑 / 行图标 / 拖动分隔线")],
+    band = ts.TColumn([
+        [ts.TColumn([[ts.TText("表格：点表头排序 / 双击编辑 / 行图标 / 拖动分隔线")],
                     [table],
                     [ts.TButton("重新绑定数据", key="-B-REBIND-"),
                      ts.TText("当前记录："),
                      ts.TText("", key="-T-REC-", size=(22, 1))]]),
-         ts.Column([[ts.TText("树（图标 / 分组 / 汇总行）")],
+         ts.TColumn([[ts.TText("树（图标 / 分组 / 汇总行）")],
                     [tree],
                     [ts.TButton("添加分组", key="-B-ADDGRP-"),
                      ts.TButton("添加节点", key="-B-ADD-"),
                      ts.TButton("删除节点", key="-B-DEL-")]]),
-         ts.Column([[ts.TText("键值编辑器（TValEdit）")],
+         ts.TColumn([[ts.TText("键值编辑器（TKeyValueEditor）")],
                     [kv],
                     [ts.TButton("读取数值", key="-B-KVGET-")]])],
     ])
@@ -223,7 +223,7 @@ def tab_graphics():
     for chart in charts.values():
         chart.redraw()
     return [
-        [ts.Column([[ts.TText("TChart 图表 -- 折线（含控制限）/ 柱状 / 面积 / 散点（误差棒）"
+        [ts.TColumn([[ts.TText("TChart 图表 -- 折线（含控制限）/ 柱状 / 面积 / 散点（误差棒）"
                               " / 横条 / 饼图 / 环形 / 堆叠 / 直方图")],
                     [ts.TButton("更新折线数据", key="-B-CHUPD-"),
                      ts.TButton("添加柱状系列", key="-B-CHADD-"),
@@ -234,7 +234,7 @@ def tab_graphics():
                      charts["-CH-PIE-"]],
                     [charts["-CH-DONUT-"], charts["-CH-STACKED-"],
                      charts["-CH-HISTO-"]]])],
-        [ts.Column([[ts.TText("TGraph 自由绘图（用户坐标 + 图元句柄）-- 点击画布试试")],
+        [ts.TColumn([[ts.TText("TGraph 自由绘图（用户坐标 + 图元句柄）-- 点击画布试试")],
                     [graph],
                     [ts.TButton("画圆", key="-B-CIRCLE-"),
                      ts.TButton("画矩形", key="-B-RECT-"),
@@ -242,14 +242,14 @@ def tab_graphics():
                      ts.TButton("移动图元", key="-B-MOVEF-"),
                      ts.TButton("删除最后", key="-B-DELF-"),
                      ts.TButton("清空", key="-B-CLEARG-")]])],
-        [ts.Column([[ts.TText("形状 / 画布 / 图像")],
+        [ts.TColumn([[ts.TText("形状 / 画布 / 图像")],
                     [ts.TShape("rectangle", size=(46, 22), fill_color="#3a7bd5"),
                      ts.TShape("oval", size=(46, 22), fill_color="#4caf50"),
                      ts.TShape("triangle", size=(40, 22), fill_color="#ff9800"),
                      ts.TShape("line", size=(40, 22), line_color="#666666"),
-                     ts.VerticalSeparator(),
+                     ts.TVerticalSeparator(),
                      ts.TCanvas((70, 40), background_color="#e8eef7"),
-                     ts.VerticalSeparator(),
+                     ts.TVerticalSeparator(),
                      ts.TImage(data_base64=ts.DEFAULT_BASE64_ICON)]])],
     ]
 
@@ -268,59 +268,59 @@ def tab_containers():
         [ts.TButton(f"按钮 {i}", size=(6, 1)) for i in range(1, 9)],
         wrap_width=640, key="-FLOW-")
     calendar = ts.TCalendar(key="-CAL-", enable_events=True)
-    band_top = ts.Column([
-        [ts.Column([[ts.TText("框架 Frame")], [frame]]),
-         ts.VerticalSeparator(),
-         ts.Column([[ts.TText("分栏 Splitter（拖动中间分隔条）")], [splitter]])],
+    band_top = ts.TColumn([
+        [ts.TColumn([[ts.TText("框架 TFrame")], [frame]]),
+         ts.TVerticalSeparator(),
+         ts.TColumn([[ts.TText("分栏 TSplitter（拖动中间分隔条）")], [splitter]])],
     ])
-    band_mid = ts.Column([
-        [ts.Column([[ts.TText("滚动容器（滚轮滚动）")], [scroll]]),
-         ts.VerticalSeparator(),
-         ts.Column([[ts.TText("普通容器 Column")],
+    band_mid = ts.TColumn([
+        [ts.TColumn([[ts.TText("滚动容器（滚轮滚动）")], [scroll]]),
+         ts.TVerticalSeparator(),
+         ts.TColumn([[ts.TText("普通容器 TColumn")],
                     [ts.TColumn([[ts.TText("内部元素一")],
                                 [ts.TText("内部元素二")],
                                 [ts.TButton("容器内按钮")]])]]),
-         ts.VerticalSeparator(),
-         ts.Column([[ts.TText("日历（内嵌）")], [calendar]])],
+         ts.TVerticalSeparator(),
+         ts.TColumn([[ts.TText("日历（内嵌）")], [calendar]])],
     ])
-    band_flow = ts.Column([
-        [ts.TText("流式面板 FlowPanel（缩放窗口查看自动换行）")],
+    band_flow = ts.TColumn([
+        [ts.TText("流式面板 TFlowPanel（缩放窗口查看自动换行）")],
         [flow],
     ])
     return [[band_top], [band_mid], [band_flow]]
 
 
 def tab_fancy():
-    """Canvas-drawn widgets page."""
+    """TCanvas-drawn widgets page."""
     gauge = ts.TGauge(100, value=72, size=(150, 118), units="%",
                       title="储罐液位", key="-GAUGE-")
     alarm_gauge = ts.TGauge(60, value=64, min_value=-20, size=(150, 118),
                             title="温度 °C", key="-GAUGE2-")
     return [
-        [ts.Column([[ts.TText("圆角按钮（Tk 画不出的圆角/圆形按钮）")],
+        [ts.TColumn([[ts.TText("圆角按钮（Tk 画不出的圆角/圆形按钮）")],
                     [ts.TRoundButton("圆角按钮", size=(110, 30), radius=14,
                                      fill_color="#e91e63", key="-RB1-"),
                      ts.TRoundButton("圆", size=(40, 40), radius=20,
                                      fill_color="#4caf50", key="-RB2-"),
                      ts.TRoundButton("深蓝按钮", size=(110, 30), radius=8,
                                      fill_color="#3a7bd5", key="-RB3-")]])],
-        [ts.Column([[ts.TText("图像按钮（整张图片都是点击区）")],
+        [ts.TColumn([[ts.TText("图像按钮（整张图片都是点击区）")],
                     [ts.TImageButton(data_base64=ts.DEFAULT_BASE64_ICON,
                                      key="-IB-"),
                      ts.TText("<- 点击这个徽标")]])],
-        [ts.Column([[ts.TText("文字进度条（带百分比文字）")],
+        [ts.TColumn([[ts.TText("文字进度条（带百分比文字）")],
                     [ts.TTextProgressBar(100, current_value=60, size=(180, 22),
                                          bar_color="#4caf50", key="-TPB-"),
                      ts.TButton("+10", key="-B-TPB-ADD-"),
                      ts.TButton("归零", key="-B-TPB-ZERO-")]])],
-        [ts.Column([[ts.TText("仪表盘 Gauge（工业 HMI：报警色带 + 指针 + 数字读数）"
+        [ts.TColumn([[ts.TText("仪表盘 TGauge（工业 HMI：报警色带 + 指针 + 数字读数）"
                              "-- 拖动滑杆联动")],
                     [gauge, alarm_gauge,
-                     ts.Column([[ts.TSlider((0, 100), default_value=72,
+                     ts.TColumn([[ts.TSlider((0, 100), default_value=72,
                                             key="-SL-GAUGE-", enable_events=True,
                                             size=(14, 12))],
                                 [ts.TButton("模拟波动", key="-B-GAUGE-RND-")]]),
-                     ts.VerticalSeparator(),
+                     ts.TVerticalSeparator(),
                      ts.TText("绿 / 黄 / 红报警带自动按量程分布；"
                               "读数超上限时指针停在最大值。", text_color="#888888")]])],
     ]
@@ -355,7 +355,7 @@ def _components_rows():
               ts.TStatistic("订单数", 1864, trend=-3.2, key="-STAT-2-"),
               ts.TStatistic("转化率", 3.42, suffix="%", precision=2,
                             key="-STAT-3-")]],
-            subtitle="Statistic -- 大数字 + 涨跌趋势",
+            subtitle="TStatistic -- 大数字 + 涨跌趋势",
             extra=ts.TButton("刷新", key="-B-STAT-RND-"),
             key="-CARD-STAT-"),
          ts.TCard(
@@ -365,27 +365,27 @@ def _components_rows():
               [ts.TButton("下一步", key="-B-STEP-NEXT-"),
                ts.TButton("重回第一步", key="-B-STEP-RESET-"),
                ts.TButton("标记异常", key="-B-STEP-ERR-")]],
-             subtitle="Steps -- 横向步骤条，active/status 可动态更新",
+             subtitle="TSteps -- 横向步骤条，active/status 可动态更新",
              key="-CARD-STEPS-")],
 
         [ts.TColumn([
-            [ts.TText("标签 Tag："),
+            [ts.TText("标签 TTag："),
              ts.TTag("默认", key="-TAG-1-"),
              ts.TTag("成功", tag_color="#67c23a", key="-TAG-2-"),
              ts.TTag("深色", effect="dark", tag_color="#409eff"),
              ts.TTag("描边", effect="plain", tag_color="#e6a23c"),
              ts.TTag("可关闭", closable=True, key="-TAG-CLOSE-")],
-            [ts.TText("徽章 Badge："),
+            [ts.TText("徽章 TBadge："),
              ts.TBadge(120, max_value=99, key="-BADGE-"),
              ts.TBadge(is_dot=True),
              ts.TBadge(7, badge_color="#67c23a")],
-            [ts.TText("头像 Avatar："),
+            [ts.TText("头像 TAvatar："),
              ts.TAvatar(text="云落", key="-AVATAR-"),
              ts.TAvatar(data_base64=ts.DEFAULT_BASE64_ICON, size=44),
              ts.TAvatar(text="AB", shape="square", background_color="#4caf50")],
-            [ts.TText("分段控制器 Segmented："),
+            [ts.TText("分段控制器 TSegmented："),
              ts.TSegmented(["按天", "按周", "按月"], key="-SEG-", enable_events=True),
-             ts.TText("  评分 Rate："),
+             ts.TText("  评分 TRate："),
              ts.TRate(max_value=5, default_value=3.5, key="-RATE-",
                       enable_events=True)]],
             key="-BAND-DISPLAY-")],
@@ -399,12 +399,12 @@ def _components_rows():
                 columns=3, bordered=True, key="-DESC-")],
              [ts.TPagination(total=95, page_size=10, current_page=3,
                              show_total=True, key="-PAGE-", enable_events=True)]],
-            subtitle="Descriptions -- 描述列表 / Pagination -- 分页器",
+            subtitle="TDescriptions -- 描述列表 / TPagination -- 分页器",
             key="-CARD-DESC-"),
          ts.TCard(
              "操作记录",
              [[ts.TTimeline(timeline_items, key="-TIMELINE-")]],
-             subtitle="Timeline -- 时间线",
+             subtitle="TTimeline -- 时间线",
              extra=ts.TButton("追加记录", key="-B-TL-ADD-"),
              key="-CARD-TL-")],
 
@@ -417,29 +417,29 @@ def _components_rows():
               ts.TResult("待确认", "请核对收货信息", status="warning",
                          size=(170, 152)),
               ts.TResult("处理中", None, status="info", size=(170, 152))]],
-            subtitle="Result -- 四种语义状态",
+            subtitle="TResult -- 四种语义状态",
             key="-CARD-RES-"),
          ts.TCard("暂无数据",
                   [[ts.TEmpty("暂无工单数据", key="-EMPTY-")]],
-                  subtitle="Empty -- 空状态", key="-CARD-EMPTY-")],
+                  subtitle="TEmpty -- 空状态", key="-CARD-EMPTY-")],
 
         [ts.TCard(
             "穿梭框",
             [[ts.TTransfer(["主机 A", "主机 B", "主机 C", "主机 D"],
                            target_items=["主机 E"], titles=("候选", "已选"),
                            size=(16, 6), key="-TRANS-", enable_events=True)]],
-            subtitle="Transfer -- 双击或箭头按钮移动条目",
+            subtitle="TTransfer -- 双击或箭头按钮移动条目",
             key="-CARD-TRANS-"),
          ts.TColumn([
              ts.TCard(
                  "骨架屏",
                  [[ts.TSkeleton(rows=3, avatar=True, key="-SKEL-")],
                   [ts.TButton("重放加载", key="-B-SKEL-")]],
-                 subtitle="Skeleton -- 呼吸动画占位",
+                 subtitle="TSkeleton -- 呼吸动画占位",
                  key="-CARD-SKEL-"),
              ts.TCard("水印", [[ts.TWatermark("内部资料", size=(320, 120),
                                               gap=(130, 70), key="-WM-")]],
-                      subtitle="Watermark -- 平铺水印（有 Pillow 时按角度旋转）",
+                      subtitle="TWatermark -- 平铺水印（有 Pillow 时按角度旋转）",
                       key="-CARD-WM-")])],
 
         [ts.TAlert("生产环境连接正常，两条告警待处理。", type="info", title="提示",
@@ -457,7 +457,7 @@ def tab_themes():
     Clicking a swatch row opens a sample window in that theme; the
     ``设为默认`` button switches the global theme for every future window.
     """
-    from TkSimpleGUI._theme_data import LOOK_AND_FEEL_TABLE
+    from TkSimpleGUI._theme_data import THEMES
 
     descriptions = {
         "System": "原生 / 默认 / 平台观感",
@@ -472,13 +472,13 @@ def tab_themes():
         "五套手工挑选的低饱和配色，商用与个人应用皆宜。"
     )])
     for name in ("System", "Slate", "Daylight", "Dusk", "Sage"):
-        palette = LOOK_AND_FEEL_TABLE[name]["COLOR_LIST"]
+        palette = THEMES[name]["COLOR_LIST"]
         bg, accent, panel, fg = palette
         # System uses sentinel "system" placeholders -- resolve to a
         # neutral sample swatch so the row still shows something
         sample = ["#cfd2d6" if c == "system" else c for c in (bg, accent, panel, fg)]
         swatch = ts.TCanvas((180, 40), key=f"-SW-{name}-", background_color=sample[0])
-        row = ts.Column([
+        row = ts.TColumn([
             [ts.TText(f"{name:9s}", size=(10, 1),
                       font=("Segoe UI", 10, "bold"), key=f"-LBL-{name}-"),
              swatch,
@@ -493,21 +493,21 @@ def tab_themes():
 
 def tab_system():
     return [
-        [ts.Column([[ts.TText("弹窗家族")],
+        [ts.TColumn([[ts.TText("弹窗家族")],
                     [ts.TButton("消息", key="-P-MSG-"), ts.TButton("是否", key="-P-YN-"),
                      ts.TButton("错误", key="-P-ERR-"),
                              ts.TButton("滚动文本", key="-P-SCROLL-"),
                      ts.TButton("输入", key="-P-TEXT-"), ts.TButton("文件", key="-P-FILE-"),
                      ts.TButton("文件夹", key="-P-FOLDER-"), ts.TButton("日期", key="-P-DATE-"),
                      ts.TButton("字体", key="-P-FONT-")]])],
-        [ts.Column([[ts.TText("窗口控制（运行时 API）")],
+        [ts.TColumn([[ts.TText("窗口控制（运行时 API）")],
                     [ts.TButton("居中", key="-W-CENTER-"), ts.TButton("最大化", key="-W-MAX-"),
                      ts.TButton("最小化", key="-W-MIN-"), ts.TButton("还原", key="-W-NORM-"),
                      ts.TButton("半透明 0.6", key="-W-ALPHA-"),
                              ts.TButton("半透明 1.0", key="-W-ALPHA1-"),
                      ts.TButton("淡出淡入", key="-W-FADE-"),
                              ts.TButton("滑出滑回", key="-W-SLIDE-")]])],
-        [ts.Column([[ts.TText("Toast 气泡 / 后台任务 / 定时器")],
+        [ts.TColumn([[ts.TText("Toast 气泡 / 后台任务 / 定时器")],
                     [ts.TButton("Toast 气泡", key="-W-TOAST-"),
                      ts.TButton("后台任务（2 秒）", key="-W-WORK-"),
                      ts.TButton("后台任务（失败）", key="-W-WORK-FAIL-"),
@@ -516,14 +516,14 @@ def tab_system():
                      ts.TButton("计时开", key="-W-TIMER-"),
                              ts.TButton("计时关", key="-W-TIMEROFF-"),
                      ts.TText("00:00", key="-T-ELAPSED-", size=(8, 1))]])],
-        [ts.Column([[ts.TText("LED 数码管（七段显示）")],
-                    [ts.TLED(0, digits=6, color="#ff3b30", key="-LED-COUNT-"),
-                     ts.VerticalSeparator(),
+        [ts.TColumn([[ts.TText("TLED 数码管（七段显示）")],
+                    [ts.TLED(0, digits=6, color="#ff3b30", key="-TLED-COUNT-"),
+                     ts.TVerticalSeparator(),
                      ts.TLED("00:00", digits=5, allow_colon=True,
-                             color="#33cc66", key="-LED-CLOCK-"),
-                     ts.VerticalSeparator(),
-                     ts.TLED(-3.14, digits=6, color="#33aaff", key="-LED-NEG-")]])],
-        [ts.Column([[ts.TText("系统集成")],
+                             color="#33cc66", key="-TLED-CLOCK-"),
+                     ts.TVerticalSeparator(),
+                     ts.TLED(-3.14, digits=6, color="#33aaff", key="-TLED-NEG-")]])],
+        [ts.TColumn([[ts.TText("系统集成")],
                     [ts.TButton("托盘：创建", key="-S-TRAY-"),
                             ts.TButton("托盘：通知", key="-S-NOTIFY-"),
                      ts.TButton("托盘：关闭", key="-S-TRAYOFF-"),
@@ -533,7 +533,7 @@ def tab_system():
                              ts.TButton("i18n 演示", key="-S-I18N-")],
                     [ts.TText("左/右键点击托盘图标；偏好通过 UserSettings 持久化。",
                              text_color="#888888")]])],
-        [ts.Column([[ts.TText("窗口层级（parent）")],
+        [ts.TColumn([[ts.TText("窗口层级（parent）")],
                     [ts.TButton("打开子窗口", key="-W-CHILD-"),
                      ts.TText("子窗口独立存在；关闭主窗口时级联关闭。",
                               text_color="#888888")]])],
@@ -612,14 +612,14 @@ def _confirm_exit(window):
 
 def _draw_theme_swatches(window):
     """Paint the 4-color palette into each Themes tab canvas."""
-    from TkSimpleGUI._theme_data import LOOK_AND_FEEL_TABLE
+    from TkSimpleGUI._theme_data import THEMES
 
     width, height = 180, 40
     slot = width // 4
     for name in ("System", "Slate", "Daylight", "Dusk", "Sage"):
         canvas = window[f"-SW-{name}-"].widget
         canvas.delete("all")
-        palette = LOOK_AND_FEEL_TABLE[name]["COLOR_LIST"]
+        palette = THEMES[name]["COLOR_LIST"]
         # when the theme is "system" the palette holds the string
         # "system" placeholders; render them as neutral greys so the
         # row still looks like a coherent swatch
@@ -700,8 +700,8 @@ def _tick_clock():
     if _STOPWATCH["start"] is not None:
         elapsed = int(time.time() - _STOPWATCH["start"])
         window["-T-ELAPSED-"].update(f"{elapsed // 60:02d}:{elapsed % 60:02d}")
-        window["-LED-CLOCK-"].update(f"{elapsed // 60:02d}:{elapsed % 60:02d}")
-        window["-LED-COUNT-"].update(elapsed)
+        window["-TLED-CLOCK-"].update(f"{elapsed // 60:02d}:{elapsed % 60:02d}")
+        window["-TLED-COUNT-"].update(elapsed)
     _refresh_status()
 
 
@@ -805,7 +805,7 @@ def on_rebind(window, values):
         {"姓名": "新甲", "年龄": 21, "城市": "北京"},
         {"姓名": "新乙", "年龄": 33, "城市": "广州"},
     ])
-    log("Table.bind 重新绑定完成（表头自动同步）")
+    log("TTable.bind 重新绑定完成（表头自动同步）")
 
 
 @ts.bind_event("-B-ADDGRP-")

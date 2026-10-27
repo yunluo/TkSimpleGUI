@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Selection and rating widgets.
 
-- :class:`Segmented`  -- segmented control (pill track, hover, arrow keys)
-- :class:`Rate`       -- star rating with hover preview and half stars
-- :class:`Pagination` -- pager with a sliding window of page buttons
-- :class:`Transfer`   -- two listboxes with arrows moving items between them
+- :class:`TSegmented`  -- segmented control (pill track, hover, arrow keys)
+- :class:`TRate`       -- star rating with hover preview and half stars
+- :class:`TPagination` -- pager with a sliding window of page buttons
+- :class:`TTransfer`   -- two listboxes with arrows moving items between them
 
-Segmented, Rate and Pagination paint themselves on a flat canvas: the
+TSegmented, TRate and TPagination paint themselves on a flat canvas: the
 ``_geometry`` helper reports the canvas size, ``_draw`` repaints every
 figure from a freshly resolved palette, and ``apply_theme`` is that same
-repaint. Transfer composes plain Tk widgets and refreshes their colors in
+repaint. TTransfer composes plain Tk widgets and refreshes their colors in
 ``apply_theme``. Only real state changes post an event.
 """
 
@@ -49,13 +49,13 @@ def _segmented_options(options):
     return pairs
 
 
-class Segmented(Element):
+class TSegmented(Element):
     """A segmented control: one pill per option, exactly one selected.
 
     ``options`` is a list of labels or of ``(label, value)`` pairs; the
     selected option's *value* is what :meth:`get` returns::
 
-        ts.Segmented(["Day", "Week", "Month"], default_value="Week", key="-SEG-")
+        ts.TSegmented(["Day", "Week", "Month"], default_value="Week", key="-SEG-")
 
     Clicking a segment selects it (a changed selection posts the key);
     ``readonly=True`` makes the control display-only. The canvas takes
@@ -315,7 +315,7 @@ class Segmented(Element):
         return self
 
 
-class Rate(Element):
+class TRate(Element):
     """A star rating with hover preview and optional half stars.
 
     ``max_value`` stars are drawn; clicking one sets the value and moving
@@ -324,7 +324,7 @@ class Rate(Element):
     ``n - 0.5`` -- the first star's left half is 0.5, there is no "clear"
     gesture::
 
-        ts.Rate(max_value=5, default_value=3.5, key="-RATE-")
+        ts.TRate(max_value=5, default_value=3.5, key="-RATE-")
     """
 
     __slots__ = (
@@ -550,7 +550,7 @@ class Rate(Element):
         return self
 
 
-class Pagination(Element):
+class TPagination(Element):
     """A pager: prev/next chevrons around a window of page buttons.
 
     ``page_count`` is ``ceil(total / page_size)``, never below 1. When more
@@ -558,7 +558,7 @@ class Pagination(Element):
     current one between the fixed first and last page, with "…" wherever
     pages are skipped::
 
-        ts.Pagination(total=95, page_size=10, current_page=3, key="-PAG-")
+        ts.TPagination(total=95, page_size=10, current_page=3, key="-PAG-")
 
     Clicking a button (or a chevron) changes the page; the change posts the
     key and ``values[key]`` is the current page number.
@@ -872,7 +872,7 @@ class Pagination(Element):
         return self
 
 
-class Transfer(Element):
+class TTransfer(Element):
     """Two listboxes with arrows moving items between them.
 
     The left box holds the source items, the right one the target items --
@@ -880,7 +880,7 @@ class Transfer(Element):
     everything, "‹" and "«" move back; double-clicking an item moves just
     that item. ``size`` is the character size of both listboxes::
 
-        ts.Transfer(["a", "b", "c"], target_items=["x"], key="-MOVE-")
+        ts.TTransfer(["a", "b", "c"], target_items=["x"], key="-MOVE-")
 
     Items are plain strings; the arrow buttons are the only chrome, so a
     theme switch just recolors the frame, the titles and the two listboxes.

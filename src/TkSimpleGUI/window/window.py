@@ -12,10 +12,10 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 
 from .. import constants as C
 from .. import _theming as theme_mod
-from .. import settings as settings_mod
+from ..settings import settings
 from ..actions import ActionList
 from ..elements.base import Element, build_popup_menu
-from ..elements.containers import Menu
+from ..elements.containers import TMenu
 
 # A Window size or on-screen position as (x, y) pixels.
 WindowPoint = Tuple[int, int]
@@ -258,7 +258,7 @@ class Window:
         self._elements = []
         self._event_queue = queue.Queue()
         self._keep_on_top = (
-            keep_on_top if keep_on_top is not None else settings_mod.settings.keep_on_top
+            keep_on_top if keep_on_top is not None else settings.keep_on_top
         )
         self._modal = modal
         self._no_titlebar = no_titlebar
@@ -266,7 +266,7 @@ class Window:
         self._return_keyboard_events = return_keyboard_events
         self._location = location
         self._size = size
-        self._margins = margins if margins is not None else settings_mod.settings.margins
+        self._margins = margins if margins is not None else settings.margins
         self._background_color = background_color
         self._icon = icon
         self._resizable = resizable
@@ -348,11 +348,6 @@ class Window:
             for child in self._children
             if not child.was_closed and child in Window._open_windows
         ]
-
-    @property
-    def child_windows(self):
-        """Alias of :attr:`children`."""
-        return self.children
 
     @property
     def ancestors(self):
@@ -622,7 +617,7 @@ class Window:
 
     # --- layout building -----------------------------------------------------------
     def _build_layout(self, layout, master):
-        padding = settings_mod.settings.element_padding
+        padding = settings.element_padding
         default_justification = self._element_justification
         expand_columns = set()
         expand_rows = set()
@@ -634,7 +629,7 @@ class Window:
                     )
                 self._register_element(element)
                 element._build(master, self)
-                if isinstance(element, Menu):
+                if isinstance(element, TMenu):
                     continue  # menubar is attached to the root, not gridded
                 expand_x, expand_y = element._grid_into(
                     master, row_index, col_index, padding, default_justification
@@ -684,7 +679,7 @@ class Window:
     def set_actions(self, actions):
         """Register :class:`~TkSimpleGUI.actions.Action` objects.
 
-        Menu/right-click item texts matching an action's text are normalized
+        TMenu/right-click item texts matching an action's text are normalized
         to its key, shortcuts are bound as keyboard events, and the action's
         callback fires automatically when its event is read. Returns self.
         """
@@ -994,10 +989,6 @@ class Window:
                 return element
         return None
 
-    def element(self, key):
-        """Alias of :meth:`find_element`."""
-        return self.find_element(key)
-
     def keys(self):
         """All registered element keys."""
         return list(self._elements_by_key.keys())
@@ -1097,10 +1088,6 @@ class Window:
             except tk.TclError:
                 self._tk_root.deiconify()
         return self
-
-    def restore(self):
-        """Alias of :meth:`normal`."""
-        return self.normal()
 
     def set_alpha_channel(self, alpha):
         """Set the window transparency (``0.0`` invisible - ``1.0`` opaque)."""
@@ -1377,7 +1364,7 @@ class Window:
           notebook tabs, treeviews…)
         - the window and content frame backgrounds are re-applied
         - every element's ``apply_theme`` hook runs (classic tk widgets
-          like Text / Input / Frame / Column / Canvas repaint their
+          like TText / TInput / TFrame / TColumn / TCanvas repaint their
           theme-derived colors; explicit per-element colors are kept)
 
         Child windows are updated recursively. Safe to call any time

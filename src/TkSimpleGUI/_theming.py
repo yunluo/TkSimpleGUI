@@ -5,7 +5,7 @@
 All theme state is encapsulated in :class:`ThemeManager`. By default the
 manager is in "native" mode: no colors are overridden and ttk widgets use the
 system's native look (Windows Vista style, macOS Aqua, ...). Applying a named
-theme from :data:`LOOK_AND_FEEL_TABLE` switches to TkSimpleGUI colors.
+theme from :data:`THEMES` switches to TkSimpleGUI colors.
 """
 
 import contextlib
@@ -13,7 +13,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import constants as C
-from ._theme_data import LOOK_AND_FEEL_TABLE
+from ._theme_data import THEMES
 
 
 def _is_system_default(value):
@@ -136,17 +136,17 @@ class ThemeManager:
             return None
         if not isinstance(name, str):
             raise TypeError("theme name must be a string or None")
-        if name in LOOK_AND_FEEL_TABLE:
+        if name in THEMES:
             canonical = name
         else:
             canonical = None
-            for candidate in LOOK_AND_FEEL_TABLE:
+            for candidate in THEMES:
                 if candidate.lower() == name.lower():
                     canonical = candidate
                     break
             if canonical is None:
                 raise ValueError(
-                    f"Invalid theme name: {name!r}. Use list_of_look_and_feel_values() "
+                    f"Invalid theme name: {name!r}. Use theme_list() "
                     "for the available themes."
                 )
         self._name = canonical
@@ -157,7 +157,7 @@ class ThemeManager:
         """Register a new theme definition (dict of color entries)."""
         if not isinstance(name, str) or not name:
             raise ValueError("theme name must be a non-empty string")
-        LOOK_AND_FEEL_TABLE[name] = dict(colors)
+        THEMES[name] = dict(colors)
         self._theme_version += 1
         return name
 
@@ -165,7 +165,7 @@ class ThemeManager:
     def _entry(self):
         if self._name is None:
             return {}
-        return LOOK_AND_FEEL_TABLE.get(self._name, {})
+        return THEMES.get(self._name, {})
 
     def _get(self, key, default=None):
         return self._entry().get(key, default)
@@ -591,9 +591,9 @@ def theme(name=_UNSET):
     return theme_manager.apply(name)
 
 
-def list_of_look_and_feel_values():
+def theme_list():
     """Sorted list of available theme names."""
-    return sorted(LOOK_AND_FEEL_TABLE)
+    return sorted(THEMES)
 
 
 def theme_background_color(color=None):
@@ -663,13 +663,9 @@ def theme_border_width(width=None):
     return theme_manager.border_width
 
 
-def theme_add_new(name, colors):
+def theme_add(name, colors):
     """Register a new theme; returns the canonical name."""
     return theme_manager.add_new(name, colors)
-
-
-def theme_global():
-    """Baseline compatibility: returns the name to apply at startup (native)."""
 
 
 # --- ttk engine themes (clam/vista/aqua/alt/default…) -------------------------

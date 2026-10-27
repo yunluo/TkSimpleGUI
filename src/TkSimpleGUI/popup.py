@@ -8,11 +8,11 @@ popups automatically follow the active theme.
 from typing import Any, Dict, List
 
 from . import constants as C
-from . import settings as settings_mod
-from .elements.buttons import Button
-from .elements.calendar import Calendar
-from .elements.containers import Column
-from .elements.widgets import Checkbox, Input, Listbox, Multiline, Spin, Text
+from .settings import settings
+from .elements.buttons import TButton
+from .elements.calendar import TCalendar
+from .elements.containers import TColumn
+from .elements.widgets import TCheckbox, TInput, TListbox, TMultiline, TSpin, TText
 from .window.window import Window
 
 # A popup layout row is a list of elements (narrowed to Element's common base).
@@ -37,9 +37,9 @@ def _popup_window(
     popup closes cleanly. Set ``closable=False`` to enforce that the
     user must click a button.
     """
-    rows: List[ElementRow] = [[Text(line)] for line in lines]
+    rows: List[ElementRow] = [[TText(line)] for line in lines]
     if not no_buttons and buttons:
-        rows.append([Button(label, key=label) for label in buttons])
+        rows.append([TButton(label, key=label) for label in buttons])
     window = Window(
         title,
         rows,
@@ -52,7 +52,7 @@ def _popup_window(
         duration = (
             auto_close_duration
             if auto_close_duration is not None
-            else settings_mod.settings.autoclose_time
+            else settings.autoclose_time
         )
         window.read(timeout=int(duration * 1000), close=True)
         return ""
@@ -68,7 +68,7 @@ def _message_lines(args):
     return lines or [""]
 
 
-def popup(*args, title="", button_color=None, auto_close=False, auto_close_duration=None):
+def popup(*args, title="", auto_close=False, auto_close_duration=None):
     """Show a message with an OK button; returns the clicked button text."""
     if auto_close:
         return popup_auto_close(
@@ -102,12 +102,7 @@ def popup_error(*args, title="Error"):
     return _popup_window(title, _message_lines(args), buttons=("OK",))
 
 
-def popup_error_with_traceback(*args, **kwargs):
-    """Show an error message (traceback helpers are not available)."""
-    return popup_error(*args, title=kwargs.get("title", "Error"))
-
-
-def popup_no_buttons(*args, title="", non_blocking=True, auto_close_duration=None):
+def popup_no_buttons(*args, title="", auto_close_duration=None):
     """Show a message without buttons; auto closes. Returns ``""``."""
     return _popup_window(
         title,
@@ -118,33 +113,16 @@ def popup_no_buttons(*args, title="", non_blocking=True, auto_close_duration=Non
     )
 
 
-def popup_non_blocking(*args, title="", auto_close_duration=None):
-    """Show a message and return immediately (auto closes)."""
-    return popup_no_buttons(
-        *args, title=title, auto_close_duration=auto_close_duration
-    )
-
-
-def popup_quick(*args, title="", auto_close_duration=None):
-    """Alias of :func:`popup_non_blocking`."""
-    return popup_non_blocking(*args, title=title, auto_close_duration=auto_close_duration)
-
-
-def popup_quick_message(*args, title="", auto_close_duration=None):
-    """Alias of :func:`popup_non_blocking`."""
-    return popup_non_blocking(*args, title=title, auto_close_duration=auto_close_duration)
-
-
 def popup_auto_close(*args, title="", auto_close_duration=None, buttons=("OK",)):
     """Show a message with buttons that closes itself after a delay."""
     duration = (
         auto_close_duration
         if auto_close_duration is not None
-        else settings_mod.settings.autoclose_time
+        else settings.autoclose_time
     )
     lines = _message_lines(args)
-    rows: List[ElementRow] = [[Text(line)] for line in lines]
-    rows.append([Button(label, key=label) for label in buttons])
+    rows: List[ElementRow] = [[TText(line)] for line in lines]
+    rows.append([TButton(label, key=label) for label in buttons])
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     event, _values = window.read(timeout=int(duration * 1000), close=True)
     if event == C.TIMEOUT_KEY:
@@ -152,28 +130,10 @@ def popup_auto_close(*args, title="", auto_close_duration=None, buttons=("OK",))
     return event
 
 
-def popup_timed(*args, title="", auto_close_duration=None):
-    """Alias of :func:`popup_auto_close`."""
-    return popup_auto_close(*args, title=title, auto_close_duration=auto_close_duration)
-
-
-def popup_annoying(*args, title=""):
-    """Show a message repeatedly until the user answers; returns the answer."""
-    while True:
-        result = _popup_window(title, _message_lines(args), buttons=("OK",))
-        if result:
-            return result
-
-
-def popup_no_titlebar(*args, title="", **kwargs):
-    """Show a borderless message popup; returns the clicked button text."""
-    return _popup_window("", _message_lines(args))
-
-
 def popup_scrolled(*args, title="", size=(80, 20)):
     """Show a scrollable message; returns the text (or None on cancel)."""
-    rows: List[ElementRow] = [[Multiline("\n".join(_message_lines(args)), size=size, key="-ML-")]]
-    rows.append([Button("OK", key="OK"), Button("Cancel", key="Cancel")])
+    rows: List[ElementRow] = [[TMultiline("\n".join(_message_lines(args)), size=size, key="-ML-")]]
+    rows.append([TButton("OK", key="OK"), TButton("Cancel", key="Cancel")])
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     window["-ML-"].widget.configure(state="disabled")
     event, _values = window.read(close=True)
@@ -190,9 +150,9 @@ def popup_notify(*args, title="Notification"):
 def popup_get_text(message, title="", default_text=""):
     """Ask the user for a single line of text; None on cancel."""
     rows = [
-        [Text(message)],
-        [Input(default_text, key="-IN-", size=(50, 1))],
-        [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
+        [TText(message)],
+        [TInput(default_text, key="-IN-", size=(50, 1))],
+        [TButton("OK", key="OK"), TButton("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     window["-IN-"].widget.bind("<Return>", lambda _e: window._post_event("OK"))
@@ -242,7 +202,7 @@ def popup_get_folder(message="", title=""):
 
 
 def popup_get_date(message="Choose a date", title="", default_date=None, dateformat="%Y-%m-%d"):
-    """Calendar chooser; returns a :class:`datetime.date` or None.
+    """TCalendar chooser; returns a :class:`datetime.date` or None.
 
     ``default_date`` accepts a date or a ``(year, month, day)`` tuple
     (defaults to today).
@@ -254,9 +214,9 @@ def popup_get_date(message="Choose a date", title="", default_date=None, datefor
     elif isinstance(default_date, tuple):
         default_date = _dt.date(*default_date)
     rows = [
-        [Text(message)],
-        [Calendar(default_date=default_date, dateformat=dateformat, key="-CAL-")],
-        [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
+        [TText(message)],
+        [TCalendar(default_date=default_date, dateformat=dateformat, key="-CAL-")],
+        [TButton("OK", key="OK"), TButton("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     while True:
@@ -272,7 +232,7 @@ def popup_get_date(message="Choose a date", title="", default_date=None, datefor
 
 # --- find / replace helpers (tk.Text search API) --------------------------------
 def _as_text_widget(target):
-    """The underlying tk.Text of a Multiline element (or the widget itself)."""
+    """The underlying tk.Text of a TMultiline element (or the widget itself)."""
     text = getattr(target, "_text", None)
     return text if text is not None else target
 
@@ -312,17 +272,17 @@ def _text_replace_all(widget, needle, replacement, case_sensitive=False):
     return count
 
 
-def popup_find(multiline, title="Find Text", case_sensitive=False):
-    """Find text in a :class:`~TkSimpleGUI.elements.widgets.Multiline`.
+def popup_find(multiline, title="Find TText", case_sensitive=False):
+    """Find text in a :class:`~TkSimpleGUI.elements.widgets.TMultiline`.
 
     The first match from the top is selected and scrolled into view.
     Returns the match's ``"line.col"`` index, or None when not found /
     cancelled.
     """
     rows = [
-        [Text("Find what:")],
-        [Input("", key="-IN-", size=(40, 1))],
-        [Button("Find", key="Find"), Button("Cancel", key="Cancel")],
+        [TText("Find what:")],
+        [TInput("", key="-IN-", size=(40, 1))],
+        [TButton("Find", key="Find"), TButton("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     window["-IN-"].widget.focus_set()
@@ -342,16 +302,16 @@ def popup_find(multiline, title="Find Text", case_sensitive=False):
 
 
 def popup_replace(multiline, title="Replace", case_sensitive=False):
-    """Replace-all dialog for a Multiline element.
+    """Replace-all dialog for a TMultiline element.
 
     Returns the number of replacements, or None when cancelled. The search
     resumes after each inserted replacement, so replacing ``a`` with ``aa``
     terminates.
     """
     rows = [
-        [Text("Find what:"), Input("", key="-IN-", size=(30, 1))],
-        [Text("Replace with:"), Input("", key="-REP-", size=(30, 1))],
-        [Button("Replace All", key="RA"), Button("Cancel", key="Cancel")],
+        [TText("Find what:"), TInput("", key="-IN-", size=(30, 1))],
+        [TText("Replace with:"), TInput("", key="-REP-", size=(30, 1))],
+        [TButton("Replace All", key="RA"), TButton("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     window["-IN-"].widget.focus_set()
@@ -389,20 +349,20 @@ def popup_get_font(
     italic = len(default_font) > 2 and "italic" in default_font[2:]
 
     option_rows: List[ElementRow] = [
-        [Text("Size")],
-        [Spin([str(n) for n in range(1, 101)], initial_value=str(size), key="-SIZE-")],
+        [TText("Size")],
+        [TSpin([str(n) for n in range(1, 101)], initial_value=str(size), key="-SIZE-")],
     ]
     if include_bold_italic:
-        option_rows.append([Checkbox("Bold", key="-BOLD-", default=bold)])
-        option_rows.append([Checkbox("Italic", key="-ITALIC-", default=italic)])
+        option_rows.append([TCheckbox("Bold", key="-BOLD-", default=bold)])
+        option_rows.append([TCheckbox("Italic", key="-ITALIC-", default=italic)])
     option_rows.append(
-        [Multiline("AaBbYyZz 123", key="-PREVIEW-", size=(20, 3), font=(family, size))]
+        [TMultiline("AaBbYyZz 123", key="-PREVIEW-", size=(20, 3), font=(family, size))]
     )
     rows: List[ElementRow] = [
-        [Text(message)],
-        [Column([Listbox([], key="-FONTS-", size=(26, 10), enable_events=True)]),
-         Column(option_rows)],
-        [Button("OK", key="OK"), Button("Cancel", key="Cancel")],
+        [TText(message)],
+        [TColumn([TListbox([], key="-FONTS-", size=(26, 10), enable_events=True)]),
+         TColumn(option_rows)],
+        [TButton("OK", key="OK"), TButton("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     families = sorted(tkfont.families(root=window.tk_root))
@@ -449,6 +409,3 @@ def popup_get_font(
             break
     window.close()
     return result
-
-
-MsgBox = popup

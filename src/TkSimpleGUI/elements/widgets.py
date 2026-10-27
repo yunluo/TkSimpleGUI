@@ -12,12 +12,12 @@ from .. import enums as E
 from .. import _theming as theme_mod
 import contextlib
 
-if TYPE_CHECKING:  # the logger imports this module's Multiline lazily
+if TYPE_CHECKING:  # the logger imports this module's TMultiline lazily
     from ..logger import Logger
 
 
 
-# Listbox selectmode accepts tk constants SINGLE/BROWSE/MULTIPLE/EXTENDED.
+# TListbox selectmode accepts tk constants SINGLE/BROWSE/MULTIPLE/EXTENDED.
 # Bare strings ("single" / "browse" / ...) are accepted alongside the enum
 # so callers can pass either.
 _LISTBOX_SELECT_MODE_MAP = {
@@ -76,7 +76,7 @@ def validate_regex(pattern, flags=0):
     Returns a ``validate_command`` callable; empty text always passes so
     deleting stays possible::
 
-        Input(validate="key", validate_command=validate_regex(r"\\d{1,3}"))
+        TInput(validate="key", validate_command=validate_regex(r"\\d{1,3}"))
     """
     import re
 
@@ -90,7 +90,7 @@ def validate_regex(pattern, flags=0):
     return validator
 
 
-class Text(Element):
+class TText(Element):
     """A static label (optionally with an inline image and text wrapping)."""
 
     __slots__ = (
@@ -215,7 +215,7 @@ class Text(Element):
         return self
 
 
-class StatusBar(Element):
+class TStatusBar(Element):
     """Sunken label typically placed at the bottom of a window."""
 
     __slots__ = ("_text", "_text_color", "_background_color", "_font")
@@ -288,7 +288,7 @@ class StatusBar(Element):
         return self
 
 
-class Input(InputElement):
+class TInput(InputElement):
     """Single line text entry (ttk based for a native look)."""
 
     __slots__ = (
@@ -486,10 +486,7 @@ class Input(InputElement):
         return self
 
 
-InputText = Input
-
-
-class Combo(InputElement):
+class TCombo(InputElement):
     """Dropdown combo box (ttk.Combobox)."""
 
     __slots__ = (
@@ -569,7 +566,6 @@ class Combo(InputElement):
             state=state,
             **kwargs
         )
-        return combo
 
     def _bind_events(self):
         if self._enable_events:
@@ -610,8 +606,8 @@ class Combo(InputElement):
         return self
 
 
-class OptionMenu(Combo):
-    """Compatibility alias of :class:`Combo` with a non-readonly default."""
+class TOptionMenu(TCombo):
+    """Compatibility alias of :class:`TCombo` with a non-readonly default."""
 
     __slots__ = ()
 
@@ -622,7 +618,7 @@ class OptionMenu(Combo):
         )
 
 
-class Listbox(InputElement):
+class TListbox(InputElement):
     """Multi item selection list."""
 
     __slots__ = ("_values", "_select_mode", "_enable_events",
@@ -693,7 +689,7 @@ class Listbox(InputElement):
             self._widget.bind("<<ListboxSelect>>", lambda _e: self._post_event())
 
     def _scroll_command(self):
-        """The yview command a standalone :class:`Scrollbar` can drive."""
+        """The yview command a standalone :class:`TScrollbar` can drive."""
         return self._widget.yview
 
     def apply_theme(self):
@@ -753,12 +749,12 @@ class Listbox(InputElement):
         return self
 
 
-class Spin(InputElement):
+class TSpin(InputElement):
     """Spinbox with a fixed set of values — or a numeric range.
 
     Pass ``values=[...]`` for a fixed list, or ``range_=(lo, hi)`` with
     ``increment`` for a native numeric spinbox (with ``wrap`` rollover)::
-        ts.Spin(range_=(0, 100), increment=5, initial_value=10)
+        ts.TSpin(range_=(0, 100), increment=5, initial_value=10)
     """
 
     __slots__ = (
@@ -903,8 +899,8 @@ class Spin(InputElement):
         return self
 
 
-class Checkbox(InputElement):
-    """Checkbox with a boolean value."""
+class TCheckbox(InputElement):
+    """TCheckbox with a boolean value."""
 
     __slots__ = ("_text", "_default", "_enable_events", "_variable",
             "_text_color", "_background_color", "_font")
@@ -1004,8 +1000,8 @@ class Checkbox(InputElement):
         return self
 
 
-class Radio(InputElement):
-    """Radio button sharing a value with every radio of the same group."""
+class TRadio(InputElement):
+    """TRadio button sharing a value with every radio of the same group."""
 
     __slots__ = ("_text", "_group_id", "_default", "_enable_events",
             "_text_color", "_background_color", "_font")
@@ -1109,7 +1105,7 @@ class Radio(InputElement):
         return self._window.radio_group_variable(self._group_id).get()
 
 
-class Slider(InputElement):
+class TSlider(InputElement):
     """Horizontal or vertical slider (ttk.Scale for a native look).
 
     With ``show_value=True`` a small value bubble appears above (or beside)
@@ -1283,7 +1279,7 @@ class Slider(InputElement):
         return self
 
 
-class Multiline(InputElement):
+class TMultiline(InputElement):
     """Multi line text area."""
 
     __slots__ = (
@@ -1381,7 +1377,7 @@ class Multiline(InputElement):
         return self._text
 
     def _scroll_command(self):
-        """The yview command a standalone :class:`Scrollbar` can drive."""
+        """The yview command a standalone :class:`TScrollbar` can drive."""
         return self._text.yview
 
     def _bind_events(self):
@@ -1439,7 +1435,7 @@ class Multiline(InputElement):
 
     @property
     def line_count(self) -> int:
-        """Text lines currently held (0 while empty).
+        """TText lines currently held (0 while empty).
 
         The trailing newline every :meth:`print` leaves behind does not
         count as a line of its own, so the number matches what the user
@@ -1595,7 +1591,7 @@ class Multiline(InputElement):
         return self
 
 
-class Output(Multiline):
+class TOutput(TMultiline):
     """Read only multi line area that other code can print into."""
 
     __slots__ = ()
@@ -1609,14 +1605,14 @@ class Output(Multiline):
         """Always lock again after a write.
 
         The base implementation only reflects the ``disabled`` constructor
-        flag, so a plain Output would turn editable as soon as something
-        printed into it; an Output is read-only by definition and all
+        flag, so a plain TOutput would turn editable as soon as something
+        printed into it; an TOutput is read-only by definition and all
         programmatic writes re-enable the widget for their own duration.
         """
         return "disabled"
 
 
-class ProgressBar(Element):
+class TProgressBar(Element):
     """Progress bar (ttk native), determinate or indeterminate.
 
     ``start_indeterminate()`` runs the native marquee animation until
@@ -1703,18 +1699,13 @@ class ProgressBar(Element):
             self.unhide() if visible else self.hide()
         return self
 
-    def update_bar(self, current_value, max_value=None):
-        """TkSimpleGUI compatibility alias for :meth:`update`."""
-        return self.update(current_value=current_value, max_value=max_value)
-
-
-class CheckList(Element):
+class TCheckList(Element):
     """Vertical list of checkboxes (Delphi TCheckListBox equivalent).
 
     ``get()`` returns the list of currently checked values; clicking an item
     posts the element's key when ``enable_events`` is on::
 
-        ts.CheckList(["a", "b", "c"], default_checked=["b"], key="-CHECKS-")
+        ts.TCheckList(["a", "b", "c"], default_checked=["b"], key="-CHECKS-")
     """
 
     __slots__ = (

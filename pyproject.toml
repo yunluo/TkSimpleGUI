@@ -76,7 +76,10 @@ ignore = [
     # Element / Window classes legitimately take many constructor args
     # (size / padding / key / colors / fonts / callbacks ...). Splitting
     # them would just move the complexity into helper dataclasses.
+    # PLR0917 is the positional twin of PLR0913 (ruff 0.17 enabled it);
+    # positional construction is the layout call convention of this API.
     "PLR0913",
+    "PLR0917",
     # Many update() and event handlers need many branches by design; a
     # wizard-style cascade is clearer than 12 nested ternaries.
     "PLR0912",

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Image, canvas and graph elements."""
+"""TImage, canvas and graph elements."""
 
 import base64
 import tkinter as tk
@@ -16,7 +16,7 @@ ImageSource = Union[bytes, str]
 
 
 
-class Image(Element):
+class TImage(Element):
     """Displays a PNG/GIF image from a file or base64 data."""
 
     __slots__ = (
@@ -222,7 +222,7 @@ class Image(Element):
         return self._photo.height() if self._photo is not None else 0
 
 
-class Canvas(Element):
+class TCanvas(Element):
     """A plain drawing canvas."""
 
     __slots__ = ("_background_color", "_canvas_size")
@@ -282,7 +282,7 @@ class Canvas(Element):
         self._widget.bind("<Button-1>", self._on_click)
 
     def _scroll_command(self):
-        """The yview command a standalone :class:`Scrollbar` can drive."""
+        """The yview command a standalone :class:`TScrollbar` can drive."""
         return self._widget.yview
 
     def _on_click(self, event):
@@ -293,7 +293,7 @@ class Canvas(Element):
 
     # --- native tk.Canvas API passthrough ----------------------------------------
     def itemconfigure(self, item_id, **options):
-        """Native ``Canvas.itemconfigure`` — restyle any drawn item."""
+        """Native ``TCanvas.itemconfigure`` — restyle any drawn item."""
         self._widget.itemconfigure(item_id, **options)
         return self
 
@@ -307,12 +307,12 @@ class Canvas(Element):
         Accepts either a TkSimpleGUI element (its widget is used; the
         element should be built in the same window) or a raw tk widget.
         Returns the canvas window item id. ``position`` is in graph
-        coordinates on a Graph, raw canvas pixels on a plain Canvas.
+        coordinates on a TGraph, raw canvas pixels on a plain TCanvas.
         """
         target = widget if widget is not None else getattr(window_element, "widget", None)
         if target is None:
             raise TypeError("create_window needs a widget or an element with one")
-        if isinstance(self, Graph):
+        if isinstance(self, TGraph):
             x, y = self._to_canvas(position)
         else:
             x, y = position
@@ -336,8 +336,8 @@ class Canvas(Element):
         return self
 
 
-class Graph(Canvas):
-    """Canvas with a user coordinate system and shape drawing.
+class TGraph(TCanvas):
+    """TCanvas with a user coordinate system and shape drawing.
 
     Every ``draw_*`` method returns the canvas figure id. Ids can be used
     with :meth:`delete_figure`, :meth:`move_figure`, :meth:`relocate_figure`,
@@ -538,7 +538,7 @@ class Graph(Canvas):
         return self
 
 
-class Shape(Element):
+class TShape(Element):
     """Static decorative shape (Delphi TShape/TBevel equivalent).
 
     ``shape_type``: "rectangle", "oval", "triangle" or "line".

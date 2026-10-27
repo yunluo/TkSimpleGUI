@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 """Display widgets: tags, badges, avatars, statistics and status views.
 
-- :class:`Tag`       -- a pill shaped label with an optional close button
-- :class:`Badge`     -- a count or status dot badge
-- :class:`Avatar`    -- a circular image / initials avatar
-- :class:`Statistic` -- a labelled big number with an optional trend arrow
-- :class:`Empty`     -- the "no data" placeholder with a document icon
-- :class:`Result`    -- a centered status circle, title and subtitle
-- :class:`Skeleton`  -- an animated loading placeholder
-- :class:`Alert`     -- an inline, theme colored message bar
-- :class:`Watermark` -- tiled diagonal text over a blank surface
+- :class:`TTag`       -- a pill shaped label with an optional close button
+- :class:`TBadge`     -- a count or status dot badge
+- :class:`TAvatar`    -- a circular image / initials avatar
+- :class:`TStatistic` -- a labelled big number with an optional trend arrow
+- :class:`TEmpty`     -- the "no data" placeholder with a document icon
+- :class:`TResult`    -- a centered status circle, title and subtitle
+- :class:`TSkeleton`  -- an animated loading placeholder
+- :class:`TAlert`     -- an inline, theme colored message bar
+- :class:`TWatermark` -- tiled diagonal text over a blank surface
 
 The canvas widgets share one idiom: :meth:`_draw` erases the canvas and
 paints everything from a palette resolved at that moment, so a theme switch
@@ -26,7 +26,7 @@ from . import _paint
 from .base import Element
 from .. import _theming as theme_mod
 
-# status glyph families, shared by the Result circle and the Alert icon
+# status glyph families, shared by the TResult circle and the TAlert icon
 _GLYPH_CHECK = "check"
 _GLYPH_CROSS = "cross"
 _GLYPH_BANG = "bang"
@@ -110,7 +110,7 @@ def _photo_from_image(image, master) -> tk.PhotoImage:
     return tk.PhotoImage(data=_ppm_bytes(image), master=master)
 
 
-class Tag(Element):
+class TTag(Element):
     """A pill shaped label, optionally closable.
 
     ``effect`` picks the look: ``"light"`` (soft wash, the default),
@@ -118,7 +118,7 @@ class Tag(Element):
     body posts the key when ``enable_events`` is set; clicking the "x"
     hides the tag and posts ``(key, "close")``::
 
-        tag = ts.Tag("New", closable=True, key="-TAG-")
+        tag = ts.TTag("New", closable=True, key="-TAG-")
         tag.update(tag_color="#67c23a")
 
     On a desktop the chip-as-detached-widget is a niche — a tag is more
@@ -237,7 +237,7 @@ class Tag(Element):
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
         if self._closable:
-            # embed a real Button inside the canvas via create_window — it
+            # embed a real TButton inside the canvas via create_window — it
             # still shows up as a canvas item (so the existing widget
             # contract holds) but the click goes through tk's native event
             # dispatch instead of pixel-hunting on a thin diagonal.
@@ -337,7 +337,7 @@ class Tag(Element):
         return self
 
     def _on_close_event(self, _event):
-        """Close trigger (kept for back-compat — no current callers)."""
+        """Close-button press handler (tk <Button-1> event signature)."""
         return self._perform_close()
 
     def _perform_close(self):
@@ -396,15 +396,15 @@ class Tag(Element):
         return self
 
 
-class Badge(Element):
+class TBadge(Element):
     """A count or status dot badge.
 
     ``value=120, max_value=99`` renders "99+", ``is_dot=True`` renders a
     plain colored dot and ``value=None`` leaves the badge empty (its canvas
     keeps the reserved space in the layout)::
 
-        ts.Badge(120, max_value=99, key="-BADGE-")
-        ts.Badge(is_dot=True, badge_color="#67c23a")
+        ts.TBadge(120, max_value=99, key="-BADGE-")
+        ts.TBadge(is_dot=True, badge_color="#67c23a")
     """
 
     __slots__ = (
@@ -553,7 +553,7 @@ class Badge(Element):
         return self._value
 
     def clear(self):
-        """Empty the badge (``value=None``) and repaint."""
+        """TEmpty the badge (``value=None``) and repaint."""
         self._value = None
         self._refresh()
         return self
@@ -574,7 +574,7 @@ class Badge(Element):
         return self
 
 
-class Avatar(Element):
+class TAvatar(Element):
     """A circular or rounded avatar, from an image or from text initials.
 
     An image (``filename`` / ``data_base64``) is cropped to a circle when
@@ -583,8 +583,8 @@ class Avatar(Element):
     characters of ``text`` are drawn on a colored circle (or rounded
     square)::
 
-        ts.Avatar("AZ", background_color="#3a7bd5")
-        ts.Avatar(filename="me.png", size=(56, 56), shape="square")
+        ts.TAvatar("AZ", background_color="#3a7bd5")
+        ts.TAvatar(filename="me.png", size=(56, 56), shape="square")
     """
 
     __slots__ = (
@@ -642,7 +642,7 @@ class Avatar(Element):
         # explicit initials override the default "first 2 chars of text"
         # slice; the default slice is fine for an English name like
         # "Yun Luo" -> "Yu", but the user can spell out exactly what should
-        # appear (CJK name: ts.Avatar("云落", initials="云"))
+        # appear (CJK name: ts.TAvatar("云落", initials="云"))
         self._initials = (
             str(text)[:2] if initials is None else str(initials)
         )
@@ -814,7 +814,7 @@ class Avatar(Element):
         return self
 
 
-class Statistic(Element):
+class TStatistic(Element):
     """A labelled statistic: small caption, big number, optional trend.
 
     ``precision`` fixes the decimals (``None`` drops the ".0" of whole
@@ -822,7 +822,7 @@ class Statistic(Element):
     ``"down"`` or a number (positive is up, negative is down) and draws an
     arrow, with the percentage when a number was given::
 
-        ts.Statistic("Revenue", value=1234.5, prefix="$", trend=12.5)
+        ts.TStatistic("Revenue", value=1234.5, prefix="$", trend=12.5)
     """
 
     __slots__ = (
@@ -1060,7 +1060,7 @@ class Statistic(Element):
         return self
 
 
-class Empty(Element):
+class TEmpty(Element):
     """The "no data" placeholder: a small inline icon next to a muted
     caption.
 
@@ -1073,7 +1073,7 @@ class Empty(Element):
     box (the old web-style 110 px hero size keeps working for code that
     passed it)::
 
-        ts.Empty("No records yet")
+        ts.TEmpty("No records yet")
     """
 
     __slots__ = (
@@ -1281,14 +1281,14 @@ class Empty(Element):
         return self
 
 
-class Result(Element):
+class TResult(Element):
     """A result page: a status circle above a title and a subtitle.
 
     ``status`` picks the circle color and glyph (``success`` -> check mark,
     ``error`` -> cross, ``warning`` -> "!", anything else -> "i"). Buttons
     belong in the layout below the element, not inside it::
 
-        ts.Result("Payment done", "Receipt sent by mail", status="success")
+        ts.TResult("Payment done", "Receipt sent by mail", status="success")
     """
 
     __slots__ = (
@@ -1432,14 +1432,14 @@ class Result(Element):
         return self
 
 
-class Skeleton(Element):
+class TSkeleton(Element):
     """An animated loading placeholder (skeleton screen).
 
     Bars (optionally after a round avatar placeholder) pulse between two
     shades while ``animated`` is set; the pulse runs on the window event
     loop through :meth:`Window.every`::
 
-        skeleton = ts.Skeleton(rows=3, avatar=True, key="-SKEL-")
+        skeleton = ts.TSkeleton(rows=3, avatar=True, key="-SKEL-")
         skeleton.stop_animation()   # e.g. once the data arrived
     """
 
@@ -1618,7 +1618,7 @@ class Skeleton(Element):
         return self
 
 
-class Alert(Element):
+class TAlert(Element):
     """An inline message bar: icon, optional title and text.
 
     Nothing floats or overlays: the bar is a plain ``tk.Frame`` that sits
@@ -1626,7 +1626,7 @@ class Alert(Element):
     (``"dark"``) wash of the status color; ``closable`` adds an "x" that
     hides the bar and posts ``(key, "close")``::
 
-        ts.Alert("Backup finished", type="success", title="Done")
+        ts.TAlert("Backup finished", type="success", title="Done")
     """
 
     __slots__ = (
@@ -1916,7 +1916,7 @@ class Alert(Element):
         return self
 
 
-class Watermark(Element):
+class TWatermark(Element):
     """Tiled text over a blank surface.
 
     Tk child widgets are opaque -- a watermark cannot shine through the
@@ -1926,7 +1926,7 @@ class Watermark(Element):
     rendered with Pillow and a system font file; when either is missing the
     text falls back to a horizontal grid at the same spacing::
 
-        ts.Watermark("DRAFT", gap=(160, 100), angle=-30)
+        ts.TWatermark("DRAFT", gap=(160, 100), angle=-30)
     """
 
     __slots__ = (

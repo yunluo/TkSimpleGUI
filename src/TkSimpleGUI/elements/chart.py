@@ -1,4 +1,4 @@
-"""Chart: a high-level plotting element built on the Graph canvas.
+"""TChart: a high-level plotting element built on the TGraph canvas.
 
 Nine chart types share one declarative data model — line, bar, hbar
 (horizontal bars), scatter, area, pie, donut, stacked (stacked bars) and
@@ -18,7 +18,7 @@ Rendering backends, in order of preference:
    is instant and every mark stays an individually addressable canvas
    item.
 
-Text, axis lines, tick labels, title and legend are always vector canvas
+TText, axis lines, tick labels, title and legend are always vector canvas
 items, so fonts stay crisp and colors follow the active TkSimpleGUI theme
 in both backends. Pass ``anti_alias=False`` to skip the Pillow backend and
 always draw vector figures::
@@ -40,7 +40,7 @@ from typing import List, Optional, Tuple
 
 import tkinter as tk
 
-from .media import Graph
+from .media import TGraph
 from ._paint import pil_modules as _paint_pil_modules
 from .. import _theming as theme_mod
 
@@ -98,7 +98,7 @@ def _resample_lanczos(image_mod):
 
 
 class ChartType:
-    """Chart kind names accepted by ``TChart(chart_type=...)``."""
+    """TChart kind names accepted by ``TChart(chart_type=...)``."""
 
     LINE = "line"
     BAR = "bar"
@@ -188,8 +188,8 @@ def _normalize_hlines(entries):
     return out
 
 
-class Chart(Graph):
-    """A multi-type plotting element on the Graph user coordinate system.
+class TChart(TGraph):
+    """A multi-type plotting element on the TGraph user coordinate system.
 
     Args:
         canvas_size: pixel size of the underlying canvas.

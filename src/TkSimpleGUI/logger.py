@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-"""Log lines with levels and colors, rendered into an Output / Multiline box.
+"""Log lines with levels and colors, rendered into an TOutput / TMultiline box.
 
 TkSimpleGUI has no separate log window: the log box *is* a widget —
-:class:`~TkSimpleGUI.Output` (a read-only Multiline). This module puts the
+:class:`~TkSimpleGUI.Output` (a read-only TMultiline). This module puts the
 logging layer on top of that widget instead of inventing a second output
 path:
 
@@ -11,13 +11,13 @@ path:
   cap (ring buffer), an optional file mirror, and marshalling of lines that
   arrive from worker threads (``start_task`` style work logs safely).
 - :func:`log` — the one-liner: ``ts.log("connected")`` writes into the
-  window's Output element, no logger object needed.
+  window's TOutput element, no logger object needed.
 
-Level colors reuse the Element Plus semantics shared with Alert / Result
+Level colors reuse the Element Plus semantics shared with TAlert / TResult
 (``error`` is the same red as an error alert), so a log panel and the rest
 of the UI speak one visual language::
 
-    out = ts.Output(size=(90, 12), key="-LOG-")
+    out = ts.TOutput(size=(90, 12), key="-LOG-")
     out.log("sampling started")                 # INFO
     out.log("channel 3 noisy", level="warning") # amber
     gl = out.logger(max_lines=500, mirror="run.log")
@@ -78,7 +78,7 @@ def _level_for_logging(levelno: int) -> str:
 
 
 class Logger:
-    """A formatted, colored log view over one Output / Multiline element.
+    """A formatted, colored log view over one TOutput / TMultiline element.
 
     Differences from :class:`logging.Logger` worth knowing: this object
     *renders* into a widget (it is not a hierarchical logger), it always
@@ -122,7 +122,7 @@ class Logger:
     ):
         if element is None or not hasattr(element, "print"):
             raise TypeError(
-                "Logger needs a Multiline / Output element to write into"
+                "Logger needs a TMultiline / TOutput element to write into"
             )
         self._element = element
         self._timestamp = "" if timestamp is False else timestamp
@@ -317,7 +317,7 @@ class Logger:
 
     # --- housekeeping -----------------------------------------------------------
     def clear(self):
-        """Empty the widget; queued cross-thread lines still arrive after it."""
+        """TEmpty the widget; queued cross-thread lines still arrive after it."""
         with contextlib.suppress(Exception):
             self._element.clear()
         return self
@@ -337,7 +337,7 @@ class Logger:
 
     @property
     def element(self):
-        """The Multiline / Output element this logger renders into."""
+        """The TMultiline / TOutput element this logger renders into."""
         return self._element
 
     @property
@@ -395,14 +395,14 @@ class _LoggingBridge(logging.Handler):
 
 
 def find_log_element(key=None, window=None):
-    """The Multiline / Output element a log line should be written to.
+    """The TMultiline / TOutput element a log line should be written to.
 
     With ``key`` the element with that key in the searched windows; without
-    it the first Multiline / Output of the newest open window. Returns
+    it the first TMultiline / TOutput of the newest open window. Returns
     ``None`` when there is no log box yet (calling :func:`log` then is a
     no-op, not an error).
     """
-    from .elements.widgets import Multiline
+    from .elements.widgets import TMultiline
     from .window import Window
 
     candidates = (
@@ -414,11 +414,11 @@ def find_log_element(key=None, window=None):
             continue
         if key is not None:
             element = candidate.find_element(key)
-            if isinstance(element, Multiline):
+            if isinstance(element, TMultiline):
                 return element
             continue
         for element in candidate.elements:
-            if isinstance(element, Multiline):
+            if isinstance(element, TMultiline):
                 return element
     return None
 
@@ -430,7 +430,7 @@ def log(*args, key=None, level="info", color=None, window=None) -> bool:
         ts.log("sync failed", level="error")
         ts.log("tick", key="-LOG-")
 
-    The line lands in the ``Output`` / ``Multiline`` element ``key``
+    The line lands in the ``TOutput`` / ``TMultiline`` element ``key``
     identifies, or in the first one of the newest open window. Returns
     ``True`` when a log box was found, ``False`` otherwise (so startup code
     may log before the window exists). Off-thread callers should keep a

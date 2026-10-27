@@ -2,8 +2,7 @@
 """TkSimpleGUI global settings.
 
 All mutable global options live in one :class:`Settings` instance instead of
-loose module level variables. The package exposes the ``settings`` singleton
-plus ``set_options`` / ``get_options`` for TkSimpleGUI compatibility.
+loose module level variables. The package exposes the ``settings`` singleton.
 """
 
 from . import constants as C
@@ -215,13 +214,3 @@ class Settings:
 
 
 settings = Settings()
-
-
-def set_options(**kwargs):
-    """Set any of the package wide options (see :data:`settings`)."""
-    settings.apply_options(**kwargs)
-
-
-def get_options():
-    """Return a dict snapshot of the package wide options."""
-    return settings.as_dict()

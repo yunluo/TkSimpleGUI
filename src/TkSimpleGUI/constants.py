@@ -32,11 +32,9 @@ class Location(Enum):
 
 
 # --- sentinel values -------------------------------------------------------
-WIN_CLOSED = WINDOW_CLOSED = None
-TIMEOUT_KEY = EVENT_TIMEOUT = "__TIMEOUT__"
-TIMER_KEY = EVENT_TIMER = "__TIMER EVENT__"
-THIS_ROW = 555666777
-WRITE_ONLY_KEY = "__WRITE ONLY__"
+WIN_CLOSED = None  # event posted when a window closes via its title bar
+TIMEOUT_KEY = "__TIMEOUT__"  # event returned when read(timeout=...) expires
+TIMER_KEY = "__TIMER EVENT__"  # event returned when read(timer=...) fires
 
 # --- default look ----------------------------------------------------------
 DEFAULT_ELEMENT_SIZE = (45, 1)
@@ -57,25 +55,10 @@ WINDOW_MIN_HEIGHT = 60
 
 COLOR_SYSTEM_DEFAULT = "1234567890"
 
-RELIEF_RAISED = "raised"
-RELIEF_SUNKEN = "sunken"
-RELIEF_FLAT = "flat"
-RELIEF_RIDGE = "ridge"
-RELIEF_GROOVE = "groove"
-RELIEF_SOLID = "solid"
-
 MENU_DISABLED_CHARACTER = "!"
 MENU_SHORTCUT_CHARACTER = "&"
 MENU_KEY_SEPARATOR = "::"
 MENU_SEPARATOR_LINE = "---"
-
-# tk relief constants re-exported so user code does not need tkinter
-FLAT = "flat"
-GROOVE = "groove"
-RAISED = "raised"
-SUNKEN = "sunken"
-RIDGE = "ridge"
-SOLID = "solid"
 
 BROWSE_FILES_DELIMITER = ";"
 FILE_TYPES_ALL_FILES = (("ALL Files", "*.*"),)
@@ -91,7 +74,6 @@ DEFAULT_BASE64_ICON = (
 DEFAULT_BASE64_ICON_SMALL = (
     b"iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAABZElEQVR42sWXsSuEcRjHv3+CGRFyESJEdC7X6bpSUlJSSkpKISJdXaEulyiDMhiUwWBQBoMyGAzKYFAGg8Ff8tXd8Oae7v1d7/fu3nvqM/4+z2f8PYBjkme/rAYIMlMnP6wlzuWJ42+GQcnl8ewXw6Ro+eTRJ+uBFxA7+KAflYzLm8cLmMi8049KpiGSostdWB5Nv9FFpQHl/Bjff2U58iKLXeRHOTfGdl+oYANUD0Z3nqlgA1QPRraeqGADVA+GNx6pYANUD4bWH6hgA1QPBtfuqWADVA8GVu+oYANUD/pXbqlgA1QP+pZvqGADVA96l66pYANUD3oWr6hgA1QPuhcuqWADVA+65i+oYANUDyJz51SwAaoHnbOnVLABqgcdMzkq2ADVU/gVtU9nGRQboDi8P2Fb6pAK/38+ynsvoDWZYT0oug1aEmmGScnrqDm+xzBw3odNsW3WkkCXcmN0k9XAteMPYerEZsUTu/0AAAAASUVORK5CYII="
 )
-DEFAULT_WINDOW_ICON = DEFAULT_BASE64_ICON
 # 1x1 transparent PNG
 BLANK_BASE64 = (
     b"iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYAAAAAYAAjCB0C8AAAAASUVORK5CYII="

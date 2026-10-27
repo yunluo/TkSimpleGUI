@@ -9,9 +9,3 @@ __version__ = "0.1.0"
 __author__ = "yunluo"
 __email__ = "sp91@qq.com"
 __license__ = "GPL-3.0-or-later"
-
-# Backward compatibility alias
-version = __version__
-
-# Port name kept for legacy API compatibility
-port = "TkSimpleGUI"

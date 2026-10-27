@@ -29,22 +29,22 @@ app = ts.default_app()
 
 def make_main_window():
     """A focused, beginner-friendly layout (no menus, no tabs, no toolbars)."""
-    task_list = ts.Frame(
+    task_list = ts.TFrame(
         "任务清单",
         [
-            [ts.Text("实时按键事件："),
-             ts.Input(key="lot1", size=(24, 1), enable_events=True)],
-            [ts.Text("按回车触发事件："),
-             ts.Input(key="lot2", size=(24, 1))],
-            [ts.Button("关于"), ts.Button("保存配置")],
-            [ts.Text("实时：", size=(6, 1)), ts.Text("", key="lot3", size=(40, 1))],
-            [ts.Text("回车：", size=(6, 1)), ts.Text("", key="lot4", size=(40, 1))],
+            [ts.TText("实时按键事件："),
+             ts.TInput(key="lot1", size=(24, 1), enable_events=True)],
+            [ts.TText("按回车触发事件："),
+             ts.TInput(key="lot2", size=(24, 1))],
+            [ts.TButton("关于"), ts.TButton("保存配置")],
+            [ts.TText("实时：", size=(6, 1)), ts.TText("", key="lot3", size=(40, 1))],
+            [ts.TText("回车：", size=(6, 1)), ts.TText("", key="lot4", size=(40, 1))],
         ],
         size=(440, 200),
     )
     return ts.Window(
         "TkSimpleGUI 基础窗口",
-        [[task_list], [ts.StatusBar("就绪", key="-STATUS-", expand_x=True)]],
+        [[task_list], [ts.TStatusBar("就绪", key="-STATUS-", expand_x=True)]],
         resizable=True,
         finalize=True,
     )

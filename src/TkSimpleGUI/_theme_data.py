@@ -32,7 +32,7 @@ from .constants import COLOR_SYSTEM_DEFAULT
 
 _NATIVE = COLOR_SYSTEM_DEFAULT
 
-LOOK_AND_FEEL_TABLE = {
+THEMES = {
     # -----------------------------------------------------------------------
     # 1. System -- platform native. The default. No color overrides.
     # -----------------------------------------------------------------------

@@ -31,7 +31,7 @@ class TestMeta(unittest.TestCase):
 class TestThemes(unittest.TestCase):
     def test_table_size(self):
         # 5 hand picked themes, see _theme_data.py
-        self.assertEqual(len(ts.list_of_look_and_feel_values()), 5)
+        self.assertEqual(len(ts.theme_list()), 5)
 
     def test_native_by_default(self):
         self.assertIsNone(ts.theme())
@@ -54,19 +54,19 @@ class TestThemes(unittest.TestCase):
         ts.theme(None)
 
     def test_add_new(self):
-        from TkSimpleGUI._theme_data import LOOK_AND_FEEL_TABLE
-        saved = dict(LOOK_AND_FEEL_TABLE)
+        from TkSimpleGUI._theme_data import THEMES
+        saved = dict(THEMES)
         try:
-            ts.theme_add_new(
+            ts.theme_add(
                 "__TestTheme__", {"BACKGROUND": "#123456", "TEXT": "#ffffff"}
             )
-            self.assertIn("__TestTheme__", ts.list_of_look_and_feel_values())
+            self.assertIn("__TestTheme__", ts.theme_list())
             ts.theme("__TestTheme__")
             self.assertEqual(ts.theme_background_color(), "#123456")
             ts.theme(None)
         finally:
-            LOOK_AND_FEEL_TABLE.clear()
-            LOOK_AND_FEEL_TABLE.update(saved)
+            THEMES.clear()
+            THEMES.update(saved)
 
     def test_themed_themes_have_real_colors(self):
         """Every non-System theme must expose a real color (not the sentinel)."""
@@ -122,8 +122,8 @@ class TestThemes(unittest.TestCase):
         """update_theme() repaints an already visible window immediately."""
         window = ts.Window(
             "live",
-            [[ts.Text("t", key="-T-")], [ts.Input("i", key="-IN-")],
-             [ts.Column([[ts.Text("inner")]], key="-COL-")]],
+            [[ts.TText("t", key="-T-")], [ts.TInput("i", key="-IN-")],
+             [ts.TColumn([[ts.TText("inner")]], key="-COL-")]],
             finalize=True,
         )
         try:
@@ -149,9 +149,9 @@ class TestThemes(unittest.TestCase):
         """Elements without a key repaint too (classic tk widgets stay dark)."""
         window = ts.Window(
             "unkeyed",
-            [[ts.Multiline("m", key="-ML-")],
-             [ts.Button("Toggle", toggle=True), ts.Button("Plain")],
-             [ts.CheckList(["a", "b"]), ts.Listbox(["x"], key="-LB-")]],
+            [[ts.TMultiline("m", key="-ML-")],
+             [ts.TButton("Toggle", toggle=True), ts.TButton("Plain")],
+             [ts.TCheckList(["a", "b"]), ts.TListbox(["x"], key="-LB-")]],
             finalize=True,
         )
         try:
@@ -164,11 +164,11 @@ class TestThemes(unittest.TestCase):
                 ts.theme_input_background_color(),
             )
             # find the unkeyed toggle button / checklist via the flat list
-            from TkSimpleGUI.elements.buttons import Button
-            from TkSimpleGUI.elements.widgets import CheckList
-            buttons = [e for e in window._elements if isinstance(e, Button)]
+            from TkSimpleGUI.elements.buttons import TButton
+            from TkSimpleGUI.elements.widgets import TCheckList
+            buttons = [e for e in window._elements if isinstance(e, TButton)]
             checklists = [
-                e for e in window._elements if isinstance(e, CheckList)
+                e for e in window._elements if isinstance(e, TCheckList)
             ]
             self.assertEqual(
                 str(buttons[0].widget.cget("background")),
@@ -185,12 +185,12 @@ class TestThemes(unittest.TestCase):
         """Under System the sentinel colors never reach tk (regression)."""
         window = ts.Window(
             "zoo",
-            [[ts.Column([[ts.Text("c")]]), ts.Frame("F", [[ts.Text("f")]])],
-             [ts.TabGroup([[ts.Tab("T", [[ts.Text("t")]])]])],
-             [ts.Canvas(size=(20, 20)), ts.Listbox(["i"]),
-              ts.CheckList(["a"]), ts.Calendar()],
-             [ts.LabeledEdit("L"), ts.LED(1), ts.RoundButton("R"),
-              ts.TextProgressBar(10, current_value=5)]],
+            [[ts.TColumn([[ts.TText("c")]]), ts.TFrame("F", [[ts.TText("f")]])],
+             [ts.TTabGroup([[ts.TTab("T", [[ts.TText("t")]])]])],
+             [ts.TCanvas(size=(20, 20)), ts.TListbox(["i"]),
+              ts.TCheckList(["a"]), ts.TCalendar()],
+             [ts.TLabeledEdit("L"), ts.TLED(1), ts.TRoundButton("R"),
+              ts.TTextProgressBar(10, current_value=5)]],
             finalize=True,
         )
         window.close()
@@ -198,7 +198,7 @@ class TestThemes(unittest.TestCase):
 
     def test_update_theme_back_to_native_restores(self):
         """A themed window switched back to System returns to native look."""
-        window = ts.Window("revert", [[ts.Text("t", key="-T-")]], finalize=True)
+        window = ts.Window("revert", [[ts.TText("t", key="-T-")]], finalize=True)
         try:
             ts.theme("Slate")
             window.update_theme()
@@ -232,13 +232,13 @@ class TestThemes(unittest.TestCase):
 
 class TestSettings(unittest.TestCase):
     def test_set_get(self):
-        ts.set_options(border_width=7)
-        self.assertEqual(ts.get_options()["border_width"], 7)
-        ts.set_options(border_width=1)
+        ts.settings.border_width = 7
+        self.assertEqual(ts.settings.as_dict()["border_width"], 7)
+        ts.settings.border_width = 1
 
     def test_validation(self):
         with self.assertRaises(TypeError):
-            ts.set_options(no_such=1)
+            ts.settings.apply_options(no_such=1)
 
 
 class TestUtils(unittest.TestCase):
@@ -264,68 +264,78 @@ class TestUtils(unittest.TestCase):
 class TestElementConstruction(unittest.TestCase):
     def test_construct_all(self):
         elements = [
-            ts.Text("t"),
-            ts.Input("d"),
-            ts.Combo(["a", "b"]),
-            ts.Listbox(["a", "b"]),
-            ts.Spin([1, 2, 3]),
-            ts.Checkbox("c"),
-            ts.Radio("r", group_id=1),
-            ts.Slider((0, 10)),
-            ts.Multiline("m"),
-            ts.Output(),
-            ts.ProgressBar(100),
-            ts.Button("b"),
-            ts.Image(),
-            ts.Canvas((50, 50)),
-            ts.Graph((100, 100), (0, 0), (10, 10)),
-            ts.Frame("f", [[ts.Text("x")]]),
-            ts.Column([[ts.Text("y")]]),
-            ts.Tab("t", [[ts.Text("z")]]),
-            ts.TabGroup([[ts.Tab("t1", [[ts.Text("w")]])]]),
-            ts.Table([["a"]], headings=["H"]),
-            ts.Tree(headings=["H"]),
-            ts.StatusBar("s"),
-            ts.VerticalSeparator(),
-            ts.HorizontalSeparator(),
-            ts.Menu([["&File", ["Open", "Exit"]]]),
+            ts.TText("t"),
+            ts.TInput("d"),
+            ts.TCombo(["a", "b"]),
+            ts.TListbox(["a", "b"]),
+            ts.TSpin([1, 2, 3]),
+            ts.TCheckbox("c"),
+            ts.TRadio("r", group_id=1),
+            ts.TSlider((0, 10)),
+            ts.TMultiline("m"),
+            ts.TOutput(),
+            ts.TProgressBar(100),
+            ts.TButton("b"),
+            ts.TImage(),
+            ts.TCanvas((50, 50)),
+            ts.TGraph((100, 100), (0, 0), (10, 10)),
+            ts.TFrame("f", [[ts.TText("x")]]),
+            ts.TColumn([[ts.TText("y")]]),
+            ts.TTab("t", [[ts.TText("z")]]),
+            ts.TTabGroup([[ts.TTab("t1", [[ts.TText("w")]])]]),
+            ts.TTable([["a"]], headings=["H"]),
+            ts.TTree(headings=["H"]),
+            ts.TStatusBar("s"),
+            ts.TVerticalSeparator(),
+            ts.THorizontalSeparator(),
+            ts.TMenu([["&File", ["Open", "Exit"]]]),
         ]
         for element in elements:
             self.assertIsNotNone(element)
 
-    def test_shortcuts(self):
-        self.assertIs(ts.InputText, ts.Input)
+    def test_removed_legacy_names(self):
+        """PSG compatibility surface is gone: synonym and duplicate
+        spellings must raise AttributeError (compat is not a design goal)."""
+        for name in (
+            "InputText", "set_options", "get_options", "running_trinket",
+            "running_replit", "Translator", "translate", "_",
+            "set_translations", "add_translation", "clear_translations",
+            "THIS_ROW", "WRITE_ONLY_KEY", "WINDOW_CLOSED", "EVENT_TIMEOUT",
+            "EVENT_TIMER", "RELIEF_RAISED", "FLAT", "version", "port",
+            "MsgBox", "popup_quick", "popup_quick_message", "popup_timed",
+            "popup_annoying", "popup_no_titlebar", "popup_non_blocking",
+            "popup_error_with_traceback", "list_of_look_and_feel_values",
+            "theme_add_new", "LOOK_AND_FEEL_TABLE", "DEFAULT_WINDOW_ICON",
+        ):
+            self.assertFalse(hasattr(ts, name), f"{name} should be gone")
+        self.assertTrue(hasattr(ts, "settings"))
 
-    def test_t_prefixed_aliases(self):
-        """Uniform T-prefix rule: T<Name> is the same class as <Name>."""
-        pairs = [
-            ("TText", "Text"), ("TInput", "Input"), ("TInputText", "InputText"),
-            ("TCombo", "Combo"), ("TOptionMenu", "OptionMenu"),
-            ("TListbox", "Listbox"), ("TSpin", "Spin"), ("TCheckbox", "Checkbox"),
-            ("TCheckList", "CheckList"), ("TRadio", "Radio"), ("TSlider", "Slider"),
-            ("TMultiline", "Multiline"), ("TOutput", "Output"),
-            ("TProgressBar", "ProgressBar"), ("TButton", "Button"),
-            ("TSubmit", "Submit"), ("TCloseButton", "CloseButton"),
-            ("TImage", "Image"), ("TCanvas", "Canvas"), ("TGraph", "Graph"),
-            ("TShape", "Shape"), ("TFrame", "Frame"), ("TColumn", "Column"),
-            ("TSplitter", "Splitter"), ("TScrollableColumn", "ScrollableColumn"),
-            ("TToolbar", "Toolbar"), ("TLabeledEdit", "LabeledEdit"),
-            ("TKeyValueEditor", "KeyValueEditor"), ("TFlowPanel", "FlowPanel"),
-            ("TCalendar", "Calendar"), ("TTab", "Tab"), ("TTabGroup", "TabGroup"),
-            ("TMenu", "Menu"), ("TTable", "Table"), ("TTree", "Tree"),
-            ("TStatusBar", "StatusBar"), ("TVerticalSeparator", "VerticalSeparator"),
-            ("THorizontalSeparator", "HorizontalSeparator"), ("TSizegrip", "Sizegrip"),
-            ("TMenubutton", "Menubutton"), ("TScrollbar", "Scrollbar"),
-            ("TRoundButton", "RoundButton"), ("TImageButton", "ImageButton"),
-            ("TTextProgressBar", "TextProgressBar"),
-        ]
-        for alias_name, original_name in pairs:
-            self.assertIs(getattr(ts, alias_name), getattr(ts, original_name),
-                          f"{alias_name} must alias {original_name}")
-            self.assertIn(alias_name, ts.__all__)
+    def test_t_prefix_is_the_only_spelling(self):
+        """Every widget class is spelled with the T prefix and nothing else:
+        the plain spellings are gone entirely (one name per concept)."""
+        for name in (
+            "Text", "Input", "Combo", "OptionMenu", "Listbox", "Spin",
+            "Checkbox", "CheckList", "Radio", "Slider", "Multiline", "Output",
+            "ProgressBar", "Button", "Submit", "CloseButton", "Image",
+            "Canvas", "Graph", "Shape", "Frame", "Column", "Splitter",
+            "ScrollableColumn", "Toolbar", "LabeledEdit", "KeyValueEditor",
+            "FlowPanel", "Calendar", "Tab", "TabGroup", "Menu", "Table",
+            "Tree", "StatusBar", "VerticalSeparator", "HorizontalSeparator",
+            "Sizegrip", "Menubutton", "Scrollbar", "RoundButton",
+            "ImageButton", "TextProgressBar", "Gauge", "LED", "Chart",
+            "Tag", "Badge", "Avatar", "Statistic", "Empty", "Result",
+            "Skeleton", "Alert", "Watermark", "Card", "Descriptions",
+            "Steps", "Timeline", "Segmented", "Rate", "Pagination",
+            "Transfer", "SevenSegment", "on_event",
+        ):
+            self.assertFalse(
+                hasattr(ts, name), f"{name} should be T-prefixed or gone"
+            )
+        for widget in ("TText", "TInput", "TCombo", "TButton", "TCard"):
+            self.assertIn(widget, ts.__all__)
 
     def test_t_aliases_construct(self):
-        """T* aliases build working elements."""
+        """The T-prefixed widget classes (the one and only spelling) build."""
         layout = [
             [ts.TText("name"), ts.TInput("world", key="-E-")],
             [ts.TCombo(["a", "b"], key="-C-"), ts.TButton("OK", key="-B-")],
@@ -337,17 +347,17 @@ class TestElementConstruction(unittest.TestCase):
         window.close()
 
     def test_slots_encapsulation(self):
-        self.assertFalse(hasattr(ts.Text("x"), "__dict__"))
-        self.assertFalse(hasattr(ts.Input("x"), "__dict__"))
+        self.assertFalse(hasattr(ts.TText("x"), "__dict__"))
+        self.assertFalse(hasattr(ts.TInput("x"), "__dict__"))
 
     def test_key_property(self):
-        element = ts.Text("x", key="-K-")
+        element = ts.TText("x", key="-K-")
         self.assertEqual(element.key, "-K-")
         element.key = "-K2-"
         self.assertEqual(element.key, "-K2-")
 
     def test_input_get_before_build(self):
-        element = ts.Input("default")
+        element = ts.TInput("default")
         self.assertEqual(element.default_text, "default")
 
 
@@ -355,7 +365,11 @@ class TestWindow(unittest.TestCase):
     def test_lifecycle(self):
         window = ts.Window(
             "t",
-            [[ts.Text("hi", key="-T-")], [ts.Input("", key="-IN-")], [ts.Button("OK", key="-B-")]],
+            [
+                [ts.TText("hi", key="-T-")],
+                [ts.TInput("", key="-IN-")],
+                [ts.TButton("OK", key="-B-")],
+            ],
             finalize=True,
         )
         self.assertTrue(window.finalized)
@@ -372,24 +386,24 @@ class TestWindow(unittest.TestCase):
 
     def test_duplicate_key_raises(self):
         with self.assertRaises(ValueError):
-            ts.Window("t", [[ts.Text("a", key="-K-")], [ts.Text("b", key="-K-")]], finalize=True)
+            ts.Window("t", [[ts.TText("a", key="-K-")], [ts.TText("b", key="-K-")]], finalize=True)
 
     def test_button_click(self):
-        window = ts.Window("t", [[ts.Button("Go", key="-GO-")]], finalize=True)
+        window = ts.Window("t", [[ts.TButton("Go", key="-GO-")]], finalize=True)
         window["-GO-"].click()
         event, _values = window.read(timeout=500)
         self.assertEqual(event, "-GO-")
         window.close()
 
     def test_context_manager(self):
-        with ts.Window("t", [[ts.Text("x")]]) as window:
+        with ts.Window("t", [[ts.TText("x")]]) as window:
             self.assertTrue(window.finalized)
         self.assertTrue(window.was_closed)
 
     def test_container_recursion(self):
         window = ts.Window(
             "t",
-            [[ts.Frame("F", [[ts.Column([[ts.Text("deep", key="-DEEP-")]])]])]],
+            [[ts.TFrame("F", [[ts.TColumn([[ts.TText("deep", key="-DEEP-")]])]])]],
             finalize=True,
         )
         self.assertIsNotNone(window["-DEEP-"].widget)
@@ -398,8 +412,8 @@ class TestWindow(unittest.TestCase):
     def test_tab_group(self):
         window = ts.Window(
             "t",
-            [[ts.TabGroup([[ts.Tab("one", [[ts.Text("1", key="-1-")]]),
-                    ts.Tab("two", [[ts.Text("2", key="-2-")]])]])]],
+            [[ts.TTabGroup([[ts.TTab("one", [[ts.TText("1", key="-1-")]]),
+                    ts.TTab("two", [[ts.TText("2", key="-2-")]])]])]],
             finalize=True,
         )
         self.assertIsNotNone(window["-1-"].widget)
@@ -408,14 +422,14 @@ class TestWindow(unittest.TestCase):
 
     def test_menu_bar(self):
         window = ts.Window(
-            "t", [[ts.Menu([["&File", ["Open", "---", "Exit"]]])]], finalize=True
+            "t", [[ts.TMenu([["&File", ["Open", "---", "Exit"]]])]], finalize=True
         )
         self.assertIsNotNone(window.tk_root.nametowidget(window.tk_root.cget("menu")))
         window.close()
 
     def test_fill(self):
         window = ts.Window(
-            "t", [[ts.Input("", key="-IN-"), ts.Text("", key="-T-")]], finalize=True
+            "t", [[ts.TInput("", key="-IN-"), ts.TText("", key="-T-")]], finalize=True
         )
         window.fill({"-IN-": "abc", "-T-": "xyz"})
         self.assertEqual(window["-IN-"].get(), "abc")
@@ -423,32 +437,34 @@ class TestWindow(unittest.TestCase):
         window.close()
 
     def test_write_event_value(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.write_event_value("-CUSTOM-")
         event, _values = window.read(timeout=500)
         self.assertEqual(event, "-CUSTOM-")
         window.close()
 
     def test_window_find_element_alias_removed(self):
-        # FindElement (the PSG PascalCase alias) was removed; only the
-        # snake_case find_element and the element() shortcut remain
-        window = ts.Window("t", [[ts.Text("x", key="-X-")]], finalize=True)
+        # FindElement (the PSG PascalCase alias), the element() shortcut and
+        # the child_windows/restore aliases were removed; one name each
+        window = ts.Window("t", [[ts.TText("x", key="-X-")]], finalize=True)
         self.addCleanup(window.close)
         self.assertTrue(callable(window.find_element))
-        self.assertTrue(callable(window.element))
         self.assertFalse(hasattr(window, "FindElement"))
+        self.assertFalse(hasattr(window, "element"))
+        self.assertFalse(hasattr(window, "child_windows"))
+        self.assertFalse(hasattr(window, "restore"))
 
 
 class TestElementOptions(unittest.TestCase):
     """P0 element level options: metadata, pad/expand, right click menu."""
 
     def test_metadata(self):
-        element = ts.Text("x", metadata={"answer": 42})
+        element = ts.TText("x", metadata={"answer": 42})
         self.assertEqual(element.metadata, {"answer": 42})
-        self.assertIsNone(ts.Input("d").metadata)
+        self.assertIsNone(ts.TInput("d").metadata)
 
     def test_pad_and_expand_stored(self):
-        element = ts.Text("x", pad=(10, 5), expand_x=True)
+        element = ts.TText("x", pad=(10, 5), expand_x=True)
         self.assertEqual(element.pad, (10, 5))
         self.assertTrue(element.expand_x)
         self.assertFalse(element.expand_y)
@@ -463,14 +479,14 @@ class TestElementOptions(unittest.TestCase):
 
     def test_tooltip_finalize(self):
         # regression: attaching a tooltip used to crash on __slots__
-        window = ts.Window("t", [[ts.Text("hi", tooltip="tip")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("hi", tooltip="tip")]], finalize=True)
         self.assertIsNotNone(window.tk_root)
         window.close()
 
     def test_disabled_construction(self):
         window = ts.Window(
             "t",
-            [[ts.Input("", key="-IN-", disabled=True), ts.Button("B", key="-B-", disabled=True)]],
+            [[ts.TInput("", key="-IN-", disabled=True), ts.TButton("B", key="-B-", disabled=True)]],
             finalize=True,
         )
         self.assertEqual(str(window["-IN-"].widget.cget("state")), "disabled")
@@ -479,15 +495,15 @@ class TestElementOptions(unittest.TestCase):
         window.close()
 
     def test_right_click_menu_built(self):
-        element = ts.Text(
+        element = ts.TText(
             "x",
-            right_click_menu=["&Menu", ["One", "---", "!Two", ["&Sub", ["Deep"]]]],
+            right_click_menu=["&TMenu", ["One", "---", "!Two", ["&Sub", ["Deep"]]]],
         )
         window = ts.Window("t", [[element]], finalize=True)
         menu = element._popup_menu
         self.assertIsNotNone(menu)
-        # single cascade entry "Menu" wrapping the items
-        self.assertEqual(menu.entrycget(0, "label"), "Menu")
+        # single cascade entry "TMenu" wrapping the items
+        self.assertEqual(menu.entrycget(0, "label"), "TMenu")
         submenu = menu.nametowidget(menu.entrycget(0, "menu"))
         self.assertEqual(submenu.entrycget(0, "label"), "One")
         self.assertEqual(submenu.type(1), "separator")
@@ -502,16 +518,16 @@ class TestElementOptions(unittest.TestCase):
             "t",
             [
                 [
-                    ts.Input(
+                    ts.TInput(
                         "",
                         key="-IN-",
                         text_color="#ff0000",
                         background_color="#101010",
                         font=("Courier", 10),
                     ),
-                    ts.Button("B", key="-B-", button_color=("#ffffff", "#000080")),
-                    ts.Checkbox("c", key="-CK-", text_color="#0000ff", font=("Arial", 12)),
-                    ts.Combo(["a"], key="-CB-", background_color="#202020"),
+                    ts.TButton("B", key="-B-", button_color=("#ffffff", "#000080")),
+                    ts.TCheckbox("c", key="-CK-", text_color="#0000ff", font=("Arial", 12)),
+                    ts.TCombo(["a"], key="-CB-", background_color="#202020"),
                 ]
             ],
             finalize=True,
@@ -527,11 +543,11 @@ class TestElementOptions(unittest.TestCase):
             window = ts.Window(
                 "t",
                 [
-                    [ts.Input("", key="-IN-"), ts.Combo(["a"],
-                            key="-CB-"), ts.Checkbox("c", key="-CK-")],
-                    [ts.Button("B", key="-B-"), ts.Radio("r", 1, key="-R-"), ts.Slider((0, 10))],
-                    [ts.Table([["a"]], headings=["H"], key="-TB-"),
-                            ts.Tree(headings=["H"], key="-TR-")],
+                    [ts.TInput("", key="-IN-"), ts.TCombo(["a"],
+                            key="-CB-"), ts.TCheckbox("c", key="-CK-")],
+                    [ts.TButton("B", key="-B-"), ts.TRadio("r", 1, key="-R-"), ts.TSlider((0, 10))],
+                    [ts.TTable([["a"]], headings=["H"], key="-TB-"),
+                            ts.TTree(headings=["H"], key="-TR-")],
                 ],
                 finalize=True,
             )
@@ -552,7 +568,7 @@ class TestElementOptions(unittest.TestCase):
         from TkSimpleGUI.elements import data, widgets
         self.assertFalse(hasattr(widgets, "_SELECT_MODE_MAP"))
         self.assertFalse(hasattr(data, "_SELECT_MODE_MAP"))
-        # Listbox map returns tk constants; Treeview map returns strings.
+        # TListbox map returns tk constants; Treeview map returns strings.
         self.assertEqual(_LISTBOX_SELECT_MODE_MAP[ts.SelectMode.SINGLE], "single")
         self.assertEqual(_LISTBOX_SELECT_MODE_MAP[ts.SelectMode.MULTIPLE], "multiple")
         self.assertEqual(_TREEVIEW_SELECT_MODE_MAP[ts.SelectMode.SINGLE], "none")
@@ -567,7 +583,7 @@ class TestWindowManagement(unittest.TestCase):
     def test_expand_weights(self):
         window = ts.Window(
             "t",
-            [[ts.Text("left"), ts.Input("", key="-IN-", expand_x=True)]],
+            [[ts.TText("left"), ts.TInput("", key="-IN-", expand_x=True)]],
             finalize=True,
         )
         frame = window.tk_root.grid_slaves()[0]
@@ -578,7 +594,7 @@ class TestWindowManagement(unittest.TestCase):
     def test_justification_sticky(self):
         window = ts.Window(
             "t",
-            [[ts.Text("r", justification="right")]],
+            [[ts.TText("r", justification="right")]],
             finalize=True,
         )
         widget = window.tk_root.grid_slaves()[0].grid_slaves()[0]
@@ -587,7 +603,7 @@ class TestWindowManagement(unittest.TestCase):
         window.close()
 
     def test_start_task(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         thread = window.start_task(lambda: 42, end_key="-DONE-")
         self.assertTrue(thread.daemon)
         self.assertEqual(thread.name, "start_task:<lambda>")
@@ -604,7 +620,7 @@ class TestWindowManagement(unittest.TestCase):
             seen.append(values["-DONE-"])
 
         app.bind_event("-DONE-")(on_done)
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.start_task(lambda: ["a", "b"], end_key="-DONE-")
         event, values = window.read(timeout=3000)
         self.assertEqual(event, "-DONE-")
@@ -613,7 +629,7 @@ class TestWindowManagement(unittest.TestCase):
         window.close()
 
     def test_start_task_none_result(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.start_task(lambda: None, end_key="-DONE-")
         event, values = window.read(timeout=3000)
         self.assertEqual(event, "-DONE-")
@@ -622,21 +638,28 @@ class TestWindowManagement(unittest.TestCase):
         window.close()
 
     def test_start_task_failure_delivers_exception(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
 
         def boom():
             raise RuntimeError("boom")
 
         with self.assertLogs("TkSimpleGUI.task", level="ERROR") as captured:
             window.start_task(boom, end_key="-DONE-")
+            # pump until the deadline instead of one blocking read: on the
+            # 3.7 full-suite run the daemon worker's scheduling can be
+            # pushed past 3s (hundreds of tk roots churned before this
+            # test); delivery itself stays instant in every normal context
+            deadline = time.time() + 10
             event, values = window.read(timeout=3000)
+            while event == ts.TIMEOUT_KEY and time.time() < deadline:
+                event, values = window.read(timeout=500)
         self.assertEqual(event, "-DONE-")
         self.assertIsInstance(values["-DONE-"], RuntimeError)
         self.assertIn("boom", captured.output[0])
         window.close()
 
     def test_start_task_worker_exit_delivers_event(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
 
         def quit_worker():
             raise SystemExit(3)
@@ -649,13 +672,13 @@ class TestWindowManagement(unittest.TestCase):
         window.close()
 
     def test_start_task_rejects_non_callable(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         with self.assertRaises(TypeError):
             window.start_task(42)
         window.close()
 
     def test_start_task_window_arg(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
 
         def worker(win):
             win.write_event_value("-FROM-WORKER-", "payload")
@@ -675,7 +698,7 @@ class TestWindowManagement(unittest.TestCase):
             return original(self)
 
         ts.Window._snapshot_values = spy
-        window = ts.Window("t", [[ts.Text("x", key="-T-")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x", key="-T-")]], finalize=True)
         try:
             window.start_task(lambda: "-R-", end_key="-DONE-")
             event, values = window.read(timeout=3000)
@@ -688,7 +711,7 @@ class TestWindowManagement(unittest.TestCase):
         self.assertEqual(set(threads), {"MainThread"})
 
     def test_write_event_value_payload(self):
-        window = ts.Window("t", [[ts.Text("x", key="-T-")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x", key="-T-")]], finalize=True)
         window.write_event_value("-E-", {"n": 1})
         event, values = window.read(timeout=500)
         self.assertEqual(event, "-E-")
@@ -713,7 +736,7 @@ class TestWindowManagement(unittest.TestCase):
 
     def test_start_task_rejects_unhashable_end_key(self):
         """A bad end_key must fail at the call site, not deep inside the pump."""
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         with self.assertRaises(TypeError):
             window.start_task(lambda: 1, end_key=["bad"])
         with self.assertRaises(TypeError):
@@ -721,7 +744,7 @@ class TestWindowManagement(unittest.TestCase):
         window.close()
 
     def test_window_management_api(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.set_size((320, 200))
         window.refresh()
         self.assertGreaterEqual(window.size[0], 300)
@@ -749,19 +772,19 @@ class TestWindowManagement(unittest.TestCase):
     def test_window_min_size_floor(self):
         # every window enforces a size floor so the title-bar buttons
         # (minimize / maximize / close) remain visible and clickable
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True, size=(10, 10))
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True, size=(10, 10))
         window.tk_root.update()
         self.assertGreaterEqual(window.tk_root.winfo_width(), 140)
         window.close()
 
     def test_disable_close(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True, disable_close=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True, disable_close=True)
         window.tk_root.protocol("WM_DELETE_WINDOW")  # handler exists, no crash
         window.close()
         self.assertTrue(window.was_closed)
 
     def test_resizable_option(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True, resizable=False)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True, resizable=False)
         self.assertEqual(window.tk_root.resizable(), (False, False))
         window.close()
 
@@ -781,7 +804,7 @@ class TestTkIntegration(unittest.TestCase):
         root.destroy()
 
     def test_graph_figure_api(self):
-        graph = ts.Graph(
+        graph = ts.TGraph(
             (100, 100), (0, 0), (10, 10), key="-G-", enable_events=True
         )
         window = ts.Window("t", [[graph]], finalize=True)
@@ -805,7 +828,7 @@ class TestTkIntegration(unittest.TestCase):
         window.close()
 
     def test_graph_draw_image(self):
-        graph = ts.Graph((50, 50), (0, 0), (50, 50))
+        graph = ts.TGraph((50, 50), (0, 0), (50, 50))
         window = ts.Window("t", [[graph]], finalize=True)
         figure = graph.draw_image((5, 45), data_base64=ts.BLANK_BASE64)
         self.assertTrue(figure)
@@ -815,7 +838,7 @@ class TestTkIntegration(unittest.TestCase):
         window.close()
 
     def test_table_sorting(self):
-        table = ts.Table(
+        table = ts.TTable(
             [["banana", 2], ["apple", 3], ["cherry", 1]],
             headings=["Name", "Qty"],
             key="-T-",
@@ -837,7 +860,7 @@ class TestTkIntegration(unittest.TestCase):
         window.close()
 
     def test_multiline_undo_and_colored_print(self):
-        multiline = ts.Multiline("", key="-ML-")
+        multiline = ts.TMultiline("", key="-ML-")
         window = ts.Window("t", [[multiline]], finalize=True)
         multiline.print("line-one")
         multiline.print("bad", text_color="#cc0000")
@@ -853,21 +876,21 @@ class TestTkIntegration(unittest.TestCase):
         window.close()
 
     def test_multiline_update_keeps_editable(self):
-        multiline = ts.Multiline("", key="-ML-")
+        multiline = ts.TMultiline("", key="-ML-")
         window = ts.Window("t", [[multiline]], finalize=True)
         multiline.update("fresh text")
         self.assertEqual(str(multiline._text.cget("state")), "normal")
         window.close()
 
     def test_button_with_image(self):
-        button = ts.Button("Go", key="-B-", image_data=ts.BLANK_BASE64)
+        button = ts.TButton("Go", key="-B-", image_data=ts.BLANK_BASE64)
         window = ts.Window("t", [[button]], finalize=True)
         self.assertTrue(button.widget.cget("image"))
         self.assertEqual(str(button.widget.cget("compound")), "left")
         window.close()
 
     def test_clipboard(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.clipboard_set("py-simple")
         self.assertEqual(window.clipboard_get(), "py-simple")
         window.clipboard_append("-gui")
@@ -876,7 +899,7 @@ class TestTkIntegration(unittest.TestCase):
         window.close()
 
     def test_set_min_size(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.set_min_size((200, 100))
         self.assertEqual(window.tk_root.minsize(), (200, 100))
         window.close()
@@ -890,7 +913,7 @@ class TestNativeCoverage(unittest.TestCase):
     """Per-widget coverage of the native Tk/ttk passthrough APIs."""
 
     def test_input_native_api(self):
-        element = ts.Input("abc", justify="right", key="-IN-")
+        element = ts.TInput("abc", justify="right", key="-IN-")
         window = ts.Window("t", [[element]], finalize=True)
         self.assertEqual(str(element.widget.cget("justify")), "right")
         element.set("hello")
@@ -906,7 +929,7 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_combo_current(self):
-        combo = ts.Combo(["a", "b", "c"], key="-CB-")
+        combo = ts.TCombo(["a", "b", "c"], key="-CB-")
         window = ts.Window("t", [[combo]], finalize=True)
         combo.set("b")
         self.assertEqual(combo.get(), "b")
@@ -916,7 +939,7 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_spin_numeric_range(self):
-        spin = ts.Spin(range_=(0, 20), increment=5, initial_value=10, wrap=True)
+        spin = ts.TSpin(range_=(0, 20), increment=5, initial_value=10, wrap=True)
         window = ts.Window("t", [[spin]], finalize=True)
         self.assertEqual(spin.get(), "10")
         spin.set(15)
@@ -925,10 +948,10 @@ class TestNativeCoverage(unittest.TestCase):
         self.assertEqual(spin.values, [0, 5, 10, 15, 20])
         window.close()
         with self.assertRaises(ValueError):
-            ts.Spin([1, 2], range_=(0, 10))
+            ts.TSpin([1, 2], range_=(0, 10))
 
     def test_checkbox_toggle(self):
-        checkbox = ts.Checkbox("c", default=False)
+        checkbox = ts.TCheckbox("c", default=False)
         window = ts.Window("t", [[checkbox]], finalize=True)
         checkbox.toggle()
         self.assertTrue(checkbox.get())
@@ -938,8 +961,8 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_radio_select_helpers(self):
-        first = ts.Radio("one", "g", key="-R1-")
-        second = ts.Radio("two", "g", key="-R2-")
+        first = ts.TRadio("one", "g", key="-R1-")
+        second = ts.TRadio("two", "g", key="-R2-")
         window = ts.Window("t", [[first, second]], finalize=True)
         second.select()
         self.assertTrue(second.get())
@@ -950,7 +973,7 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_progressbar_indeterminate(self):
-        bar = ts.ProgressBar(100, key="-PB-")
+        bar = ts.TProgressBar(100, key="-PB-")
         window = ts.Window("t", [[bar]], finalize=True)
         bar.start_indeterminate(interval_ms=30)
         self.assertEqual(str(bar.widget.cget("mode")), "indeterminate")
@@ -960,7 +983,7 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_multiline_passthrough(self):
-        multiline = ts.Multiline("", key="-ML-")
+        multiline = ts.TMultiline("", key="-ML-")
         window = ts.Window("t", [[multiline]], finalize=True)
         multiline.insert("1.0", "hello")
         multiline.insert("end", " world")
@@ -971,7 +994,7 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_text_image_and_wrap(self):
-        text = ts.Text("logo:", image_data=ts.DEFAULT_BASE64_ICON, wrap_length=200)
+        text = ts.TText("logo:", image_data=ts.DEFAULT_BASE64_ICON, wrap_length=200)
         window = ts.Window("t", [[text]], finalize=True)
         self.assertIsNotNone(text._photo)
         self.assertEqual(text._photo.width(), 64)
@@ -979,31 +1002,31 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_listbox_see_size(self):
-        listbox = ts.Listbox([f"item {i}" for i in range(30)], size=(10, 3))
+        listbox = ts.TListbox([f"item {i}" for i in range(30)], size=(10, 3))
         window = ts.Window("t", [[listbox]], finalize=True)
         self.assertEqual(listbox.size(), 30)
         listbox.see(25)  # must not raise
         window.close()
 
     def test_table_tree_see(self):
-        table = ts.Table([[f"row {i}"] for i in range(50)], headings=["H"])
+        table = ts.TTable([[f"row {i}"] for i in range(50)], headings=["H"])
         window = ts.Window("t", [[table]], finalize=True)
         table.see(45)  # must not raise
         window.close()
-        tree = ts.Tree()
+        tree = ts.TTree()
         window2 = ts.Window("t2", [[tree]], finalize=True)
         tree.insert("", "k1", "visible")
         tree.see("k1")
         window2.close()
 
     def test_frame_label_anchor(self):
-        frame = ts.Frame("Title", [[ts.Text("x")]], label_anchor="se")
+        frame = ts.TFrame("Title", [[ts.TText("x")]], label_anchor="se")
         window = ts.Window("t", [[frame]], finalize=True)
         self.assertEqual(str(frame.widget.cget("labelanchor")), "se")
         window.close()
 
     def test_image_zoom_getters(self):
-        image = ts.Image(data_base64=ts.DEFAULT_BASE64_ICON)
+        image = ts.TImage(data_base64=ts.DEFAULT_BASE64_ICON)
         window = ts.Window("t", [[image]], finalize=True)
         self.assertEqual((image.width, image.height), (64, 64))
         image.zoom(2)
@@ -1014,7 +1037,7 @@ class TestNativeCoverage(unittest.TestCase):
         window.close()
 
     def test_canvas_passthrough(self):
-        canvas = ts.Canvas((100, 100))
+        canvas = ts.TCanvas((100, 100))
         window = ts.Window("t", [[canvas]], finalize=True)
         item = canvas.widget.create_rectangle(10, 10, 40, 40, fill="red")
         canvas.itemconfigure(item, fill="blue")
@@ -1041,11 +1064,11 @@ class TestTypedEnums(unittest.TestCase):
         window = ts.Window(
             "t",
             [
-                [ts.Text("a", justification=ts.Justify.CENTER)],
-                [ts.Input("", justify=ts.Justify.RIGHT, key="-IN-")],
-                [ts.Frame("F", [[ts.Text("x")]], label_anchor=ts.LabelAnchor.SE,
+                [ts.TText("a", justification=ts.Justify.CENTER)],
+                [ts.TInput("", justify=ts.Justify.RIGHT, key="-IN-")],
+                [ts.TFrame("F", [[ts.TText("x")]], label_anchor=ts.LabelAnchor.SE,
                           key="-FRAME-")],
-                [ts.Multiline("", wrap=ts.WrapMode.NONE, key="-ML-")],
+                [ts.TMultiline("", wrap=ts.WrapMode.NONE, key="-ML-")],
             ],
             finalize=True,
         )
@@ -1061,7 +1084,7 @@ class TestTypedEnums(unittest.TestCase):
         self.assertEqual(ts.EventType.key("F5"), "<F5>")
 
     def test_bind_with_event_type_enum(self):
-        element = ts.Text("click", key="-T-")
+        element = ts.TText("click", key="-T-")
         window = ts.Window("t", [[element]], finalize=True)
         element.bind(ts.EventType.RIGHT_CLICK)  # enum instead of "<Button-3>"
         element.widget.event_generate("<Button-3>", when="tail")
@@ -1071,14 +1094,14 @@ class TestTypedEnums(unittest.TestCase):
         window.close()
 
     def test_color_enum_in_widget(self):
-        text = ts.Text("colored", text_color=ts.Color.RED,
+        text = ts.TText("colored", text_color=ts.Color.RED,
                        background_color=ts.Color.NAVY)
         window = ts.Window("t", [[text]], finalize=True)
         self.assertEqual(str(text.widget.cget("foreground")), "red")
         window.close()
 
     def test_anchor_enum_in_text(self):
-        text = ts.Text("anchored")
+        text = ts.TText("anchored")
         window = ts.Window("t", [[text]], finalize=True)
         # anchor flows through theme kwargs; verify the enum is a valid value
         text.widget.configure(anchor=ts.Anchor.CENTER)
@@ -1092,7 +1115,7 @@ class TestDataclassConfigs(unittest.TestCase):
     def test_window_config(self):
         cfg = ts.WindowConfig(title="Cfg", resizable=True, modal=True,
                               keep_on_top=True)
-        window = ts.Window(layout=[[ts.Text("x")]], config=cfg, finalize=True)
+        window = ts.Window(layout=[[ts.TText("x")]], config=cfg, finalize=True)
         self.assertEqual(window.title, "Cfg")
         self.assertEqual(window.tk_root.resizable(), (True, True))
         window.close()
@@ -1110,11 +1133,11 @@ class TestDataclassConfigs(unittest.TestCase):
     def test_element_options_shared(self):
         opts = ts.ElementOptions(
             pad=(10, 4), expand_x=True,
-            right_click_menu=["&Menu", ["Refresh"]],
+            right_click_menu=["&TMenu", ["Refresh"]],
             metadata={"tag": 1},
         )
-        first = ts.Text("a", config=opts, key="-A-")
-        second = ts.Input("", config=opts, key="-B-")
+        first = ts.TText("a", config=opts, key="-A-")
+        second = ts.TInput("", config=opts, key="-B-")
         window = ts.Window("t", [[first], [second]], finalize=True)
         self.assertEqual(first.pad, (10, 4))
         self.assertEqual(second.pad, (10, 4))
@@ -1126,16 +1149,16 @@ class TestDataclassConfigs(unittest.TestCase):
 
     def test_element_options_kwargs_win(self):
         opts = ts.ElementOptions(expand_x=True, metadata="from-config")
-        element = ts.Text("a", config=opts, metadata="explicit")
+        element = ts.TText("a", config=opts, metadata="explicit")
         self.assertEqual(element.metadata, "explicit")
 
     def test_element_options_requires_type(self):
         with self.assertRaises(TypeError):
-            ts.Text("a", config={"pad": 4})
+            ts.TText("a", config={"pad": 4})
 
     def test_window_config_carry_layout(self):
         cfg = ts.WindowConfig(title="LayoutInConfig",
-                              layout=[[ts.Text("from cfg", key="-T-")]])
+                              layout=[[ts.TText("from cfg", key="-T-")]])
         window = ts.Window(config=cfg, finalize=True)
         self.assertIn("-T-", window)
         window.close()
@@ -1461,20 +1484,20 @@ class TestFirstBatch(unittest.TestCase):
     def test_input_validation_wiring(self):
         window = ts.Window(
             "t",
-            [[ts.Input("", key="-IN-", validate="key", validate_command=ts.validate_integer)]],
+            [[ts.TInput("", key="-IN-", validate="key", validate_command=ts.validate_integer)]],
             finalize=True,
         )
         widget = window["-IN-"].widget
         self.assertEqual(str(widget.cget("validate")), "key")
         self.assertTrue(widget.cget("validatecommand"))
         with self.assertRaises(TypeError):
-            ts.Input(validate="key", validate_command="not-callable")
+            ts.TInput(validate="key", validate_command="not-callable")
         window.close()
 
     def test_calendar_element(self):
         import datetime
 
-        calendar_element = ts.Calendar(
+        calendar_element = ts.TCalendar(
             default_date=datetime.date(2026, 10, 11), key="-CAL-"
         )
         window = ts.Window("t", [[calendar_element]], finalize=True)
@@ -1491,13 +1514,13 @@ class TestFirstBatch(unittest.TestCase):
         window.close()
 
     def test_calendar_accepts_tuple_default(self):
-        calendar_element = ts.Calendar(default_date=(2026, 2, 14), dateformat="%d.%m.%Y")
+        calendar_element = ts.TCalendar(default_date=(2026, 2, 14), dateformat="%d.%m.%Y")
         self.assertEqual(calendar_element.get(), "14.02.2026")
 
     def test_splitter(self):
-        splitter = ts.Splitter(
-            [[[ts.Text("L", key="-L-")], [ts.Input(key="-LIN-")]],
-             [[ts.Text("R", key="-R-")], [ts.Input(key="-RIN-")]]],
+        splitter = ts.TSplitter(
+            [[[ts.TText("L", key="-L-")], [ts.TInput(key="-LIN-")]],
+             [[ts.TText("R", key="-R-")], [ts.TInput(key="-RIN-")]]],
             orientation="h",
             key="-SP-",
         )
@@ -1507,12 +1530,12 @@ class TestFirstBatch(unittest.TestCase):
         self.assertIsNotNone(window["-RIN-"].widget)
         self.assertEqual(len(splitter.widget.panes()), 2)
         with self.assertRaises(TypeError):
-            ts.Splitter([[[ts.Text("only")]]])
+            ts.TSplitter([[[ts.TText("only")]]])
         window.close()
 
     def test_scrollable_column(self):
-        rows = [[ts.Text(f"row {i}")] for i in range(30)]
-        scroll = ts.ScrollableColumn(rows, size=(200, 100), key="-SC-")
+        rows = [[ts.TText(f"row {i}")] for i in range(30)]
+        scroll = ts.TScrollableColumn(rows, size=(200, 100), key="-SC-")
         window = ts.Window("t", [[scroll]], finalize=True)
         window.refresh()
         self.assertIsNotNone(scroll._canvas)
@@ -1524,7 +1547,7 @@ class TestFirstBatch(unittest.TestCase):
     def test_window_right_click_menu(self):
         window = ts.Window(
             "t",
-            [[ts.Text("x")]],
+            [[ts.TText("x")]],
             finalize=True,
             right_click_menu=["&Win", ["About", "Exit"]],
         )
@@ -1536,7 +1559,7 @@ class TestFirstBatch(unittest.TestCase):
         window.close()
 
     def test_every_timer(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         calls = []
         handle = window.every(30, lambda: calls.append(1))
         self.assertTrue(handle.active)
@@ -1554,7 +1577,7 @@ class TestFirstBatch(unittest.TestCase):
         window.close()
 
     def test_after_timer(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         calls = []
         window.after(50, lambda: calls.append(1))
         deadline = time.time() + 2.0
@@ -1566,7 +1589,7 @@ class TestFirstBatch(unittest.TestCase):
     def test_text_find_and_replace_helpers(self):
         from TkSimpleGUI.popup import _text_find, _text_replace_all
 
-        multiline = ts.Multiline("alpha beta ALPHA end", key="-ML-")
+        multiline = ts.TMultiline("alpha beta ALPHA end", key="-ML-")
         window = ts.Window("t", [[multiline]], finalize=True)
         pos = _text_find(multiline, "beta")  # element is unwrapped internally
         self.assertEqual(pos, "1.6")
@@ -1587,11 +1610,11 @@ class TestFirstBatch(unittest.TestCase):
 
 
 class TestSecondBatch(unittest.TestCase):
-    """Batch 2: CheckList, Toolbar, toggle, LabeledEdit, KV editor,
-            FlowPanel, icons, editing, Shape."""
+    """Batch 2: TCheckList, TToolbar, toggle, TLabeledEdit, KV editor,
+            TFlowPanel, icons, editing, TShape."""
 
     def test_checklist(self):
-        checklist = ts.CheckList(
+        checklist = ts.TCheckList(
             ["a", "b", "c"], default_checked=["b"], key="-CL-"
         )
         window = ts.Window("t", [[checklist]], finalize=True)
@@ -1608,7 +1631,7 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_toolbar(self):
-        toolbar = ts.Toolbar(
+        toolbar = ts.TToolbar(
             [
                 ("Open", "-OPEN-"),
                 "---",
@@ -1628,8 +1651,8 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_toggle_button_group(self):
-        first = ts.Button("B1", key="-B1-", toggle=True, group_id="g")
-        second = ts.Button("B2", key="-B2-", toggle=True, group_id="g")
+        first = ts.TButton("B1", key="-B1-", toggle=True, group_id="g")
+        second = ts.TButton("B2", key="-B2-", toggle=True, group_id="g")
         window = ts.Window("t", [[first, second]], finalize=True)
         self.assertFalse(first.get())
         first.click()
@@ -1644,7 +1667,7 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_labeled_edit(self):
-        labeled = ts.LabeledEdit("Name", "world", key="-NAME-")
+        labeled = ts.TLabeledEdit("Name", "world", key="-NAME-")
         window = ts.Window("t", [[labeled]], finalize=True)
         self.assertEqual(window["-NAME-"].get(), "world")
         self.assertEqual(labeled.get(), "world")
@@ -1656,7 +1679,7 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_key_value_editor(self):
-        editor = ts.KeyValueEditor(
+        editor = ts.TKeyValueEditor(
             [("host", "localhost"), ("port", "5432")], key="-KV-"
         )
         window = ts.Window("t", [[editor]], finalize=True)
@@ -1671,8 +1694,8 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_flow_panel(self):
-        flow = ts.FlowPanel(
-            [ts.Text("one"), ts.Text("two"), ts.Text("three")], key="-FLOW-"
+        flow = ts.TFlowPanel(
+            [ts.TText("one"), ts.TText("two"), ts.TText("three")], key="-FLOW-"
         )
         window = ts.Window("t", [[flow]], finalize=True)
         window.refresh()
@@ -1683,7 +1706,7 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_tree_row_icons(self):
-        tree = ts.Tree(headings=["H"], key="-TR-")
+        tree = ts.TTree(headings=["H"], key="-TR-")
         window = ts.Window("t", [[tree]], finalize=True)
         tree.insert("", "item1", "Root", image_data=ts.BLANK_BASE64)
         item = tree.widget.item("item1")
@@ -1692,7 +1715,7 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_table_row_icons(self):
-        table = ts.Table(
+        table = ts.TTable(
             [["a"], ["b"]],
             headings=["H"],
             key="-TB-",
@@ -1705,7 +1728,7 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_table_cell_edit(self):
-        table = ts.Table(
+        table = ts.TTable(
             [["old", "x"], ["keep", "y"]],
             headings=["A", "B"],
             key="-TB-",
@@ -1729,12 +1752,12 @@ class TestSecondBatch(unittest.TestCase):
         window.close()
 
     def test_shape(self):
-        shape = ts.Shape("oval", size=(60, 30), fill_color="red", key="-S-")
+        shape = ts.TShape("oval", size=(60, 30), fill_color="red", key="-S-")
         window = ts.Window("t", [[shape]], finalize=True)
         self.assertEqual(len(shape.widget.find_all()), 1)
         shape.update(fill_color="blue", line_color="green")
         with self.assertRaises(ValueError):
-            ts.Shape("hexagon")
+            ts.TShape("hexagon")
         window.close()
 
 
@@ -1746,7 +1769,7 @@ class TestThirdBatch(unittest.TestCase):
         open_action = ts.Action(
             "Open", key="-OPEN-", callback=lambda w, v: fired.append("open")
         )
-        menu_item = ts.Text("menu", key="Open")  # posting text "Open"
+        menu_item = ts.TText("menu", key="Open")  # posting text "Open"
         window = ts.Window(
             "t", [[menu_item]], finalize=True, actions=[open_action]
         )
@@ -1758,7 +1781,7 @@ class TestThirdBatch(unittest.TestCase):
 
     def test_action_shortcut_bound(self):
         save_action = ts.Action("Save", key="-SAVE-", shortcut="<Control-s>")
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True, actions=[save_action])
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True, actions=[save_action])
         shortcuts = [pattern for pattern, _key in window._event_binds]
         self.assertIn("<Control-s>", shortcuts)
         window.close()
@@ -1807,9 +1830,9 @@ class TestThirdBatch(unittest.TestCase):
             {"name": "apple", "qty": 3},
             {"name": "pear", "qty": 1},
         ]
-        table = ts.Table([], headings=[], key="-TB-")
+        table = ts.TTable([], headings=[], key="-TB-")
         window = ts.Window("t", [[table]], finalize=True)
-        table.bind(records)
+        table.set_records(records)
         window.refresh()
         self.assertEqual(table.headings, ["name", "qty"])
         children = table.widget.get_children()
@@ -1833,29 +1856,8 @@ class TestThirdBatch(unittest.TestCase):
         self.assertEqual(table.selected_records[0]["name"], "pear")
         window.close()
 
-    def test_i18n(self):
-        import json
-        import shutil
-        import tempfile
-
-        directory = tempfile.mkdtemp()
-        try:
-            catalog_path = f"{directory}fr.json"
-            with open(catalog_path, "w") as handle:
-                json.dump({"Open": "Ouvert", "Save": "Sauve"}, handle)
-            ts.set_translations(catalog_path)
-            self.assertEqual(ts.translate("Open"), "Ouvert")
-            self.assertEqual(ts._("Save"), "Sauve")
-            self.assertEqual(ts._("Unknown"), "Unknown")
-            ts.add_translation("Close", "Ferme")
-            self.assertEqual(ts._("Close"), "Ferme")
-            ts.clear_translations()
-            self.assertEqual(ts._("Open"), "Open")
-        finally:
-            shutil.rmtree(directory, ignore_errors=True)
-
     def test_animation_fade_and_progress(self):
-        bar = ts.ProgressBar(100, key="-BAR-")
+        bar = ts.TProgressBar(100, key="-BAR-")
         window = ts.Window("t", [[bar]], finalize=True)
         handle = ts.animate_progress(window, "-BAR-", 100, duration_ms=60, steps=4)
         deadline = time.time() + 2.0
@@ -1869,7 +1871,7 @@ class TestThirdBatch(unittest.TestCase):
         window.close()
 
     def test_animation_slide(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         target = (window.current_location()[0] + 30, window.current_location()[1])
         handle = ts.slide(window, target, duration_ms=60, steps=3)
         deadline = time.time() + 2.0
@@ -1919,16 +1921,16 @@ class TestThirdBatch(unittest.TestCase):
             self.assertIn(name, buffer.getvalue())
 
     def test_dbg_returns_quickly(self):
-        # dbg formats args and delegates to the quick popup
+        # dbg formats args and delegates to the buttonless quick popup
         self.assertTrue(callable(ts.dbg))
-        self.assertTrue(callable(ts.popup_quick))
+        self.assertTrue(callable(ts.popup_no_buttons))
 
 
 class TestLineA(unittest.TestCase):
     """Line A: full coverage of the native Tk/ttk API surface."""
 
     def test_element_bind_and_unbind(self):
-        element = ts.Text("click me", key="-T-")
+        element = ts.TText("click me", key="-T-")
         window = ts.Window("t", [[element]], finalize=True)
         element.bind("<F5>")  # posts the element key
         element.widget.focus_set()
@@ -1949,12 +1951,12 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_bind_before_finalize_raises(self):
-        element = ts.Text("x")
+        element = ts.TText("x")
         with self.assertRaises(RuntimeError):
             element.bind("<Button-1>")
 
     def test_multiline_scrollbar_wrap(self):
-        multiline = ts.Multiline(
+        multiline = ts.TMultiline(
             "\r\n".join(f"line {i}" for i in range(50)),
             size=(30, 4), scroll_y=True, wrap="none", key="-ML-",
         )
@@ -1968,7 +1970,7 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_multiline_link_and_search(self):
-        multiline = ts.Multiline("", key="-ML-")
+        multiline = ts.TMultiline("", key="-ML-")
         window = ts.Window("t", [[multiline]], finalize=True)
         multiline.print("Visit ")
         multiline.link("TkSimpleGUI", key="-LINK-")
@@ -1982,24 +1984,24 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_image_zoom_and_subsample(self):
-        image = ts.Image(data_base64=ts.DEFAULT_BASE64_ICON, zoom=2)
+        image = ts.TImage(data_base64=ts.DEFAULT_BASE64_ICON, zoom=2)
         window = ts.Window("t", [[image]], finalize=True)
         self.assertEqual(image._photo.width(), 128)
         window.close()
-        image = ts.Image(data_base64=ts.DEFAULT_BASE64_ICON, subsample=2)
+        image = ts.TImage(data_base64=ts.DEFAULT_BASE64_ICON, subsample=2)
         window = ts.Window("t", [[image]], finalize=True)
         self.assertEqual(image._photo.width(), 32)
         window.close()
 
     def test_spin_is_ttk(self):
-        spin = ts.Spin([1, 2, 3], initial_value=2)
+        spin = ts.TSpin([1, 2, 3], initial_value=2)
         window = ts.Window("t", [[spin]], finalize=True)
         self.assertIsInstance(spin.widget, ttk.Spinbox)
         self.assertEqual(spin.get(), "2")
         window.close()
 
     def test_ttk_theme_switch(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         available = ts.ttk_themes()
         self.assertTrue(available)
         current = ts.ttk_theme()
@@ -2012,7 +2014,7 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_window_wm_extensions(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.set_fullscreen(True)
         window.refresh()
         self.assertEqual(int(window.tk_root.attributes("-fullscreen")), 1)
@@ -2020,27 +2022,27 @@ class TestLineA(unittest.TestCase):
         window.make_toolwindow(False)
         window.set_max_size((800, 600))
         window.bell()
-        child = ts.Window("child", [[ts.Text("c")]], finalize=True)
+        child = ts.Window("child", [[ts.TText("c")]], finalize=True)
         child.transient(window)
         child.stack_above(window)
         child.close()
         window.close()
 
     def test_window_selection(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.selection_set("primary-data")
         window.refresh()
         self.assertEqual(window.selection_get(), "primary-data")
         window.close()
 
     def test_window_style_hooks(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.configure_style("TButton", padding=(16, 8))
         window.map_style("TButton", background=[("active", "#3a7bd5")])
         window.close()
 
     def test_font_tools(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         families = ts.font_families()
         self.assertTrue(families)
         width = ts.font_measure("hello", ("Helvetica", 10))
@@ -2051,7 +2053,7 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_menubutton_element(self):
-        menu_button = ts.Menubutton("Options", ["One", "---", "Two"], key="-MB-")
+        menu_button = ts.TMenubutton("Options", ["One", "---", "Two"], key="-MB-")
         window = ts.Window("t", [[menu_button]], finalize=True)
         self.assertEqual(menu_button.items, ["One", "---", "Two"])
         menu_button.update(items=["Alpha"])
@@ -2063,18 +2065,18 @@ class TestLineA(unittest.TestCase):
         window.close()
 
     def test_scrollbar_element(self):
-        multiline = ts.Multiline("\r\n".join(f"line {i}" for i in range(60)),
+        multiline = ts.TMultiline("\r\n".join(f"line {i}" for i in range(60)),
                                  size=(20, 3), key="-ML-")
-        scrollbar = ts.Scrollbar(multiline, orientation="v")
+        scrollbar = ts.TScrollbar(multiline, orientation="v")
         window = ts.Window("t", [[multiline, scrollbar]], finalize=True)
         self.assertIsNotNone(scrollbar.widget)
         with self.assertRaises(TypeError):
-            ts.Window("t2", [[ts.Scrollbar(ts.Text("not scrollable"))]], finalize=True)
+            ts.Window("t2", [[ts.TScrollbar(ts.TText("not scrollable"))]], finalize=True)
         window.close()
 
     def test_tabgroup_enhancements(self):
-        tab_group = ts.TabGroup(
-            [[ts.Tab("one", [[ts.Text("1")]]), ts.Tab("two", [[ts.Text("2")]])]],
+        tab_group = ts.TTabGroup(
+            [[ts.TTab("one", [[ts.TText("1")]]), ts.TTab("two", [[ts.TText("2")]])]],
             key="-TG-", enable_events=True, enable_traversal=True,
         )
         window = ts.Window("t", [[tab_group]], finalize=True)
@@ -2090,7 +2092,7 @@ class TestLineA(unittest.TestCase):
 
 
 class TestChart(unittest.TestCase):
-    """TChart: 8 chart types on the Graph coordinate system."""
+    """TChart: 8 chart types on the TGraph coordinate system."""
 
     def _chart(self, kind, **kwargs):
         chart = ts.TChart((300, 180), chart_type=kind, key="-C-",
@@ -2164,7 +2166,7 @@ class TestLineB(unittest.TestCase):
     """Line B: what Tk cannot do (canvas-drawn, synthesized events, ctypes)."""
 
     def test_round_button(self):
-        button = ts.RoundButton("Go", size=(90, 30), radius=14,
+        button = ts.TRoundButton("Go", size=(90, 30), radius=14,
                                 fill_color="#e91e63", key="-RB-")
         window = ts.Window("t", [[button]], finalize=True)
         window.tk_root.update()
@@ -2179,7 +2181,7 @@ class TestLineB(unittest.TestCase):
 
     def test_round_button_direct_callback(self):
         calls = []
-        button = ts.RoundButton("Go", key="-RB-")
+        button = ts.TRoundButton("Go", key="-RB-")
         button.set_click_handler(calls.append)
         window = ts.Window("t", [[button]], finalize=True)
         window.tk_root.update()
@@ -2189,7 +2191,7 @@ class TestLineB(unittest.TestCase):
         window.close()
 
     def test_image_button(self):
-        button = ts.ImageButton(data_base64=ts.DEFAULT_BASE64_ICON, key="-IB-")
+        button = ts.TImageButton(data_base64=ts.DEFAULT_BASE64_ICON, key="-IB-")
         window = ts.Window("t", [[button]], finalize=True)
         window.tk_root.update()
         self.assertEqual(button._photo.width(), 64)  # sized from the image
@@ -2200,7 +2202,7 @@ class TestLineB(unittest.TestCase):
         window.close()
 
     def test_text_progress_bar(self):
-        bar = ts.TextProgressBar(100, current_value=42, key="-TPB-")
+        bar = ts.TTextProgressBar(100, current_value=42, key="-TPB-")
         window = ts.Window("t", [[bar]], finalize=True)
         self.assertEqual(bar.get(), 42)
         label = bar._widget.itemconfigure(bar._label_id, "text")
@@ -2211,7 +2213,7 @@ class TestLineB(unittest.TestCase):
         window.close()
 
     def test_toast(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         toast = window.toast("Saved", title="Demo", duration_ms=400)
         self.assertIsNotNone(toast)
         self.assertTrue(toast.winfo_exists())
@@ -2223,7 +2225,7 @@ class TestLineB(unittest.TestCase):
         window.close()
 
     def test_table_column_resize_event(self):
-        table = ts.Table([["a", "b"]], headings=["H1", "H2"], key="-TB-")
+        table = ts.TTable([["a", "b"]], headings=["H1", "H2"], key="-TB-")
         window = ts.Window("t", [[table]], finalize=True)
         width = table.column_width(0)
         self.assertGreater(width, 0)
@@ -2232,7 +2234,7 @@ class TestLineB(unittest.TestCase):
         window.close()
 
     def test_slider_value_bubble(self):
-        slider = ts.Slider((0, 100), default_value=30, show_value=True,
+        slider = ts.TSlider((0, 100), default_value=30, show_value=True,
                            enable_events=True, key="-SL-")
         window = ts.Window("t", [[slider]], finalize=True)
         slider.widget.event_generate("<ButtonPress-1>", x=20, y=5)
@@ -2248,7 +2250,7 @@ class TestLineB(unittest.TestCase):
         window.close()
 
     def test_tree_groups(self):
-        tree = ts.Tree(key="-TR-")
+        tree = ts.TTree(key="-TR-")
         window = ts.Window("t", [[tree]], finalize=True)
         tree.insert_group("", "grp1", "Fruits")
         tree.insert("grp1", "a1", "Apple")
@@ -2265,8 +2267,8 @@ class TestLineB(unittest.TestCase):
         window.close()
 
     def test_tabgroup_close_button(self):
-        tab_group = ts.TabGroup(
-            [[ts.Tab("one", [[ts.Text("1")]]), ts.Tab("two", [[ts.Text("2")]])]],
+        tab_group = ts.TTabGroup(
+            [[ts.TTab("one", [[ts.TText("1")]]), ts.TTab("two", [[ts.TText("2")]])]],
             key="-TG-", enable_events=True, enable_close=True,
         )
         window = ts.Window("t", [[tab_group]], finalize=True)
@@ -2303,7 +2305,7 @@ class TestLineB(unittest.TestCase):
         hotkeys.stop()
 
     def test_taskbar_progress_gate(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         progress = ts.taskbar_progress(window)
         if ts.running_windows():
             self.assertIsNotNone(progress)
@@ -2320,8 +2322,8 @@ class TestUnifiedLoop(unittest.TestCase):
 
     def test_cross_window_events(self):
         """Any window read() receives events from other windows (bus order)."""
-        first = ts.Window("one", [[ts.Button("ping", key="-PING-")]], finalize=True)
-        second = ts.Window("two", [[ts.Button("pong", key="-PONG-")]], finalize=True)
+        first = ts.Window("one", [[ts.TButton("ping", key="-PING-")]], finalize=True)
+        second = ts.Window("two", [[ts.TButton("pong", key="-PONG-")]], finalize=True)
         first.write_event_value("-FROM-ONE-")
         second.write_event_value("-FROM-TWO-")
         # reading through the *second* window still yields the first's event
@@ -2333,8 +2335,8 @@ class TestUnifiedLoop(unittest.TestCase):
         second.close()
 
     def test_read_all_windows_returns_owner(self):
-        first = ts.Window("one", [[ts.Text("x")]], finalize=True)
-        second = ts.Window("two", [[ts.Text("y")]], finalize=True)
+        first = ts.Window("one", [[ts.TText("x")]], finalize=True)
+        second = ts.Window("two", [[ts.TText("y")]], finalize=True)
         second.write_event_value("-TWO-EVENT-")
         window, event, _values = ts.Window.read_all_windows(timeout=500)
         self.assertIs(window, second)
@@ -2343,8 +2345,8 @@ class TestUnifiedLoop(unittest.TestCase):
         second.close()
 
     def test_winclosed_removes_window_from_registry(self):
-        first = ts.Window("one", [[ts.Text("x")]], finalize=True)
-        second = ts.Window("two", [[ts.Text("y")]], finalize=True)
+        first = ts.Window("one", [[ts.TText("x")]], finalize=True)
+        second = ts.Window("two", [[ts.TText("y")]], finalize=True)
         # the WM_DELETE_WINDOW protocol handler posts WIN_CLOSED; firing it
         # here simulates the user clicking the title bar X
         first._post_event(ts.WIN_CLOSED)
@@ -2357,8 +2359,8 @@ class TestUnifiedLoop(unittest.TestCase):
 
     def test_programmatic_close_is_quiet(self):
         """Window.close() does not post WIN_CLOSED (no user action happened)."""
-        first = ts.Window("one", [[ts.Text("x")]], finalize=True)
-        second = ts.Window("two", [[ts.Text("y")]], finalize=True)
+        first = ts.Window("one", [[ts.TText("x")]], finalize=True)
+        second = ts.Window("two", [[ts.TText("y")]], finalize=True)
         first.close()
         event, _values = second.read(timeout=200)
         self.assertEqual(event, ts.TIMEOUT_KEY)
@@ -2366,7 +2368,7 @@ class TestUnifiedLoop(unittest.TestCase):
 
     def test_main_loop_exits_when_all_closed(self):
         app = ts.TkSimpleEvent()
-        window = ts.Window("one", [[ts.Button("quit", key="-QUIT-")]], finalize=True)
+        window = ts.Window("one", [[ts.TButton("quit", key="-QUIT-")]], finalize=True)
         seen = []
 
         @app.bind_event("-QUIT-")
@@ -2381,12 +2383,12 @@ class TestUnifiedLoop(unittest.TestCase):
 
     def test_main_loop_dispatches_to_on_handlers(self):
         app = ts.TkSimpleEvent()
-        main = ts.Window("main", [[ts.Button("open", key="-OPEN-")]], finalize=True)
+        main = ts.Window("main", [[ts.TButton("open", key="-OPEN-")]], finalize=True)
         received = []
 
         @app.bind_event("-OPEN-")
         def on_open(window, values):
-            child = ts.Window("child", [[ts.Text("hi", key="-HI-")]], finalize=True)
+            child = ts.Window("child", [[ts.TText("hi", key="-HI-")]], finalize=True)
             child.write_event_value("-CHILD-READY-")
 
         @app.bind_event("-CHILD-READY-")
@@ -2404,7 +2406,7 @@ class TestUnifiedLoop(unittest.TestCase):
         app = ts.TkSimpleEvent()
         ok_action = ts.Action("OK", key="OK",
                               callback=lambda window, values: calls.append("ok"))
-        window = ts.Window("t", [[ts.Button("OK", key="OK")]],
+        window = ts.Window("t", [[ts.TButton("OK", key="OK")]],
                            finalize=True, actions=[ok_action])
 
         @app.bind_event("OK")
@@ -2417,10 +2419,10 @@ class TestUnifiedLoop(unittest.TestCase):
         self.assertEqual(calls, ["ok", "handler"])
 
     def test_close_all_drops_stale_events(self):
-        first = ts.Window("one", [[ts.Text("x")]], finalize=True)
+        first = ts.Window("one", [[ts.TText("x")]], finalize=True)
         first.write_event_value("-STALE-")
         ts.Window.close_all()
-        second = ts.Window("two", [[ts.Text("y")]], finalize=True)
+        second = ts.Window("two", [[ts.TText("y")]], finalize=True)
         event, _values = second.read(timeout=200)
         self.assertEqual(event, ts.TIMEOUT_KEY)  # stale event was dropped
         second.close()
@@ -2430,9 +2432,9 @@ class TestWindowHierarchy(unittest.TestCase):
     """Window hierarchy: parent/children/ancestors + cascading close."""
 
     def test_parent_link_and_query(self):
-        main = ts.Window("main", [[ts.Text("m")]], finalize=True)
-        child = ts.Window("child", [[ts.Text("c")]], finalize=True, parent=main)
-        grandchild = ts.Window("grand", [[ts.Text("g")]], finalize=True, parent=child)
+        main = ts.Window("main", [[ts.TText("m")]], finalize=True)
+        child = ts.Window("child", [[ts.TText("c")]], finalize=True, parent=main)
+        grandchild = ts.Window("grand", [[ts.TText("g")]], finalize=True, parent=child)
         self.assertIs(child.parent, main)
         self.assertIs(grandchild.parent, child)
         self.assertIsNone(main.parent)
@@ -2447,8 +2449,8 @@ class TestWindowHierarchy(unittest.TestCase):
         self.assertEqual(main.children, [])
 
     def test_parent_parameter_before_finalize(self):
-        main = ts.Window("main", [[ts.Text("m")]], finalize=True)
-        child = ts.Window("child", [[ts.Text("c")]], parent=main)  # not finalized yet
+        main = ts.Window("main", [[ts.TText("m")]], finalize=True)
+        child = ts.Window("child", [[ts.TText("c")]], parent=main)  # not finalized yet
         self.assertIs(child.parent, main)
         child.finalize()  # link established at finalize
         self.assertIn(child, main.children)
@@ -2457,8 +2459,8 @@ class TestWindowHierarchy(unittest.TestCase):
         main.close()
 
     def test_transient_sets_parent(self):
-        main = ts.Window("main", [[ts.Text("m")]], finalize=True)
-        dialog = ts.Window("dialog", [[ts.Text("d")]], finalize=True)
+        main = ts.Window("main", [[ts.TText("m")]], finalize=True)
+        dialog = ts.Window("dialog", [[ts.TText("d")]], finalize=True)
         dialog.transient(main)
         self.assertIs(dialog.parent, main)
         self.assertIn(dialog, main.children)
@@ -2469,8 +2471,8 @@ class TestWindowHierarchy(unittest.TestCase):
         main.close()
 
     def test_child_close_keeps_parent(self):
-        main = ts.Window("main", [[ts.Text("m")]], finalize=True)
-        child = ts.Window("child", [[ts.Text("c")]], finalize=True, parent=main)
+        main = ts.Window("main", [[ts.TText("m")]], finalize=True)
+        child = ts.Window("child", [[ts.TText("c")]], finalize=True, parent=main)
         child.close()
         self.assertFalse(main.was_closed)
         self.assertEqual(main.children, [])
@@ -2485,7 +2487,7 @@ class TestForcedModal(unittest.TestCase):
 
     def test_disable_esc_blocks_escape_key(self):
         window = ts.Window(
-            "t", [[ts.Text("x")]], finalize=True, disable_esc=True
+            "t", [[ts.TText("x")]], finalize=True, disable_esc=True
         )
         window.tk_root.event_generate("<Escape>")
         window.tk_root.update()
@@ -2495,7 +2497,7 @@ class TestForcedModal(unittest.TestCase):
         window.close()
 
     def test_esc_without_flag_reaches_window(self):
-        window = ts.Window("t", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         window.tk_root.event_generate("<Escape>")
         window.tk_root.update()
         # without disable_esc the key press is not swallowed; the window
@@ -2505,7 +2507,7 @@ class TestForcedModal(unittest.TestCase):
 
     def test_disable_close_blocks_frame_and_modal_implies_it(self):
         window = ts.Window(
-            "t", [[ts.Text("x")]], finalize=True, disable_close=True
+            "t", [[ts.TText("x")]], finalize=True, disable_close=True
         )
         # simulate the frame close button: the protocol handler is a no-op
         window.tk_root.protocol("WM_DELETE_WINDOW")() if False else None
@@ -2514,9 +2516,9 @@ class TestForcedModal(unittest.TestCase):
         window.close()
 
     def test_modal_sets_grab_and_blocks_frame_close(self):
-        main = ts.Window("main", [[ts.Text("m")]], finalize=True)
+        main = ts.Window("main", [[ts.TText("m")]], finalize=True)
         dialog = ts.Window(
-            "dialog", [[ts.Button("OK", key="-OK-")]],
+            "dialog", [[ts.TButton("OK", key="-OK-")]],
             finalize=True, modal=True,
         )
         self.assertEqual(dialog.tk_root.grab_current(), dialog.tk_root)
@@ -2527,7 +2529,7 @@ class TestForcedModal(unittest.TestCase):
 
     def test_system_block_released_on_close(self):
         window = ts.Window(
-            "t", [[ts.Text("x")]], finalize=True, system_block=True
+            "t", [[ts.TText("x")]], finalize=True, system_block=True
         )
         self.assertTrue(window._system_block)
         self.assertTrue(window._want_system_block)
@@ -2537,7 +2539,7 @@ class TestForcedModal(unittest.TestCase):
 
     def test_system_block_hide_releases_and_unhide_rearms(self):
         window = ts.Window(
-            "t", [[ts.Text("x")]], finalize=True, system_block=True
+            "t", [[ts.TText("x")]], finalize=True, system_block=True
         )
         self.assertTrue(window._system_block)
         window.hide()
@@ -2549,8 +2551,8 @@ class TestForcedModal(unittest.TestCase):
     def test_system_block_refcount_two_windows(self):
         # two blocking windows stack: closing one must not release the
         # other's hooks (refcount) — only the last close tears them down
-        first = ts.Window("a", [[ts.Text("x")]], finalize=True, system_block=True)
-        second = ts.Window("b", [[ts.Text("x")]], finalize=True, system_block=True)
+        first = ts.Window("a", [[ts.TText("x")]], finalize=True, system_block=True)
+        second = ts.Window("b", [[ts.TText("x")]], finalize=True, system_block=True)
         self.assertTrue(first._system_block and second._system_block)
         first.close()
         self.assertFalse(first._system_block)
@@ -2576,7 +2578,7 @@ class TestForcedModal(unittest.TestCase):
         cfg = ts.WindowConfig(
             title="forced", modal=True, disable_esc=True, system_block=True
         )
-        window = ts.Window(config=cfg, layout=[[ts.Text("x")]], finalize=True)
+        window = ts.Window(config=cfg, layout=[[ts.TText("x")]], finalize=True)
         self.assertTrue(window._modal)
         self.assertTrue(window._disable_esc)
         self.assertTrue(window._system_block)
@@ -2591,7 +2593,7 @@ class TestRunEntry(unittest.TestCase):
 
     def test_window_run_with_explicit_app(self):
         app = ts.TkSimpleEvent()
-        window = ts.Window("one", [[ts.Button("quit", key="-QUIT-")]], finalize=True)
+        window = ts.Window("one", [[ts.TButton("quit", key="-QUIT-")]], finalize=True)
         seen = []
 
         @app.bind_event("-QUIT-")
@@ -2611,7 +2613,7 @@ class TestRunEntry(unittest.TestCase):
         def on_run_event(window, values):
             ts.Window.close_all()
 
-        window = ts.Window("one", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("one", [[ts.TText("x")]], finalize=True)
         window.write_event_value("-RUN-EVENT-")
         window.run()  # no app: default_app() is used, handler above fires
         self.assertEqual(ts.Window.active_windows(), [])
@@ -2626,7 +2628,7 @@ class TestRunEntry(unittest.TestCase):
         def on_late(window, values):
             ts.Window.close_all()
 
-        window = ts.Window("idle", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("idle", [[ts.TText("x")]], finalize=True)
         # post the event AFTER the loop has had a chance to see idle ticks
         window.tk_root.after(300, lambda: window.write_event_value("-LATE-"))
         window.run(app)
@@ -2645,7 +2647,7 @@ class TestRunEntry(unittest.TestCase):
             fired.append(window.title)
             ts.Window.close_all()  # ends the loop
 
-        window = ts.Window("one", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("one", [[ts.TText("x")]], finalize=True)
         window.write_event_value("-PKG-LEVEL-EVENT-")
         window.run()  # default_app must see the handler above
         self.assertEqual(fired, ["one"])
@@ -2654,7 +2656,7 @@ class TestRunEntry(unittest.TestCase):
 
     def test_run_without_finalize_finalizes(self):
         app = ts.TkSimpleEvent()
-        window = ts.Window("one", [[ts.Text("x")]])  # NOT finalized
+        window = ts.Window("one", [[ts.TText("x")]])  # NOT finalized
 
         @app.bind_event("-GO-")
         def on_go(window, values):
@@ -2669,7 +2671,7 @@ class TestRunEntry(unittest.TestCase):
         decisions = [False, True]
         window = ts.Window(
             "guarded",
-            [[ts.Text("x")]],
+            [[ts.TText("x")]],
             finalize=True,
             on_close=lambda w: decisions.pop(0),
         )
@@ -2691,7 +2693,7 @@ class TestRunEntry(unittest.TestCase):
 
     def test_on_close_runtime_setter(self):
         """Setting on_close after construction wires the WM_DELETE_WINDOW hook."""
-        window = ts.Window("late", [[ts.Text("y")]], finalize=True)
+        window = ts.Window("late", [[ts.TText("y")]], finalize=True)
         try:
             self.assertIsNone(window._on_close)
             window.on_close = lambda w: True
@@ -2828,8 +2830,9 @@ class TestRunEntry(unittest.TestCase):
                 callable(getattr(tray, name)),
                 f"{name} should be callable on SystemTray",
             )
-        # the old PascalCase spellings no longer exist
-        for legacy in ("ShowMessage", "Update", "Hide", "UnHide", "ShowMsg"):
+        # the old PascalCase spellings and the PSG style aliases no longer exist
+        for legacy in ("ShowMessage", "Update", "Hide", "UnHide", "ShowMsg",
+                       "Read", "notify"):
             self.assertFalse(
                 hasattr(tray, legacy),
                 f"{legacy} is a removed alias; use the snake_case name",
@@ -2865,7 +2868,7 @@ class TestEventManager(unittest.TestCase):
         def on_values(values):
             self.calls.append(("v", values))
 
-        window = ts.Window("evt", [[ts.Text("x")]], finalize=True)
+        window = ts.Window("evt", [[ts.TText("x")]], finalize=True)
         app.apply_event(window, "wv", {"k": 1})
         app.apply_event(window, "b", {})
         app.apply_event(window, "a", {})
@@ -2900,7 +2903,7 @@ class TestEventManager(unittest.TestCase):
     def test_singleton_window(self):
         @ts.singleton_window
         def make_window(title):
-            return ts.Window(title, [[ts.Text("x")]], finalize=True)
+            return ts.Window(title, [[ts.TText("x")]], finalize=True)
 
         first = make_window("single")
         second = make_window("single")
@@ -2913,7 +2916,7 @@ class TestEventManager(unittest.TestCase):
 
         @ts.singleton_window
         def make_window(title):
-            return ts.Window(title, [[ts.Text("x")]], finalize=True)
+            return ts.Window(title, [[ts.TText("x")]], finalize=True)
 
         first = make_window("evict")
         # closure cells: [0] = original func, [1] = instances dict
@@ -2933,8 +2936,8 @@ class TestEventManager(unittest.TestCase):
 
 
 class TestDisplayElements(unittest.TestCase):
-    """Batch A display.py: Tag, Badge, Avatar, Statistic, Empty, Result,
-    Skeleton, Alert and Watermark (see the batch A design spec)."""
+    """Batch A display.py: TTag, TBadge, TAvatar, TStatistic, TEmpty, TResult,
+    TSkeleton, TAlert and TWatermark (see the batch A design spec)."""
 
     def _window(self, elements):
         """A finalized window around ``elements`` rows (closed on cleanup)."""
@@ -2980,7 +2983,7 @@ class TestDisplayElements(unittest.TestCase):
         ]
 
     def test_tag_get_and_close_click(self):
-        tag = ts.Tag("New", closable=True, enable_events=True, key="-TAG-")
+        tag = ts.TTag("New", closable=True, enable_events=True, key="-TAG-")
         window = self._window([[tag]])
         self.assertEqual(tag.text, "New")
         self.assertEqual(tag.get(), "New")
@@ -3004,7 +3007,7 @@ class TestDisplayElements(unittest.TestCase):
     def test_tag_effects_and_explicit_size(self):
         seen = {}
         for effect in ("light", "dark", "plain"):
-            tag = ts.Tag("E", effect=effect)
+            tag = ts.TTag("E", effect=effect)
             self._window([[tag]])
             canvas = tag.widget
             self.assertGreater(len(canvas.find_all()), 0)
@@ -3020,7 +3023,7 @@ class TestDisplayElements(unittest.TestCase):
         self.assertNotEqual(seen["dark"][0], seen["light"][0])
         self.assertEqual(seen["plain"][0], seen["plain"][2])
         self.assertNotEqual(seen["plain"][1], "")
-        sized = ts.Tag("Sized", size=(90, 26), closable=True)
+        sized = ts.TTag("Sized", size=(90, 26), closable=True)
         self._window([[sized]])
         self.assertEqual(int(sized.widget.cget("width")), 90)
         self.assertEqual(int(sized.widget.cget("height")), 26)
@@ -3030,7 +3033,7 @@ class TestDisplayElements(unittest.TestCase):
         """A real click on the close button (event_generate on the button
         itself, not the canvas) closes the tag — the dispatch goes through
         tk's native button command, not canvas pixel-hunting."""
-        tag = ts.Tag("X", closable=True, key="-T-")
+        tag = ts.TTag("X", closable=True, key="-T-")
         window = self._window([[tag]])
         for _ in range(3):
             window.tk_root.update()
@@ -3042,7 +3045,7 @@ class TestDisplayElements(unittest.TestCase):
         self.assertFalse(tag.visible)
 
     def test_badge_max_value_and_clear(self):
-        badge = ts.Badge(value=120, max_value=99, key="-BADGE-")
+        badge = ts.TBadge(value=120, max_value=99, key="-BADGE-")
         self._window([[badge]])
         self.assertEqual(badge._label(), "99+")
         self.assertEqual(badge.get(), 120)  # the raw value, not the caption
@@ -3056,31 +3059,31 @@ class TestDisplayElements(unittest.TestCase):
         self.assertEqual(len(badge.widget.find_all()), 0)
 
     def test_badge_dot_and_empty_value(self):
-        dot = ts.Badge(value=5, is_dot=True)
+        dot = ts.TBadge(value=5, is_dot=True)
         self._window([[dot]])
         self.assertEqual(dot._label(), "")  # a dot ignores the value text
         self.assertEqual(dot._width, 10)  # size[1] or 10
         self.assertEqual(dot._width, dot._height)
         self.assertEqual(len(dot.widget.find_all()), 1)
-        empty = ts.Badge()
+        empty = ts.TBadge()
         self._window([[empty]])
         self.assertIsNone(empty.get())
         self.assertEqual(len(empty.widget.find_all()), 0)
         self.assertEqual((empty._width, empty._height), (1, 1))
 
     def test_avatar_initials_and_shapes(self):
-        avatar = ts.Avatar(text="Yun Luo", key="-AV-")
+        avatar = ts.TAvatar(text="Yun Luo", key="-AV-")
         self._window([[avatar]])
         self.assertEqual(avatar._initials, "Yu")
         self.assertEqual(avatar.get(), "Yun Luo")
         self.assertGreaterEqual(len(avatar.widget.find_all()), 2)
-        square = ts.Avatar(text="AB", shape="square", size=(48, 48))
+        square = ts.TAvatar(text="AB", shape="square", size=(48, 48))
         self._window([[square]])
         self.assertEqual(int(square.widget.cget("width")), 48)
         self.assertEqual(int(square.widget.cget("height")), 48)
 
     def test_avatar_image_and_update(self):
-        avatar = ts.Avatar(data_base64=ts.DEFAULT_BASE64_ICON, key="-AV-")
+        avatar = ts.TAvatar(data_base64=ts.DEFAULT_BASE64_ICON, key="-AV-")
         self._window([[avatar]])
         kinds = [avatar.widget.type(item) for item in avatar.widget.find_all()]
         self.assertIn("image", kinds)
@@ -3090,7 +3093,7 @@ class TestDisplayElements(unittest.TestCase):
         self.assertEqual(avatar.text, "Zed")
 
     def test_statistic_value_and_format(self):
-        stat = ts.Statistic("Win", value=1234, prefix="$", suffix="/mo", key="-ST-")
+        stat = ts.TStatistic("Win", value=1234, prefix="$", suffix="/mo", key="-ST-")
         self._window([[stat]])
         self.assertEqual(stat.get(), 1234)  # the raw value
         self.assertEqual(stat._value_text(), "1234")
@@ -3099,12 +3102,12 @@ class TestDisplayElements(unittest.TestCase):
         self.assertIn("$", texts)
         self.assertIn("/mo", texts)
         self.assertIn("1234", texts)
-        precise = ts.Statistic("P", value=3, precision=2)
+        precise = ts.TStatistic("P", value=3, precision=2)
         self._window([[precise]])
         self.assertEqual(precise._value_text(), "3.00")
 
     def test_statistic_trends_and_update(self):
-        stat = ts.Statistic("Win", value=10, trend=12.5, key="-ST-")
+        stat = ts.TStatistic("Win", value=10, trend=12.5, key="-ST-")
         self._window([[stat]])
         self.assertTrue(stat._trend_direction())
         self.assertEqual(stat._trend_label(), "12.5%")
@@ -3118,7 +3121,7 @@ class TestDisplayElements(unittest.TestCase):
         self.assertIn("Loss", texts)
 
     def test_empty_glyph_and_update(self):
-        empty = ts.Empty(key="-EMPTY-")
+        empty = ts.TEmpty(key="-EMPTY-")
         self._window([[empty]])
         self.assertEqual(empty.get(), "No data")
         self.assertGreaterEqual(len(empty.widget.find_all()), 2)  # glyph + text
@@ -3127,7 +3130,7 @@ class TestDisplayElements(unittest.TestCase):
         self.assertIn("Nothing here", self._canvas_texts(empty))
 
     def test_empty_image_variant(self):
-        empty = ts.Empty(data_base64=ts.DEFAULT_BASE64_ICON, text="")
+        empty = ts.TEmpty(data_base64=ts.DEFAULT_BASE64_ICON, text="")
         self._window([[empty]])
         kinds = [empty.widget.type(item) for item in empty.widget.find_all()]
         self.assertIn("image", kinds)
@@ -3135,21 +3138,21 @@ class TestDisplayElements(unittest.TestCase):
     def test_empty_compact_one_line_default(self):
         """No size passed → one-line compact layout (icon + caption in a
         row, not the old 110-px hero)."""
-        empty = ts.Empty("nothing here", key="-E-")
+        empty = ts.TEmpty("nothing here", key="-E-")
         self._window([[empty]])
         # the compact icon is 16 px wide; default box is much shorter
         self.assertLessEqual(int(empty.widget.cget("height")), 22)
         texts = self._canvas_texts(empty)
         self.assertIn("nothing here", texts)
         # explicit legacy size still triggers the centred hero layout
-        legacy = ts.Empty("big", size=(160, 110), key="-E2-")
+        legacy = ts.TEmpty("big", size=(160, 110), key="-E2-")
         self._window([[legacy]])
         self.assertEqual(int(legacy.widget.cget("height")), 110)
         self.assertIn("big", self._canvas_texts(legacy))
 
     def test_result_statuses_render(self):
         results = [
-            ts.Result("Title " + status, "Sub", status=status, key="-R-" + status)
+            ts.TResult("Title " + status, "Sub", status=status, key="-R-" + status)
             for status in ("info", "success", "warning", "error")
         ]
         window = self._window([[result] for result in results])
@@ -3162,8 +3165,8 @@ class TestDisplayElements(unittest.TestCase):
         self.assertEqual(results[0].get(), "Title info")
 
     def test_skeleton_rows_geometry_and_animation(self):
-        small = ts.Skeleton(rows=2, key="-SMALL-")
-        tall = ts.Skeleton(rows=5, key="-TALL-")
+        small = ts.TSkeleton(rows=2, key="-SMALL-")
+        tall = ts.TSkeleton(rows=5, key="-TALL-")
         self._window([[small, tall]])
         self.assertEqual(small.get(), 2)
         self.assertTrue(small.animated)
@@ -3177,7 +3180,7 @@ class TestDisplayElements(unittest.TestCase):
         small.stop_animation()
 
     def test_skeleton_avatar_variant(self):
-        skeleton = ts.Skeleton(rows=2, avatar=True, key="-SK-")
+        skeleton = ts.TSkeleton(rows=2, avatar=True, key="-SK-")
         self._window([[skeleton]])
         self.assertEqual(skeleton.get(), 2)
         self.assertEqual(skeleton._height, 40)  # avatar keeps at least 40px
@@ -3186,7 +3189,7 @@ class TestDisplayElements(unittest.TestCase):
 
     def test_alert_effects_and_types_render(self):
         alerts = [
-            ts.Alert("message", type=kind, title="Header", effect=effect)
+            ts.TAlert("message", type=kind, title="Header", effect=effect)
             for effect in ("light", "dark")
             for kind in ("info", "success", "warning", "error")
         ]
@@ -3203,7 +3206,7 @@ class TestDisplayElements(unittest.TestCase):
             self.assertGreater(len(alert._icon_canvas.find_all()), 0)
 
     def test_alert_close_click_and_update(self):
-        alert = ts.Alert("body", title="Ti", key="-ALERT-")
+        alert = ts.TAlert("body", title="Ti", key="-ALERT-")
         window = self._window([[alert]])
         self._click(window, alert._close_canvas, 8, 8)
         self.assertIn(("-ALERT-", "close"), self._events(window))
@@ -3218,7 +3221,7 @@ class TestDisplayElements(unittest.TestCase):
         self.assertGreater(len(alert._icon_canvas.find_all()), 0)
 
     def test_alert_close_reopen_and_property(self):
-        alert = ts.Alert("info", key="-A-")
+        alert = ts.TAlert("info", key="-A-")
         window = self._window([[alert]])
         self.assertFalse(alert.closed)
         alert.close()
@@ -3232,7 +3235,7 @@ class TestDisplayElements(unittest.TestCase):
         self.assertTrue(alert.visible)
 
     def test_watermark_tiling_and_update(self):
-        watermark = ts.Watermark("DRAFT", angle=0, key="-WM-")
+        watermark = ts.TWatermark("DRAFT", angle=0, key="-WM-")
         self._window([[watermark]])
         self.assertEqual(watermark.get(), "DRAFT")
         items = watermark.widget.find_all()
@@ -3244,14 +3247,14 @@ class TestDisplayElements(unittest.TestCase):
         self.assertGreater(len(watermark.widget.find_all()), 1)
 
     def test_watermark_default_angle_renders(self):
-        watermark = ts.Watermark("DRAFT", key="-WM-")
+        watermark = ts.TWatermark("DRAFT", key="-WM-")
         self._window([[watermark]])
         self.assertEqual(watermark._angle, -30.0)
         # Pillow paints one rotated image patch; the fallback paints texts
         self.assertGreater(len(watermark.widget.find_all()), 0)
 
     def test_watermark_follows_theme(self):
-        watermark = ts.Watermark("DRAFT", size=(180, 120), key="-WM-")
+        watermark = ts.TWatermark("DRAFT", size=(180, 120), key="-WM-")
         window = self._window([[watermark]])
         ts.theme("Slate")
         try:
@@ -3267,13 +3270,13 @@ class TestDisplayElements(unittest.TestCase):
 
     def test_canvas_elements_follow_theme(self):
         elements = [
-            ts.Tag("A", key="-TAG-"),
-            ts.Badge(3, key="-BADGE-"),
-            ts.Statistic("Count", key="-STAT-"),
-            ts.Steps(["One", "Two"], key="-STEPS-"),
-            ts.Rate(key="-RATE-"),
-            ts.Pagination(total=95, key="-PAGE-"),
-            ts.Watermark("W", key="-WM-"),
+            ts.TTag("A", key="-TAG-"),
+            ts.TBadge(3, key="-BADGE-"),
+            ts.TStatistic("Count", key="-STAT-"),
+            ts.TSteps(["One", "Two"], key="-STEPS-"),
+            ts.TRate(key="-RATE-"),
+            ts.TPagination(total=95, key="-PAGE-"),
+            ts.TWatermark("W", key="-WM-"),
         ]
         window = self._window([elements])
         ts.theme("Dusk")
@@ -3292,7 +3295,7 @@ class TestDisplayElements(unittest.TestCase):
 
 
 class TestPanelElements(unittest.TestCase):
-    """Batch A panels.py: Card, Descriptions, Steps and Timeline."""
+    """Batch A panels.py: TCard, TDescriptions, TSteps and TTimeline."""
 
     def _window(self, elements):
         """A finalized window around ``elements`` rows (closed on cleanup)."""
@@ -3301,11 +3304,11 @@ class TestPanelElements(unittest.TestCase):
         return window
 
     def test_card_header_and_nested_layout(self):
-        card = ts.Card(
+        card = ts.TCard(
             "Server",
-            [[ts.Text("Host"), ts.Input(key="-HOST-")]],
+            [[ts.TText("Host"), ts.TInput(key="-HOST-")]],
             subtitle="prod-01",
-            extra=ts.Button("Restart", key="-RESTART-"),
+            extra=ts.TButton("Restart", key="-RESTART-"),
             key="-CARD-",
         )
         window = self._window([[card]])
@@ -3318,20 +3321,20 @@ class TestPanelElements(unittest.TestCase):
         self.assertEqual(int(card.widget.cget("highlightthickness")), 1)
 
     def test_card_update_and_titleless(self):
-        card = ts.Card("Title", [[ts.Text("body")]], key="-CARD-")
+        card = ts.TCard("Title", [[ts.TText("body")]], key="-CARD-")
         self._window([[card]])
         card.update(title="Changed", subtitle="line two")
         self.assertEqual(card.get(), "Changed")
         self.assertEqual(str(card._title_label.cget("text")), "Changed")
         self.assertEqual(str(card._subtitle_label.cget("text")), "line two")
-        bare = ts.Card(layout=[[ts.Text("no header", key="-INNER-")]], key="-BARE-")
+        bare = ts.TCard(layout=[[ts.TText("no header", key="-INNER-")]], key="-BARE-")
         window = self._window([[bare]])
         self.assertIsNone(bare.get())
         self.assertFalse(bare._header.winfo_manager())  # the header row collapsed
         self.assertIsNotNone(window["-INNER-"])
 
     def test_card_follows_theme(self):
-        card = ts.Card("T", [[ts.Text("x")]], key="-CARD-")
+        card = ts.TCard("T", [[ts.TText("x")]], key="-CARD-")
         window = self._window([[card]])
         ts.theme("Slate")
         try:
@@ -3344,7 +3347,7 @@ class TestPanelElements(unittest.TestCase):
             card.apply_theme()
 
     def test_descriptions_get_columns_and_border(self):
-        descriptions = ts.Descriptions(
+        descriptions = ts.TDescriptions(
             [("Host", "10.0.0.7"), ("Port", 8080), ("A", 1), ("B", 2), ("C", 3)],
             columns=3,
             bordered=True,
@@ -3366,12 +3369,12 @@ class TestPanelElements(unittest.TestCase):
             str(child.cget("text")) for child in descriptions.widget.winfo_children()
         ]
         self.assertIn("Host:", texts)
-        mapped = ts.Descriptions({"x": 1, "y": 2})
+        mapped = ts.TDescriptions({"x": 1, "y": 2})
         self._window([[mapped]])
         self.assertEqual(mapped.get(), {"x": 1, "y": 2})
 
     def test_descriptions_update_rebuilds(self):
-        descriptions = ts.Descriptions([("Host", "a")], key="-DESC-")
+        descriptions = ts.TDescriptions([("Host", "a")], key="-DESC-")
         self._window([[descriptions]])
         before = len(descriptions.widget.winfo_children())
         descriptions.update(items=[("A", 1), ("B", 2), ("C", 3), ("D", 4), ("E", 5)])
@@ -3388,14 +3391,14 @@ class TestPanelElements(unittest.TestCase):
         self.assertNotIn("Host", texts)
 
     def test_steps_horizontal_states_and_geometry(self):
-        steps = ts.Steps(["One", "Two", "Three"], active=1, key="-STEPS-")
+        steps = ts.TSteps(["One", "Two", "Three"], active=1, key="-STEPS-")
         self._window([[steps]])
         self.assertEqual(steps.get(), 1)
         self.assertEqual(steps._state(0), "finish")
         self.assertEqual(steps._state(1), "process")
         self.assertEqual(steps._state(2), "wait")
         self.assertGreater(len(steps.widget.find_all()), 0)
-        single = ts.Steps(["One"], key="-SINGLE-")
+        single = ts.TSteps(["One"], key="-SINGLE-")
         self._window([[single]])
         # the canvas widens with the item count
         self.assertLess(
@@ -3403,7 +3406,7 @@ class TestPanelElements(unittest.TestCase):
         )
 
     def test_steps_error_status_and_update(self):
-        steps = ts.Steps(["One", "Two", "Three"], active=1, status="error", key="-S-")
+        steps = ts.TSteps(["One", "Two", "Three"], active=1, status="error", key="-S-")
         self._window([[steps]])
         self.assertEqual(steps._state(1), "danger")
         steps.update(active=2, status="process")
@@ -3413,8 +3416,8 @@ class TestPanelElements(unittest.TestCase):
         self.assertGreater(len(steps.widget.find_all()), 0)
 
     def test_steps_vertical_geometry(self):
-        vertical = ts.Steps(["a", "b", "c"], direction="vertical", key="-VERT-")
-        horizontal = ts.Steps(["a", "b", "c"], key="-HOR-")
+        vertical = ts.TSteps(["a", "b", "c"], direction="vertical", key="-VERT-")
+        horizontal = ts.TSteps(["a", "b", "c"], key="-HOR-")
         self._window([[vertical, horizontal]])
         self.assertEqual(vertical.direction, "vertical")
         # n * row_height (64), taller than the flat 70px horizontal row
@@ -3425,7 +3428,7 @@ class TestPanelElements(unittest.TestCase):
         self.assertGreater(len(vertical.widget.find_all()), 0)
 
     def test_timeline_forms_and_get(self):
-        timeline = ts.Timeline(
+        timeline = ts.TTimeline(
             [
                 "Deployed",
                 ("10:00", "Build finished"),
@@ -3447,7 +3450,7 @@ class TestPanelElements(unittest.TestCase):
         self.assertGreater(len(timeline.widget.find_all()), 0)
 
     def test_timeline_update(self):
-        timeline = ts.Timeline(["first"], key="-TL-")
+        timeline = ts.TTimeline(["first"], key="-TL-")
         self._window([[timeline]])
         timeline.update(items=[("12:00", "Only one"), {"content": "two"}])
         self.assertEqual(timeline.get(), [("12:00", "Only one"), (None, "two")])
@@ -3455,7 +3458,7 @@ class TestPanelElements(unittest.TestCase):
 
 
 class TestSelectionElements(unittest.TestCase):
-    """Batch A selection.py: Segmented, Rate, Pagination and Transfer."""
+    """Batch A selection.py: TSegmented, TRate, TPagination and TTransfer."""
 
     def _window(self, elements):
         """A finalized window around ``elements`` rows (closed on cleanup)."""
@@ -3492,7 +3495,7 @@ class TestSelectionElements(unittest.TestCase):
         return seen
 
     def test_segmented_default_and_update(self):
-        segmented = ts.Segmented(["Day", "Week", "Month"], key="-SEG-")
+        segmented = ts.TSegmented(["Day", "Week", "Month"], key="-SEG-")
         self._window([[segmented]])
         self.assertEqual(segmented.get(), "Day")  # the first option by default
         segmented.update(value="Week")
@@ -3502,7 +3505,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertGreater(len(segmented.widget.find_all()), 0)
 
     def test_segmented_pairs_and_click(self):
-        segmented = ts.Segmented([("Day", "d"), ("Week", "w")], key="-SEG-")
+        segmented = ts.TSegmented([("Day", "d"), ("Week", "w")], key="-SEG-")
         window = self._window([[segmented]])
         self.assertEqual(segmented.get(), "d")  # (label, value) pairs
         left, right = segmented._cells[1]
@@ -3511,7 +3514,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(segmented.get(), "w")
 
     def test_segmented_readonly_ignores_click(self):
-        segmented = ts.Segmented(["a", "b"], readonly=True, key="-SEG-")
+        segmented = ts.TSegmented(["a", "b"], readonly=True, key="-SEG-")
         window = self._window([[segmented]])
         left, right = segmented._cells[1]
         self._click(window, segmented.widget, int((left + right) // 2), 15)
@@ -3519,7 +3522,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(segmented.get(), "a")
 
     def test_segmented_options_update_keeps_value(self):
-        segmented = ts.Segmented(["a", "b", "c"], default_value="b", key="-SEG-")
+        segmented = ts.TSegmented(["a", "b", "c"], default_value="b", key="-SEG-")
         self._window([[segmented]])
         segmented.update(options=["b", "x"])
         self.assertEqual(segmented.get(), "b")  # still offered: kept
@@ -3528,7 +3531,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(len(segmented._cells), 2)
 
     def test_rate_defaults_and_update(self):
-        rate = ts.Rate(key="-RATE-")
+        rate = ts.TRate(key="-RATE-")
         self._window([[rate]])
         self.assertEqual(rate.get(), 0.0)
         self.assertTrue(rate._allow_half)
@@ -3537,7 +3540,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertGreater(len(rate.widget.find_all()), 4)
 
     def test_rate_half_star_click_posts_once(self):
-        rate = ts.Rate(key="-RATE-")
+        rate = ts.TRate(key="-RATE-")
         window = self._window([[rate]])
         # the left half of the first star selects 0.5
         self.assertEqual(rate._value_at(5), 0.5)
@@ -3550,48 +3553,48 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(rate.get(), 0.5)
 
     def test_rate_readonly_and_max_value(self):
-        readonly = ts.Rate(readonly=True, key="-R-")
+        readonly = ts.TRate(readonly=True, key="-R-")
         window = self._window([[readonly]])
         self._click(window, readonly.widget, 5, 13)
         self.assertNotIn("-R-", self._events(window, timeout=200))
         self.assertEqual(readonly.get(), 0.0)
-        wide = ts.Rate(max_value=10, key="-W-")
+        wide = ts.TRate(max_value=10, key="-W-")
         self._window([[wide]])
         self.assertGreater(
             int(wide.widget.cget("width")), int(readonly.widget.cget("width"))
         )
 
     def test_pagination_page_count_and_validation(self):
-        pager = ts.Pagination(total=95, page_size=10, key="-PAGE-")
+        pager = ts.TPagination(total=95, page_size=10, key="-PAGE-")
         self._window([[pager]])
         self.assertEqual(pager.page_count, 10)
         self.assertEqual(pager.get(), 1)
         with self.assertRaises(ValueError):
-            ts.Pagination(total=10, page_size=0)
+            ts.TPagination(total=10, page_size=0)
         with self.assertRaises(ValueError):
-            ts.Pagination(total=-1)
+            ts.TPagination(total=-1)
 
     def test_pagination_clamps_current_page(self):
-        pager = ts.Pagination(total=95, current_page=99, key="-PAGE-")
+        pager = ts.TPagination(total=95, current_page=99, key="-PAGE-")
         self._window([[pager]])
         self.assertEqual(pager.page_count, 10)
         self.assertEqual(pager.get(), 10)  # clamped into [1, page_count]
 
     def test_pagination_window_algorithm(self):
-        pager = ts.Pagination(total=95, page_size=10, pager_count=5, key="-P-")
+        pager = ts.TPagination(total=95, page_size=10, pager_count=5, key="-P-")
         self._window([[pager]])
         self.assertEqual(pager._page_window(), [1, 2, 3, 4, "\u2026", 10])
         pager.update(current_page=5)
         self.assertEqual(pager._page_window(), [1, "\u2026", 4, 5, 6, "\u2026", 10])
         pager.update(current_page=10)
         self.assertEqual(pager._page_window(), [1, "\u2026", 7, 8, 9, 10])
-        short = ts.Pagination(total=50, page_size=10, pager_count=5, key="-S-")
+        short = ts.TPagination(total=50, page_size=10, pager_count=5, key="-S-")
         self._window([[short]])
         # page_count <= pager_count: every page is shown
         self.assertEqual(short._page_window(), [1, 2, 3, 4, 5])
 
     def test_pagination_click_and_update(self):
-        pager = ts.Pagination(total=95, current_page=5, key="-PAGE-")
+        pager = ts.TPagination(total=95, current_page=5, key="-PAGE-")
         window = self._window([[pager]])
         box = None
         for entry in pager._boxes:
@@ -3610,7 +3613,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(pager.get(), 2)
 
     def test_pagination_show_total(self):
-        pager = ts.Pagination(total=95, show_total=True, key="-PAGE-")
+        pager = ts.TPagination(total=95, show_total=True, key="-PAGE-")
         self._window([[pager]])
         texts = [
             str(pager.widget.itemcget(item, "text"))
@@ -3620,7 +3623,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertIn("Total 95", texts)
 
     def test_transfer_get_and_moves(self):
-        transfer = ts.Transfer(["a", "b", "c"], target_items=["x"], key="-TR-")
+        transfer = ts.TTransfer(["a", "b", "c"], target_items=["x"], key="-TR-")
         self._window([[transfer]])
         self.assertEqual(transfer.get(), ["x"])  # the target list
         transfer._source_list.selection_set(0)
@@ -3632,7 +3635,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(transfer._source_list.size(), 0)
 
     def test_transfer_double_click_moves_one_item(self):
-        transfer = ts.Transfer(["a", "b", "c"], key="-TR-")
+        transfer = ts.TTransfer(["a", "b", "c"], key="-TR-")
         window = self._window([[transfer]])
         window.tk_root.update()
         box = transfer._source_list.bbox(0)
@@ -3647,7 +3650,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(transfer._source_list.size(), 2)
 
     def test_transfer_update_and_events(self):
-        transfer = ts.Transfer(["a", "b"], enable_events=True, key="-TR-")
+        transfer = ts.TTransfer(["a", "b"], enable_events=True, key="-TR-")
         window = self._window([[transfer]])
         transfer._source_list.selection_set(0)
         transfer.move_selected()
@@ -3673,7 +3676,7 @@ class TestSelectionElements(unittest.TestCase):
             window.tk_root.update()
 
     def test_rate_keyboard_steps_and_clamps(self):
-        rate = ts.Rate(max_value=5, default_value=2, key="-R-")
+        rate = ts.TRate(max_value=5, default_value=2, key="-R-")
         window = self._window([[rate]])
         self._key(window, rate.widget, "Right")
         self.assertEqual(rate.get(), 3)
@@ -3687,7 +3690,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(rate.get(), 0)
 
     def test_pagination_keyboard_navigates(self):
-        pagination = ts.Pagination(total=120, page_size=10, current_page=3,
+        pagination = ts.TPagination(total=120, page_size=10, current_page=3,
                                    key="-P-")
         window = self._window([[pagination]])
         self._key(window, pagination.widget, "Right")
@@ -3700,7 +3703,7 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(pagination.get(), 1)  # already on first page
 
     def test_steps_keyboard_navigates(self):
-        steps = ts.Steps(["A", "B", "C", "D"], active=1, key="-S-")
+        steps = ts.TSteps(["A", "B", "C", "D"], active=1, key="-S-")
         window = self._window([[steps]])
         self._key(window, steps.widget, "Right")
         self.assertEqual(steps.active, 2)
@@ -3713,10 +3716,10 @@ class TestSelectionElements(unittest.TestCase):
 
 
 class TestLogger(unittest.TestCase):
-    """Logging into an Output / Multiline element (Logger + ts.log)."""
+    """Logging into an TOutput / TMultiline element (Logger + ts.log)."""
 
     def _out(self, **kwargs):
-        element = ts.Output(size=(40, 6), key="-LOG-", **kwargs)
+        element = ts.TOutput(size=(40, 6), key="-LOG-", **kwargs)
         window = ts.Window("log", [[element]], finalize=True)
         self.addCleanup(window.close)
         return window, element
@@ -3816,7 +3819,7 @@ class TestLogger(unittest.TestCase):
         self.assertEqual(out.get(), "")
 
     def test_line_count_before_creation(self):
-        self.assertEqual(ts.Output("", size=(20, 3)).line_count, 0)
+        self.assertEqual(ts.TOutput("", size=(20, 3)).line_count, 0)
 
     def test_attach_logging_bridges_stdlib(self):
         window, out = self._out()
@@ -3899,8 +3902,8 @@ class TestLogger(unittest.TestCase):
         self.assertFalse(ts.log("nowhere to go"))
 
     def test_window_elements_lists_everything(self):
-        anonymous = ts.Text("no key here")
-        element = ts.Output(size=(40, 6), key="-LOG-")
+        anonymous = ts.TText("no key here")
+        element = ts.TOutput(size=(40, 6), key="-LOG-")
         window = ts.Window("log", [[element], [anonymous]], finalize=True)
         self.addCleanup(window.close)
         elements = window.elements
@@ -3961,7 +3964,7 @@ class TestPy37Compatibility(unittest.TestCase):
         self.assertEqual(offenders, [])
 
     def test_slots_encapsulation(self):
-        element = ts.Text("x")
+        element = ts.TText("x")
         self.assertFalse(hasattr(element, "__dict__"))
 
 

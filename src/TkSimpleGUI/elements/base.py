@@ -24,7 +24,7 @@ import tkinter as tk
 
 from .. import constants as C
 from .. import _theming as theme_mod
-from .. import settings as settings_mod
+from ..settings import settings
 
 # A user-visible element key (str or any hashable); None means "no key".
 ElementKey = Optional[Any]
@@ -306,7 +306,7 @@ class Element(metaclass=ElementBaseMeta):
         self._tooltip_binding = Tooltip(self._bind_target, self._tooltip)
 
     def _resolve_font(self, font):
-        return font if font is not None else settings_mod.settings.font
+        return font if font is not None else settings.font
 
     # --- user API ---------------------------------------------------------------
     def get(self) -> Any:
@@ -334,7 +334,7 @@ class Element(metaclass=ElementBaseMeta):
 
         ``callback(element, event)`` runs on the event, or ``key`` (or the
         element's own key when both are omitted) is posted into the window
-        queue. Subclasses may reinterpret the first parameter (Table binds
+        queue. Subclasses may reinterpret the first parameter (TTable binds
         data records instead); anything not understood should fall back to
         ``super().bind``. Returns self.
         """
@@ -383,7 +383,7 @@ class Element(metaclass=ElementBaseMeta):
 
         The default implementation refreshes only ttk styles (a no-op for
         plain tk widgets); element classes that paint theme colors directly
-        onto tk widgets (Text, Input, Frame, Column, Canvas, StatusBar…)
+        onto tk widgets (TText, TInput, TFrame, TColumn, TCanvas, TStatusBar…)
         override this to reconfigure their options. Elements that were
         created with explicit ``text_color`` / ``background_color`` keep
         those -- only theme-derived colors change. Returns self.
@@ -408,7 +408,7 @@ class Tooltip:
         self._text = text
         self._tip = None
         self._id = None
-        delay = delay_ms if delay_ms is not None else settings_mod.settings.tooltip_time
+        delay = delay_ms if delay_ms is not None else settings.tooltip_time
         widget.bind("<Enter>", self._schedule, add="+")
         widget.bind("<Leave>", self._hide, add="+")
         self._delay = delay

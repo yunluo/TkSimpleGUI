@@ -14,14 +14,14 @@ from .. import _theming as theme_mod
 _WEEKDAY_HEADERS = ("Mo", "Tu", "We", "Th", "Fr", "Sa", "Su")
 
 
-class Calendar(Element):
+class TCalendar(Element):
     """A month view with clickable days.
 
     Clicking a day selects it and posts the element's key. Navigate months
     with the built-in ``<``/``>`` buttons. ``get()`` returns the selected
     date formatted with ``dateformat`` (default ``"%Y-%m-%d"``)::
 
-        cal = ts.Calendar(key="-CAL-", default_date=datetime.date.today())
+        cal = ts.TCalendar(key="-CAL-", default_date=datetime.date.today())
         event, values = window.read()
         print(values["-CAL-"])  # "2026-10-11"
     """

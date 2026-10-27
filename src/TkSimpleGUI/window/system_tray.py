@@ -325,8 +325,6 @@ class SystemTray:
                 return C.TIMEOUT_KEY, None
             time.sleep(0.01)
 
-    Read = read  # TkSimpleGUI style alias
-
     def close(self):
         """Remove the icon and release the tray resources."""
         self.hide()
@@ -339,9 +337,6 @@ class SystemTray:
                 self._tk_root.destroy()
             self._tk_root = None  # ty: ignore[invalid-assignment]
         return self
-
-    # --- PSG style aliases -----------------------------------------------------
-    notify = show_message
 
     def run(self, app=None):
         """Start a tray-only application loop with THIS tray icon as root.

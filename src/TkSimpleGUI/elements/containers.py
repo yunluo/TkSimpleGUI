@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Container elements: Frame, Column, Tab, TabGroup and Menu."""
+"""Container elements: TFrame, TColumn, TTab, TTabGroup and TMenu."""
 
 import tkinter as tk
 from tkinter import ttk
@@ -7,13 +7,13 @@ from typing import Any, Dict, List, cast
 from .._typing_compat import Literal
 
 from .base import ContainerElement, Element, _validate_layout
-from .widgets import Input, Text
+from .widgets import TInput, TText
 from .. import constants as C
 from .. import _theming as theme_mod
 
 
 
-class Frame(ContainerElement):
+class TFrame(ContainerElement):
     """A labelled frame holding a nested layout.
 
     ``label_anchor`` places the title ("nw", "n", "ne", "en", "e", "es",
@@ -100,7 +100,7 @@ class Frame(ContainerElement):
         return self
 
 
-class Column(ContainerElement):
+class TColumn(ContainerElement):
     """An invisible container holding a nested layout."""
 
     __slots__ = ("_background_color", "_vertical_alignment")
@@ -160,8 +160,8 @@ class Column(ContainerElement):
         return self
 
 
-class Tab(ContainerElement):
-    """A single tab page; must live inside a :class:`TabGroup`."""
+class TTab(ContainerElement):
+    """A single tab page; must live inside a :class:`TTabGroup`."""
 
     __slots__ = ("_title",)
 
@@ -208,12 +208,12 @@ class Tab(ContainerElement):
         return self
 
 
-class TabGroup(Element):
-    """Notebook of :class:`Tab` elements.
+class TTabGroup(Element):
+    """Notebook of :class:`TTab` elements.
 
     With ``enable_events=True`` switching tabs posts the tab's title (or
     ``(key, title)`` when the group has a key). ``enable_traversal`` adds
-    Ctrl+Tab keyboard navigation; individual tabs can be disabled or hidden
+    Ctrl+TTab keyboard navigation; individual tabs can be disabled or hidden
     through :meth:`update`. ``enable_close=True`` renders an "×" on every
     tab — ttk.Notebook has no native close button, so a click in the
     trailing hit-zone of a tab is detected manually and posted as
@@ -262,8 +262,8 @@ class TabGroup(Element):
         tabs = []
         for row in rows:
             for element in row:
-                if not isinstance(element, Tab):
-                    raise TypeError("TabGroup layout may only contain Tab elements")
+                if not isinstance(element, TTab):
+                    raise TypeError("TTabGroup layout may only contain TTab elements")
                 tabs.append(element)
         self._tabs = tabs
         self._enable_events = bool(enable_events)
@@ -383,8 +383,8 @@ class TabGroup(Element):
         return self
 
 
-class Menu(Element):
-    """Menu bar built from a TkSimpleGUI menu definition.
+class TMenu(Element):
+    """TMenu bar built from a TkSimpleGUI menu definition.
 
     The definition is a list of entries: ``["Label", ["Item", "Item2"]]``.
     Items starting with the disable character are disabled; the separator
@@ -467,14 +467,14 @@ class Menu(Element):
         return self
 
 
-class Splitter(ContainerElement):
+class TSplitter(ContainerElement):
     """Paned container: draggable splitters between nested layouts.
 
     ``layouts`` is a list of layouts (each a normal list of rows); every
     layout becomes one pane. ``orientation`` "h" stacks panes side by side,
     "v" on top of each other. Delphi's TSplitter / Qt's QSplitter equivalent::
 
-        ts.Splitter([[ts.Text("left")], [ts.Input()]], [[ts.Text("right")]])
+        ts.TSplitter([[ts.TText("left")], [ts.TInput()]], [[ts.TText("right")]])
     """
 
     __slots__ = (
@@ -512,7 +512,7 @@ class Splitter(ContainerElement):
             metadata=metadata,
         )
         if not isinstance(layouts, (list, tuple)) or len(layouts) < 2:
-            raise TypeError("Splitter needs a list of at least two layouts")
+            raise TypeError("TSplitter needs a list of at least two layouts")
         self._layouts = [_validate_layout(layout) for layout in layouts]
         self._orientation = orientation
         self._handle_size = handle_size
@@ -547,13 +547,13 @@ class Splitter(ContainerElement):
         return self
 
 
-class ScrollableColumn(ContainerElement):
+class TScrollableColumn(ContainerElement):
     """A vertically (and optionally horizontally) scrollable container.
 
     Delphi's TScrollBox equivalent: nested layout content larger than the
     element scrolls with the mouse wheel or scrollbars::
 
-        ts.ScrollableColumn(long_layout, size=(300, 200))
+        ts.TScrollableColumn(long_layout, size=(300, 200))
     """
 
     __slots__ = (
@@ -647,7 +647,7 @@ class ScrollableColumn(ContainerElement):
 
     # --- mouse wheel -----------------------------------------------------------
     def _scroll_command(self):
-        """The yview command a standalone :class:`Scrollbar` can drive."""
+        """The yview command a standalone :class:`TScrollbar` can drive."""
         return self._canvas.yview
 
     def _bind_wheel(self, _event):
@@ -696,14 +696,14 @@ def _height_of(size):
     return size[1] if size and size[1] else 200
 
 
-class Toolbar(Element):
+class TToolbar(Element):
     """Row of uniform buttons (Delphi TToolBar equivalent).
 
     ``tools`` items:
 
-    - ``"Text"`` — a button that posts its text as the event
-    - ``("Text", "-KEY-")`` — a button with an explicit key
-    - ``("Text", "-KEY-", ["item", "---", "item2"])`` — dropdown button;
+    - ``"TText"`` — a button that posts its text as the event
+    - ``("TText", "-KEY-")`` — a button with an explicit key
+    - ``("TText", "-KEY-", ["item", "---", "item2"])`` — dropdown button;
       selecting an item posts the item label as the event
     - ``"---"`` — a vertical separator
     """
@@ -807,11 +807,11 @@ class Toolbar(Element):
         return self
 
 
-class LabeledEdit(ContainerElement):
+class TLabeledEdit(ContainerElement):
     """Label plus input in one element (Delphi TLabeledEdit).
 
-    The key belongs to the :class:`~TkSimpleGUI.elements.widgets.Input`;
-    ``window[key]`` and ``values[key]`` behave like a plain Input.
+    The key belongs to the :class:`~TkSimpleGUI.elements.widgets.TInput`;
+    ``window[key]`` and ``values[key]`` behave like a plain TInput.
     """
 
     __slots__ = ("_label", "_label_element", "_input")
@@ -835,8 +835,8 @@ class LabeledEdit(ContainerElement):
         metadata=None,
     ):
         self._label = str(label)
-        self._label_element = Text(self._label, size=label_size)
-        self._input = Input(
+        self._label_element = TText(self._label, size=label_size)
+        self._input = TInput(
             default_text,
             key=key,
             size=input_size,
@@ -864,7 +864,7 @@ class LabeledEdit(ContainerElement):
 
     @property
     def input(self):
-        """The embedded :class:`Input` element."""
+        """The embedded :class:`TInput` element."""
         return self._input
 
     def _create_widget(self, master):
@@ -888,7 +888,7 @@ class LabeledEdit(ContainerElement):
         return self
 
 
-class KeyValueEditor(ContainerElement):
+class TKeyValueEditor(ContainerElement):
     """Editable key/value rows (Delphi TValueListEditor equivalent).
 
     ``pairs`` is a list of ``(label, value)`` pairs (or a dict).
@@ -919,12 +919,12 @@ class KeyValueEditor(ContainerElement):
         rows = []
         for raw_label, value in pairs:
             label = str(raw_label)
-            input_element = Input(
+            input_element = TInput(
                 "" if value is None else str(value), size=value_size
             )
             self._labels.append(label)
             self._inputs.append(input_element)
-            rows.append([Text(label, size=label_size), input_element])
+            rows.append([TText(label, size=label_size), input_element])
         super().__init__(
             layout=rows,
             key=key,
@@ -961,7 +961,7 @@ class KeyValueEditor(ContainerElement):
         return self
 
 
-class FlowPanel(Element):
+class TFlowPanel(Element):
     """Children that flow left-to-right and wrap (Delphi TFlowPanel).
 
     ``elements`` is a flat list of elements (not rows). Placement is
@@ -1062,7 +1062,7 @@ class FlowPanel(Element):
         return self
 
 
-class VerticalSeparator(Element):
+class TVerticalSeparator(Element):
     """A thin vertical line."""
 
     __slots__ = ("_padding",)
@@ -1075,7 +1075,7 @@ class VerticalSeparator(Element):
         return ttk.Separator(master, orient="vertical")
 
 
-class HorizontalSeparator(Element):
+class THorizontalSeparator(Element):
     """A thin horizontal line."""
 
     __slots__ = ("_padding",)
@@ -1088,7 +1088,7 @@ class HorizontalSeparator(Element):
         return ttk.Separator(master, orient="horizontal")
 
 
-class Sizegrip(Element):
+class TSizegrip(Element):
     """The small triangle that allows resizing a borderless window."""
 
     __slots__ = ()
@@ -1100,11 +1100,11 @@ class Sizegrip(Element):
         return ttk.Sizegrip(master)
 
 
-class Scrollbar(Element):
+class TScrollbar(Element):
     """A standalone scrollbar wired to another element's widget.
 
-    ``target`` is the scrollable element (Multiline, ScrollableColumn,
-    Listbox, Canvas…) whose y-view this scrollbar drives.
+    ``target`` is the scrollable element (TMultiline, TScrollableColumn,
+    TListbox, TCanvas…) whose y-view this scrollbar drives.
     """
 
     __slots__ = ("_target", "_orientation")
@@ -1147,7 +1147,7 @@ class Scrollbar(Element):
         if command is None:
             raise TypeError(
                 f"{type(self._target).__name__} cannot be scrolled by a "
-                "Scrollbar (missing _scroll_command)"
+                "TScrollbar (missing _scroll_command)"
             )
         widget.configure(command=command())
         return widget

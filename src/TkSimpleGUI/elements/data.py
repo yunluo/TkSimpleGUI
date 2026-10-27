@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Tabular data elements: Table and Tree (both ttk.Treeview based)."""
+"""Tabular data elements: TTable and TTree (both ttk.Treeview based)."""
 
 import tkinter as tk
 from tkinter import ttk
@@ -30,7 +30,7 @@ _TREEVIEW_SELECT_MODE_MAP = {
 }
 
 
-class Table(Element):
+class TTable(Element):
     """Rows and columns shown with a ttk.Treeview in headings mode.
 
     Clicking a heading sorts the rows by that column (click again to flip
@@ -187,8 +187,7 @@ class Table(Element):
         Columns come from ``headings`` (explicit order) or from the union
         of record keys in first-appearance order. The original records stay
         available through :attr:`selected_records` and stay in sync with
-        cell edits. Preferred name; ``bind(records)`` remains as a
-        TkSimpleGUI-compatibility alias.
+        cell edits.
         """
         self._records = list(records)
         if headings is not None:
@@ -211,13 +210,6 @@ class Table(Element):
         if self._widget is not None:
             self._rebuild_widget()
         return self
-
-    def bind(self, records=None, **kwargs):  # ty: ignore[invalid-method-override]
-        """TkSimpleGUI-compat alias for :meth:`set_records` (or for
-        :meth:`Element.bind` if ``records`` is not a sequence)."""
-        if not isinstance(records, (list, tuple)):
-            return super().bind(records, **kwargs)
-        return self.set_records(records)
 
     def _rebuild_widget(self):
         columns = [f"col{i}" for i in range(len(self._headings))]
@@ -458,7 +450,7 @@ def _record_value(record, key):
     return "" if value is None else str(value)
 
 
-class Tree(Element):
+class TTree(Element):
     """Hierarchical data shown with a ttk.Treeview in tree mode.
 
     :meth:`insert` accepts ``image_data`` (base64 bytes) or
@@ -519,7 +511,7 @@ class Tree(Element):
             show=show,
             height=self._num_rows,
         )
-        tree.heading("#0", text="Tree")
+        tree.heading("#0", text="TTree")
         # group-tag styles: bold group rows, muted summary rows (Treeview
         # item tags map to per-row ttk styles — native, but undocumented)
         tree.tag_configure("group", font=("Helvetica", 9, "bold"))

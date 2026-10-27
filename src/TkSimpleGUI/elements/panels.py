@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
-"""Panel and structure elements: Card, Descriptions, Steps and Timeline.
+"""Panel and structure elements: TCard, TDescriptions, TSteps and TTimeline.
 
-- :class:`Card` -- an outlined panel with an optional header (title,
+- :class:`TCard` -- an outlined panel with an optional header (title,
   subtitle, trailing extra element) around a nested layout
-- :class:`Descriptions` -- an aligned label/value list, optionally bordered
-- :class:`Steps` -- a horizontal or vertical step indicator (canvas-drawn)
-- :class:`Timeline` -- a vertical activity feed with dots and timestamps
+- :class:`TDescriptions` -- an aligned label/value list, optionally bordered
+- :class:`TSteps` -- a horizontal or vertical step indicator (canvas-drawn)
+- :class:`TTimeline` -- a vertical activity feed with dots and timestamps
   (canvas-drawn)
 
-Card and Descriptions compose real tk widgets, so the controls nested in a
-card keep their native behaviour. Steps and Timeline paint every figure on
+TCard and TDescriptions compose real tk widgets, so the controls nested in a
+card keep their native behaviour. TSteps and TTimeline paint every figure on
 a private canvas and re-derive their colors from the active theme on each
 redraw -- a color passed in explicitly always wins over the theme.
 """
@@ -21,17 +21,17 @@ from typing import Any, List, Optional, Tuple
 from . import _paint
 from .base import ContainerElement, Element
 from .. import _theming as theme_mod
-from .. import settings as settings_mod
+from ..settings import settings
 
-# Parsed item forms: Descriptions (label, value), Steps (title, description)
-# and Timeline (timestamp, content, type, color).
+# Parsed item forms: TDescriptions (label, value), TSteps (title, description)
+# and TTimeline (timestamp, content, type, color).
 DescriptionItem = Tuple[str, Any]
 StepItem = Tuple[str, Optional[str]]
 TimelineItem = Tuple[Any, str, Optional[str], Optional[str]]
 
 
 def _as_text(value):
-    """Text form of a display value ("" for None)."""
+    """TText form of a display value ("" for None)."""
     return "" if value is None else str(value)
 
 
@@ -113,7 +113,7 @@ def _has_timestamp(stamp):
     return stamp is not None and str(stamp) != ""
 
 
-class Card(ContainerElement):
+class TCard(ContainerElement):
     """An outlined panel around a nested layout.
 
     Tk has no drop shadow, so the card is expressed with a 1px outline and
@@ -121,11 +121,11 @@ class Card(ContainerElement):
     ``subtitle`` and the trailing ``extra`` element), a hairline separator
     and a body that owns ``layout``::
 
-        ts.Card(
+        ts.TCard(
             "Server",
-            [[ts.Text("Host"), ts.Input(key="-HOST-")]],
+            [[ts.TText("Host"), ts.TInput(key="-HOST-")]],
             subtitle="prod-01",
-            extra=ts.Button("Restart", key="-RESTART-"),
+            extra=ts.TButton("Restart", key="-RESTART-"),
         )
 
     ``extra`` is built into the header, so it must not appear in ``layout``
@@ -273,7 +273,7 @@ class Card(ContainerElement):
             self._extra._build(header, self._window)
             # the extra hugs the header's right edge unless it says otherwise
             self._extra._grid_into(
-                header, 0, 1, settings_mod.settings.element_padding, "right"
+                header, 0, 1, settings.element_padding, "right"
             )
         self._sync_header()
 
@@ -351,14 +351,14 @@ class Card(ContainerElement):
         return self
 
 
-class Descriptions(Element):
+class TDescriptions(Element):
     """An aligned label/value list.
 
     ``items`` is a ``[(label, value), ...]`` list or a dict (ordered on
     3.7+); ``columns`` spreads the pairs over that many grid columns.
     ``bordered=True`` wraps the block in a 1px outline::
 
-        ts.Descriptions(
+        ts.TDescriptions(
             [("Host", "10.0.0.7"), ("Port", 8080)],
             columns=2,
             bordered=True,
@@ -526,7 +526,7 @@ class Descriptions(Element):
         return self
 
 
-class Steps(Element):
+class TSteps(Element):
     """A step indicator drawn on a private canvas.
 
     ``items`` is a list of titles or ``(title, description)`` pairs.
@@ -535,7 +535,7 @@ class Steps(Element):
     waiting. ``status`` styles the current step itself -- ``"process"``
     (default), ``"finish"``, ``"error"`` / ``"danger"`` or ``"wait"``::
 
-        ts.Steps(["Cart", ("Address", "optional"), "Pay"], active=1,
+        ts.TSteps(["Cart", ("Address", "optional"), "Pay"], active=1,
                  key="-STEPS-")
 
     ``direction="vertical"`` stacks the steps instead of laying them out in
@@ -610,7 +610,7 @@ class Steps(Element):
 
     # --- geometry --------------------------------------------------------------
     def _geometry(self, master=None):
-        """Canvas size in pixels (``master`` is only used to measure text)."""
+        """TCanvas size in pixels (``master`` is only used to measure text)."""
         count = max(1, len(self._items))
         if self._direction == "vertical":
             width = self._size[0] or self._DEFAULT_WIDTH
@@ -817,12 +817,12 @@ class Steps(Element):
         return self
 
 
-class Timeline(Element):
+class TTimeline(Element):
     """A vertical activity feed drawn on a private canvas.
 
     Every entry is one row; ``items`` accepts three forms::
 
-        ts.Timeline([
+        ts.TTimeline([
             "Deployed",                                   # content only
             ("09:30", "Build finished"),                  # + timestamp
             {"timestamp": "10:00", "content": "Rollback",
@@ -888,7 +888,7 @@ class Timeline(Element):
 
     # --- geometry --------------------------------------------------------------
     def _geometry(self):
-        """Canvas size in pixels (height follows the measured content)."""
+        """TCanvas size in pixels (height follows the measured content)."""
         width = int(self._size[0] or self._DEFAULT_WIDTH)
         if self._size[1]:
             return width, int(self._size[1])

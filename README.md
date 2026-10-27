@@ -22,8 +22,8 @@
   `window` / `event` / `values` 按参数名自动注入
 - **面向对象控件** — 每个控件都是真正的类实例，属性读写、方法直调，
   不再和 `window["-KEY-"].update(...)` 的字符串寻址缠斗
-- **两种命名风格** — 朴素（`ts.Text`）与统一 T 前缀
-  （`ts.TText` / `ts.TInput` / `ts.TButton`）——同一个类，随你喜欢
+- **T 前缀命名** — 每个控件类一律以 T 开头（`ts.TText` / `ts.TInput` /
+  `ts.TButton`），一眼即知是本框架控件，全库一个概念只有一个名字
 - **消灭魔术字符串** — Tk 的字符串选项全部类型化为枚举
   （`ts.Anchor.CENTER`、`ts.Justify.RIGHT`、`ts.EventType.DOUBLE_CLICK`、
   `ts.Color.NAVY`、`ts.Relief.SUNKEN`…），枚举值本身就是 Tk 字符串，裸字符串依旧可用
@@ -34,8 +34,8 @@
   系统托盘、日历控件、表格编辑/排序、拆分器、流式面板……Tk/ttk 没有的这里也有
 - **自绘展示控件** — Element Plus 风格的标签/徽章/头像/统计数值/空状态/结果页/
   步骤条/时间线/骨架屏/警告条/水印/描述列表/卡片/分段控制器/评分/分页器/穿梭框：
-  全部 Canvas 自绘或原生组合，随主题自动换色，零新依赖
-- **日志直接进日志框** — `Output` 就是日志框：`out.log("...")` 一行落笔，
+  全部 TCanvas 自绘或原生组合，随主题自动换色，零新依赖
+- **日志直接进日志框** — `TOutput` 就是日志框：`out.log("...")` 一行落笔，
   级别配色（debug/info/success/warning/error）+ 时间戳 + 行数上限（环形缓冲）+
   可选文件镜像；`ts.log(...)` 一行式无对象写入，`Logger.attach_logging()`
   把标准 `logging` 桥接进来，工作线程写入也不会崩 Tk
@@ -56,9 +56,9 @@ pip install TkSimpleGUI
 import TkSimpleGUI as ts
 
 window = ts.Window("Demo", [
-    [ts.Text("Hello, TkSimpleGUI!", key="-OUT-")],
-    [ts.Input(key="-IN-"), ts.Button("Greet")],
-    [ts.Button("Exit")],
+    [ts.TText("Hello, TkSimpleGUI!", key="-OUT-")],
+    [ts.TInput(key="-IN-"), ts.TButton("Greet")],
+    [ts.TButton("Exit")],
 ])
 
 @ts.bind_event
@@ -75,8 +75,8 @@ window.run()   # 就这一行——没有 while True
 多窗口同样零仪式：
 
 ```python
-main = ts.Window("Main", [[ts.Button("Open child")], [ts.Button("Quit")]])
-child = ts.Window("Child", [[ts.Text("I am the child")], [ts.Button("Close me")]],
+main = ts.Window("Main", [[ts.TButton("Open child")], [ts.TButton("Quit")]])
+child = ts.Window("Child", [[ts.TText("I am the child")], [ts.TButton("Close me")]],
                   parent=main)
 
 @ts.bind_event
@@ -111,8 +111,8 @@ label_style = ts.ElementOptions(justification=ts.Justify.CENTER,
                                 expand_x=True, pad=(8, 4))
 
 layout = [
-    [ts.Text("Title", config=label_style)],
-    [ts.Text("Body", config=label_style)],
+    [ts.TText("Title", config=label_style)],
+    [ts.TText("Body", config=label_style)],
 ]
 
 cfg = ts.WindowConfig(title="Settings", size=(420, 280), resizable=True,
@@ -120,18 +120,18 @@ cfg = ts.WindowConfig(title="Settings", size=(420, 280), resizable=True,
 window = ts.Window(config=cfg, finalize=True)   # 布局进 config，或直接 layout=
 ```
 
-## 日志写进日志框（Output 控件）
+## 日志写进日志框（TOutput 控件）
 
-`Output` 就是日志框，日志层直接长在它上面——没有第二个输出通道：
+`TOutput` 就是日志框，日志层直接长在它上面——没有第二个输出通道：
 
 ```python
-log_box = ts.Output(size=(90, 12), key="-LOG-")
+log_box = ts.TOutput(size=(90, 12), key="-LOG-")
 
 log_box.log("采样已启动")                     # INFO，主题字色
 log_box.log("通道 3 噪声偏大", level="warning")  # 琥珀色
 log_box.log("通道 7 断线", level="error")      # 与错误提示条同一个红
 
-# 一行式：key 可省（默认取最新窗口里的第一个 Output）
+# 一行式：key 可省（默认取最新窗口里的第一个 TOutput）
 ts.log("任意位置写一行", key="-LOG-")
 
 # 需要更正式的日志：行数上限（环形缓冲）、文件镜像、标准 logging 桥接
@@ -164,16 +164,16 @@ def on_done(window, values):
 ```
 TkSimpleGUI/
 ├── src/TkSimpleGUI/            # 对象导向包（import TkSimpleGUI）
-│   ├── __init__.py             # 公开 API + T 前缀别名
+│   ├── __init__.py             # 公开 API（控件类一律 T 前缀）
 │   ├── enums.py                # 13 类 Tk 字符串枚举（Anchor/Color/EventType…）
 │   ├── config.py               # WindowConfig / ElementOptions dataclass
 │   ├── _version.py             # 版本信息
 │   ├── constants.py            # 不可变常量
-│   ├── _theme_data.py          # 生成式主题表（160 主题）
-│   ├── _theming.py             # ThemeManager（封装的 look & feel）
+│   ├── _theme_data.py          # 5 套手工主题表（含 System 原生）
+│   ├── _theming.py             # ThemeManager（主题状态封装）
 │   ├── _typing_compat.py       # 3.7 的 Literal 兼容层
-│   ├── settings.py             # Settings 单例 + set_options/get_options
-│   ├── utils.py                # rgb、Timer、平台检测、DPI 感知、i18n 翻译
+│   ├── settings.py             # Settings 单例（全局选项封装）
+│   ├── utils.py                # rgb、Timer、平台检测、DPI 感知
 │   ├── event.py                # TkSimpleEvent 全局事件总线 + default_app
 │   ├── actions.py              # Action / ActionList（Delphi TActionList 对标）
 │   ├── user_settings.py        # UserSettings（JSON 持久化）
@@ -184,17 +184,17 @@ TkSimpleGUI/
 │   ├── elements/
 │   │   ├── base.py             # Element(ABC) + 右键菜单 + 网格布局引擎
 │   │   ├── _paint.py           # 自绘控件的共享绘制/调色基础层
-│   │   ├── widgets.py          # Text/Input/Combo/Listbox/Spin/Checkbox/Radio…
-│   │   ├── buttons.py          # Button 及浏览/开关/图像变体
-│   │   ├── fancy.py            # 圆角按钮/图像按钮/文字进度条/仪表盘/LED
-│   │   ├── media.py            # Image/Canvas/Graph（图元句柄）
-│   │   ├── containers.py       # Frame/Column/Splitter/TabGroup/Toolbar…
+│   │   ├── widgets.py          # TText/TInput/TCombo/TListbox/TSpin/TCheckbox/TRadio…
+│   │   ├── buttons.py          # TButton 及浏览/开关/图像变体
+│   │   ├── fancy.py            # 圆角按钮/图像按钮/文字进度条/仪表盘/TLED
+│   │   ├── media.py            # TImage/TCanvas/TGraph（图元句柄）
+│   │   ├── containers.py       # TFrame/TColumn/TSplitter/TTabGroup/TToolbar…
 │   │   ├── calendar.py         # 内嵌月历
 │   │   ├── chart.py            # 图表（9 种类型 + 误差棒/参考线/直方图）
 │   │   ├── display.py          # 标签/徽章/头像/统计/空状态/结果页/骨架屏/警告条/水印
 │   │   ├── panels.py           # 卡片/描述列表/步骤条/时间线
 │   │   ├── selection.py        # 分段控制器/评分/分页器/穿梭框
-│   │   └── data.py             # Table（排序/编辑/图标）、Tree
+│   │   └── data.py             # TTable（排序/编辑/图标）、TTree
 │   └── window/
 │       ├── window.py           # Window：统一循环、层级、定时器、剪贴板
 │       └── system_tray.py      # SystemTray（托盘图标/菜单/气泡/事件）
@@ -209,7 +209,7 @@ TkSimpleGUI/
 
 ```bash
 pip install -e .
-python -m pytest tests -q             # 300 项测试（每测试 30s 超时守护）
+python -m pytest tests -q             # 299 项测试（每测试 30s 超时守护）
 python -m unittest discover tests     # 同一套测试的 unittest 跑法
 python tests/check_types.py           # ty 类型检查守卫
 python tests/check_syntax.py          # 3.7 语法门（用运行中解释器的 ast 解析全部 .py）
