@@ -219,6 +219,39 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
       断言 33 个遗产名 AttributeError，tray/window 层补别名移除断言；start_task 失败
       用例改截止期限泵循环——3.7 全量套件下 worker 线程调度可被推迟 >3s（环境级现象：
       32 位 3.7 + 数百窗口 churn；单测 0.2s、类隔离 1.6s 内完成，正常使用无影响）
+
+## 📐 全量参数类型标注（2026-10-28）
+
+用户要求"类 方法必须支持参数类型"。AST 脚本批量标注 + 人工语义校正，**公开签名 2058 个
+参数（除 self/cls）标注缺失 0**，README「100% 类型标注」成真：
+
+- [x] **共享类型别名下沉到叶模块 constants.py**（ElementKey/Color/FontSpec/Size/PadSpec/
+      Justification/MenuDefinition），base.py 改为 re-export——否则 _theming→base 的导入环
+      让 def 期求值的标注炸 NameError
+- [x] **不引入 `from __future__ import annotations`**：有它 ruff 的 UP045/UP006 会强推
+      `X | None`/内建泛型，与 3.7 下限的 typing 泛型风格冲突；标注因此 def 期求值，
+      脚本保证所有引用名已导入
+- [x] **批量标注器**（%TEMP% 脚本）：词表映射统一参数（key/size/pad/tooltip…布局接口 +
+      语义参数）+ 字面量默认值推导 + None 默认包 Optional + 超长签名重排多行；逐文件试点
+      修完 6 类脚本 bug（`**` 星号丢失、跨行参数 stop 计算、分隔逗号吞并、元组默认值
+      误判签名闭合、= = 双写等）
+- [x] **语义错标校正**（ty 从 182 条清到 0 的主体）：`configure_ttk(style: "ttk.Style")`、
+      `run_application(anchor: "Window | SystemTray")`、`apply_event` 聚焦查找改
+      `isinstance(window, Window)` 收窄、`to_hex/_native_color/palette/measure_text`
+      收 `tk.Misc`（窗口也传）、图形元助手 size 收 `float`、media 的 `label:` 实为
+      tk.Label、TRate 的 `colors` 是 (filled, empty) 对、`_validate_layout` 收 Any
+      （config 驱动窗口传 None）
+- [x] **tk-stub 限制定向豁免**（~20 处 `# ty: ignore[...]` 带原因注释）：tkinter 选项
+      机制运行时丢弃 None 值而 stub 不建模（Canvas/Label 的颜色、宽高传 None）、
+      `Style.configure/map` 动态 kwargs、`Misc.configure(state=...)`、字体元组——
+      均为真实合法的 tk 动态 API 用法
+- [x] **过程事故与修复**：ensure_imports 脚本对无导入行文件的 `open("w")` 截断竞态把
+      base/containers/data/media/window 5 个文件清零（py.typed 本就空）——全部从
+      git HEAD 恢复 + 重放标注与校正；__init__/base 的多行括号导入被追加脚本写坏 ×2——
+      手工修复
+- [x] 验证：**ruff 0 发现 + ty 0 诊断**（含警告级 unused-ignore 清理）、299 测试
+      双解释器全绿（3.12 pytest / 3.7.9 32位 unittest）、44 文件语法门双解释器通过、
+      showcase --smoke OK
 - [x] ruff 两份二进制均已自动升级至 0.17.2，新版启用 PLR0917（位置参数过多），与
       PLR0913 同理进 ignore——位置参数构造正是本框架的布局调用约定
 

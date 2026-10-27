@@ -1,13 +1,14 @@
 #!/usr/bin/env python3
 """Embedded calendar element (Delphi TMonthCalendar equivalent)."""
 
+from typing import Any, Optional
 import calendar as _calendar
 import datetime as _datetime
 
 import tkinter as tk
 from tkinter import ttk
 
-from .base import Element
+from .base import Element, ElementKey, MenuDefinition, PadSpec
 from .. import _theming as theme_mod
 
 
@@ -41,17 +42,17 @@ class TCalendar(Element):
 
     def __init__(
         self,
-        default_date=None,
-        dateformat="%Y-%m-%d",
-        key=None,
-        enable_events=True,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        default_date: Any = None,
+        dateformat: str = "%Y-%m-%d",
+        key: Optional[ElementKey] = None,
+        enable_events: bool = True,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -88,7 +89,7 @@ class TCalendar(Element):
         """The selected date formatted with ``dateformat``."""
         return self._date.strftime(self._dateformat)
 
-    def update(self, value=None, visible=None):
+    def update(self, value: Any = None, visible: Optional[bool] = None):
         """Set the selected date (datetime.date, (y, m, d) or formatted str)."""
         if value is not None:
             self._date = self._coerce_date(value)
@@ -100,7 +101,7 @@ class TCalendar(Element):
         return self
 
     @staticmethod
-    def _coerce_date(value):
+    def _coerce_date(value: Any):
         if isinstance(value, _datetime.date):
             return value
         if isinstance(value, tuple) and len(value) == 3:
@@ -108,7 +109,7 @@ class TCalendar(Element):
         return _datetime.datetime.strptime(str(value), "%Y-%m-%d").date()
 
     # --- widget construction ------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         bg = self._surface_color(master)
         muted = theme_mod.theme_manager.muted_color()
         fg = theme_mod.theme_manager.text_color
@@ -145,7 +146,7 @@ class TCalendar(Element):
         return frame
 
     @staticmethod
-    def _surface_color(master):
+    def _surface_color(master: tk.Misc):
         """The surface color to paint the calendar onto (theme aware)."""
         themed = theme_mod.theme_manager.effective_background()
         if themed is not None:
@@ -231,13 +232,13 @@ class TCalendar(Element):
         self._draw_month()
         return self
 
-    def _choose_day(self, day_date):
+    def _choose_day(self, day_date: Any):
         self._date = day_date
         self._draw_month()
         if self._enable_events:
             self._post_event()
 
-    def _shift(self, delta):
+    def _shift(self, delta: Any):
         month = self._viewed.month + delta
         year = self._viewed.year
         if month > 12:

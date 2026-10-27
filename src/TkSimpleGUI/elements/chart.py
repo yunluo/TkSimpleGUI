@@ -36,13 +36,14 @@ the data points; ``markers=False`` hides the line-chart point dots.
 """
 
 import math
-from typing import List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Sequence, Tuple
 
 import tkinter as tk
 
 from .media import TGraph
 from ._paint import pil_modules as _paint_pil_modules
 from .. import _theming as theme_mod
+from ..constants import Color, ElementKey, MenuDefinition, PadSpec, Size
 
 # --- default palette (cycled per series / per pie slice) ----------------------
 PALETTE = (
@@ -76,7 +77,7 @@ def pil_backend_available():
     return bool(_pil_modules())
 
 
-def _hex_rgb(color):
+def _hex_rgb(color: Optional[Color]):
     """``#rrggbb`` (or ``#rgb``) -> ``(r, g, b)``; invalid names fall back."""
     text = (color or "#000000").lstrip("#")
     if len(text) == 3:
@@ -89,7 +90,7 @@ def _hex_rgb(color):
         return (0, 0, 0)
 
 
-def _resample_lanczos(image_mod):
+def _resample_lanczos(image_mod: Any):
     """The Lanczos resampling filter across Pillow versions."""
     try:
         return image_mod.Resampling.LANCZOS
@@ -121,7 +122,13 @@ class _Series:
 
     __slots__ = ("name", "values", "labels", "color", "errors")
 
-    def __init__(self, name, values, labels=None, color=None, errors=None):
+    def __init__(
+        self,
+        name: str,
+        values: Iterable[Any],
+        labels: Optional[Sequence[Any]] = None,
+        color: Optional[Color] = None,
+        errors: Any = None):
         self.name = name
         self.values = list(values)
         self.labels = list(labels) if labels is not None else []
@@ -142,7 +149,7 @@ class _Series:
         return out
 
 
-def _spline_path(points, steps=12):
+def _spline_path(points: Sequence[Tuple[float, float]], steps: int = 12):
     """Catmull-Rom spline through ``points`` (sampled densely)."""
     if len(points) < 3:
         return list(points)
@@ -165,7 +172,7 @@ def _spline_path(points, steps=12):
     return out
 
 
-def _normalize_hlines(entries):
+def _normalize_hlines(entries: Any):
     """Normalize the ``hlines`` argument to ``[(value, label, color), ...]``.
 
     Accepts a single entry or a list; each entry is a number, a
@@ -221,31 +228,31 @@ class TChart(TGraph):
 
     def __init__(
         self,
-        canvas_size=(420, 280),
-        chart_type="line",
-        title=None,
-        legend=True,
-        legend_position="right",
-        grid=True,
-        axis_labels=None,
-        colors=PALETTE,
-        anti_alias=True,
-        smooth=False,
-        markers=True,
-        hlines=None,
-        bins=None,
-        graph_bottom_left=(0, 0),
-        graph_top_right=(100, 100),
-        background_color=None,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        canvas_size: Size = (420, 280),
+        chart_type: str = "line",
+        title: Optional[str] = None,
+        legend: bool = True,
+        legend_position: str = "right",
+        grid: bool = True,
+        axis_labels: Any = None,
+        colors: Any = PALETTE,
+        anti_alias: bool = True,
+        smooth: bool = False,
+        markers: bool = True,
+        hlines: Any = None,
+        bins: Any = None,
+        graph_bottom_left: Tuple[float, float] = (0, 0),
+        graph_top_right: Tuple[float, float] = (100, 100),
+        background_color: Optional[Color] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         if chart_type not in ChartType.ALL:
             raise ValueError(
@@ -292,7 +299,13 @@ class TChart(TGraph):
         self._bins = max(1, int(bins)) if bins is not None else None
 
     # --- data model -------------------------------------------------------------
-    def add_series(self, name, values, labels=None, color=None, errors=None):
+    def add_series(
+        self,
+        name: str,
+        values: Iterable[Any],
+        labels: Optional[Sequence[Any]] = None,
+        color: Optional[Color] = None,
+        errors: Any = None):
         """Append one series (``[(name, value), ...]`` for pie/donut).
 
         ``errors`` adds symmetric error bars (one magnitude per point) on
@@ -323,7 +336,12 @@ class TChart(TGraph):
         self._series = []
         return self
 
-    def update_data(self, series_name, values, labels=None, errors=None):
+    def update_data(
+        self,
+        series_name: str,
+        values: Iterable[Any],
+        labels: Optional[Sequence[Any]] = None,
+        errors: Any = None):
         """Replace one series' values and redraw (pie/donut: values = pairs)."""
         for series in self._series:
             if series.name == series_name:
@@ -369,7 +387,7 @@ class TChart(TGraph):
         red, green, blue = self._widget.winfo_rgb(color)
         return f"#{red >> 8:02x}{green >> 8:02x}{blue >> 8:02x}"
 
-    def _blend(self, other, ratio):
+    def _blend(self, other: Any, ratio: float):
         """Blend the surface toward ``other`` by ``ratio`` (0..1)."""
         sr, sg, sb = _hex_rgb(self._surface_color())
         orr, og, ob = _hex_rgb(other)
@@ -389,7 +407,7 @@ class TChart(TGraph):
     def _panel_color(self):
         return self._blend(self._ink_color(), 0.05)
 
-    def _color(self, index):
+    def _color(self, index: int):
         return self._palette[index % len(self._palette)]
 
     # --- coordinate framing -------------------------------------------------------
@@ -533,7 +551,7 @@ class TChart(TGraph):
             left = max(left, 116.0)
         return (left, top, right, bottom)
 
-    def _px(self, value, axis):
+    def _px(self, value: Any, axis: str):
         """Map a data value on ``axis`` ("x"/"y") to a pixel coordinate."""
         left, top, right, bottom = self._plot_rect()
         if axis == "x":
@@ -546,7 +564,7 @@ class TChart(TGraph):
             y_max = y_min + 1
         return bottom - (value - y_min) / (y_max - y_min) * (bottom - top)
 
-    def _nice_ticks(self, lo, hi, count=5):
+    def _nice_ticks(self, lo: float, hi: float, count: int = 5):
         """Round tick steps to 1/2/5*10^n for readable axis labels."""
         span = (hi - lo) or 1.0
         raw = span / count
@@ -639,12 +657,12 @@ class TChart(TGraph):
                 )
 
     @staticmethod
-    def _fmt(value):
+    def _fmt(value: Any):
         if float(value).is_integer():
             return str(int(value))
         return f"{value:.2f}".rstrip("0").rstrip(".")
 
-    def _hline_color(self, explicit):
+    def _hline_color(self, explicit: Any):
         """Reference-line color: explicit, else a calm industrial red."""
         if explicit:
             return explicit
@@ -712,7 +730,12 @@ class TChart(TGraph):
             prims.append(("rectangle", (x0, y, x1, bottom), color))
         return prims
 
-    def _error_bar_primitives(self, anchors, series, color, cap=3.0):
+    def _error_bar_primitives(
+        self,
+        anchors: Any,
+        series: Any,
+        color: Optional[Color],
+        cap: float = 3.0):
         """Symmetric error bars: main line + two caps, as line primitives.
 
         ``anchors`` is a list of ``(pixel_x, data_value)`` pairs — the
@@ -730,7 +753,7 @@ class TChart(TGraph):
             prims.append(("line", [(x - cap, y_low), (x + cap, y_low)], color, 1.2))
         return prims
 
-    def _hbar_error_bar_primitives(self, series, color, cap=3.0):
+    def _hbar_error_bar_primitives(self, series: Any, color: Optional[Color], cap: float = 3.0):
         """Horizontal error bars for hbar charts (error spans the x axis)."""
         _left, top, _right, bottom = self._plot_rect()
         count = max(len(s.values) for s in self._series)
@@ -776,13 +799,13 @@ class TChart(TGraph):
                 running[i] += value
         return prims
 
-    def _line_primitives(self, series, color):
+    def _line_primitives(self, series: Any, color: Optional[Color]):
         points = [
             (self._px(i, "x"), self._px(v, "y"))
             for i, v in enumerate(series.values)
         ]
         path = _spline_path(points) if self._smooth else points
-        prims = [("line", path, color, LINE_WIDTH)]
+        prims: List[Any] = [("line", path, color, LINE_WIDTH)]
         if series.errors:
             anchors = [
                 (self._px(i, "x"), value)
@@ -799,7 +822,7 @@ class TChart(TGraph):
                 ))
         return prims
 
-    def _scatter_primitives(self, series, color):
+    def _scatter_primitives(self, series: Any, color: Optional[Color]):
         prims = []
         if series.errors:
             anchors = [
@@ -816,7 +839,7 @@ class TChart(TGraph):
         )
         return prims
 
-    def _area_primitives(self, series, color):
+    def _area_primitives(self, series: Any, color: Optional[Color]):
         left, top, right, bottom = self._plot_rect()
         baseline = bottom
         points = [(left, baseline)]
@@ -829,7 +852,7 @@ class TChart(TGraph):
         prims.extend(self._line_primitives(series, color))
         return prims
 
-    def _bar_primitives(self, series, series_index):
+    def _bar_primitives(self, series: Any, series_index: int):
         left, _top, right, bottom = self._plot_rect()
         count = max(len(s.values) for s in self._series)
         slot = (right - left) / max(count, 1)
@@ -854,7 +877,7 @@ class TChart(TGraph):
             prims.extend(self._error_bar_primitives(centers, series, color))
         return prims
 
-    def _hbar_primitives(self, series, series_index):
+    def _hbar_primitives(self, series: Any, series_index: int):
         left, top, right, bottom = self._plot_rect()
         count = max(len(s.values) for s in self._series)
         slot = (bottom - top) / max(count, 1)
@@ -877,7 +900,7 @@ class TChart(TGraph):
             prims.extend(self._hbar_error_bar_primitives(series, color))
         return prims
 
-    def _pie_primitives(self, surface):
+    def _pie_primitives(self, surface: Any):
         series = self._series[0] if self._series else None
         prims = []
         if series is None or not series.values:
@@ -908,7 +931,7 @@ class TChart(TGraph):
             prims.append(("circle", (cx, cy, inner), surface))
         return prims
 
-    def _draw_primitives_vector(self, primitives):
+    def _draw_primitives_vector(self, primitives: Any):
         widget = self._widget
         for prim in primitives:
             kind = prim[0]
@@ -946,7 +969,7 @@ class TChart(TGraph):
                     style="pieslice", fill=color, outline="",
                 )
 
-    def _draw_primitives_pil(self, primitives, surface):
+    def _draw_primitives_pil(self, primitives: Any, surface: Any):
         """Render the data layer through the optional Pillow backend."""
         modules = _pil_modules()
         if not modules:
@@ -959,7 +982,7 @@ class TChart(TGraph):
             image = image_mod.new("RGB", (width * scale, height * scale), surface)
             draw = draw_mod.Draw(image)
 
-            def scaled(points):
+            def scaled(points: Sequence[Tuple[float, float]]):
                 return [(x * scale, y * scale) for x, y in points]
 
             for prim in primitives:
@@ -1046,11 +1069,11 @@ class TChart(TGraph):
         return cx, cy, radius
 
     @staticmethod
-    def _legend_item_width(name):
+    def _legend_item_width(name: str):
         """Pixel width of one horizontal legend entry."""
         return 14 + 6 + len(name) * 7 + 14
 
-    def _draw_legend_row(self, x, y, items):
+    def _draw_legend_row(self, x: float, y: float, items: Iterable[Any]):
         """One horizontal legend row anchored at (x, y)."""
         ink = self._ink_color()
         for color, name in items:

@@ -12,6 +12,10 @@ returns the key::
     window = ts.Window("App", layout, actions=[open_action])
 """
 
+from typing import Any, Callable, Iterable, Optional
+
+from .constants import ElementKey
+
 
 
 class Action:
@@ -19,7 +23,14 @@ class Action:
 
     __slots__ = ("text", "key", "shortcut", "callback", "enabled", "metadata")
 
-    def __init__(self, text, key=None, shortcut=None, callback=None, enabled=True, metadata=None):
+    def __init__(
+        self,
+        text: str,
+        key: Optional[ElementKey] = None,
+        shortcut: Any = None,
+        callback: Optional[Callable[..., Any]] = None,
+        enabled: bool = True,
+        metadata: Any = None):
         self.text = str(text)
         self.key = key if key is not None else self.text
         self.shortcut = shortcut
@@ -27,7 +38,7 @@ class Action:
         self.enabled = bool(enabled)
         self.metadata = metadata
 
-    def to_button(self, **kwargs):
+    def to_button(self, **kwargs: Any):
         """A :class:`~TkSimpleGUI.elements.buttons.TButton` for this action."""
         from .elements.buttons import TButton
 
@@ -37,7 +48,7 @@ class Action:
         """The menu definition label for this action (its text)."""
         return self.text
 
-    def trigger(self, window, values):
+    def trigger(self, window: Any, values: Iterable[Any]):
         """Invoke the callback if the action is enabled."""
         if self.enabled and self.callback is not None:
             self.callback(window, values)
@@ -52,10 +63,10 @@ class ActionList:
 
     __slots__ = ("_actions",)
 
-    def __init__(self, actions=()):
+    def __init__(self, actions: Any = ()):
         self._actions = list(actions)
 
-    def add(self, action):
+    def add(self, action: Any):
         self._actions.append(action)
         return self
 
@@ -69,20 +80,20 @@ class ActionList:
         """All action keys in order."""
         return [action.key for action in self._actions]
 
-    def by_key(self, key):
+    def by_key(self, key: ElementKey):
         """The action with this key, or None."""
         for action in self._actions:
             if action.key == key:
                 return action
         return None
 
-    def by_text(self, text):
+    def by_text(self, text: str):
         """The action with this (menu) text, or None."""
         for action in self._actions:
             if action.text == text:
                 return action
         return None
 
-    def menu_definition(self, title):
+    def menu_definition(self, title: str):
         """A single-cascade menu definition built from these actions."""
         return [[str(title)] + [action.to_menu_entry() for action in self._actions]]

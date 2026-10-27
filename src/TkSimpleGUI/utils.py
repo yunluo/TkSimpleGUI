@@ -6,8 +6,10 @@ A grab-bag of small standalone utilities the package itself leans on:
 Everything is re-exported from the package root.
 """
 
+from typing import Any, Optional
 import sys
 import time
+from .constants import FontSpec
 
 
 class Timer:
@@ -75,7 +77,7 @@ def formatted_datetime_now():
     return time.strftime("%Y-%m-%d %H:%M:%S")
 
 
-def rgb(red, green, blue):
+def rgb(red: Any, green: Any, blue: Any):
     """Convert red/green/blue ints (clamped to 0-255) to a Tk color string."""
     values = []
     for component in (red, green, blue):
@@ -152,7 +154,7 @@ def font_families():
             root.destroy()
 
 
-def font_measure(text, font):
+def font_measure(text: str, font: Optional[FontSpec]):
     """Pixel width of ``text`` rendered in ``font`` (a name-size tuple)."""
     import tkinter.font as tkfont
 
@@ -165,7 +167,7 @@ def font_measure(text, font):
             root.destroy()
 
 
-def font_actual(font):
+def font_actual(font: Optional[FontSpec]):
     """The resolved tk description of ``font`` as a dict (family, size, weight…)."""
     import tkinter.font as tkfont
 

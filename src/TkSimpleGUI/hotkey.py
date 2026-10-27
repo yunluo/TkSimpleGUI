@@ -15,7 +15,7 @@ cross-platform.
 import ctypes
 import ctypes.wintypes
 import threading
-from typing import Dict, Tuple
+from typing import Any, Dict, Optional, Tuple
 
 WM_HOTKEY = 0x0312
 MOD_ALT = 0x0001
@@ -114,7 +114,7 @@ class GlobalHotkeys:
         return self
 
     # --- pump --------------------------------------------------------------------
-    def start(self, window):
+    def start(self, window: Any):
         """Begin dispatching hotkey events into ``window``. Returns self."""
         if self._running:
             return self
@@ -161,7 +161,7 @@ class GlobalHotkeys:
 class _TaskbarProgress:
     """ITaskbarList3 wrapper for the Windows task bar progress overlay."""
 
-    def __init__(self, window):
+    def __init__(self, window: Any):
         self._window = window
         self._taskbar_list = None
         self._hwnd = None
@@ -212,7 +212,7 @@ class _TaskbarProgress:
         return vtable[slot]
 
     @classmethod
-    def _vtable_call(cls, interface: ctypes.c_void_p, slot: int, *args):
+    def _vtable_call(cls, interface: ctypes.c_void_p, slot: int, *args: Any):
         address = cls._vtable_slot(interface, slot)
         signature = ctypes.WINFUNCTYPE(
             ctypes.HRESULT, ctypes.c_void_p, *([ctypes.c_void_p] * len(args))
@@ -220,24 +220,24 @@ class _TaskbarProgress:
         function = ctypes.cast(address, signature)
         return function(interface, *args)
 
-    def _call(self, slot, *args):
+    def _call(self, slot: Any, *args: Any):
         if not self._ensure() or self._taskbar_list is None:
             return
         self._vtable_call(self._taskbar_list, slot, *args)
 
-    def set_value(self, current, maximum):
+    def set_value(self, current: Any, maximum: Any):
         """Show a determinate progress overlay at ``current``/``maximum``."""
         self._call(5, ctypes.c_void_p(int(current)), ctypes.c_void_p(int(maximum)))
         self._call(4, ctypes.c_void_p(TBPF_NORMAL))
         return self
 
-    def set_indeterminate(self, indeterminate=True):
+    def set_indeterminate(self, indeterminate: bool = True):
         """Show a marquee (indeterminate) overlay, or clear it."""
         state = TBPF_INDETERMINATE if indeterminate else TBPF_NOPROGRESS
         self._call(4, ctypes.c_void_p(state))
         return self
 
-    def set_state(self, state):
+    def set_state(self, state: Optional[str]):
         """Set the overlay state: "normal"/"paused"/"error"/"none"."""
         states = {
             "none": TBPF_NOPROGRESS,
@@ -254,7 +254,7 @@ class _TaskbarProgress:
         return self
 
 
-def taskbar_progress(window):
+def taskbar_progress(window: Any):
     """Return a task bar progress controller for ``window`` (Windows only).
 
     Returns ``None`` off Windows or before the window is finalized. Usage::

@@ -18,7 +18,7 @@ thousands of downstream call sites narrow.
 """
 
 from abc import ABCMeta, abstractmethod
-from typing import Any, Optional, Tuple, Union
+from typing import Any, Callable, Iterable, List, Optional, Tuple, Union
 
 import tkinter as tk
 
@@ -32,10 +32,12 @@ ElementKey = Optional[Any]
 Color = str
 # Fonts are (family, size[, modifiers...]) tuples or tk font descriptions.
 FontSpec = Union[Tuple[str, int], Tuple[str, int, str], str]
-# Layout cells hold a single element or nested rows (validated at build time).
+# Pixel sizes are (width, height); either side may stay None (auto).
+Size = Tuple[Optional[int], Optional[int]]
+# Padding: a single int, an (x, y) pair, or per-side quadrants.
 PadSpec = Union[int, float, Tuple[int, int], Tuple[Tuple[int, int], Tuple[int, int]]]
 Justification = Optional[str]
-MenuDefinition = "list"
+MenuDefinition = List[Any]
 
 
 
@@ -47,7 +49,7 @@ class ElementBaseMeta(ABCMeta):
     own additions.
     """
 
-    def __new__(mcs, name: str, bases: tuple, namespace: dict):
+    def __new__(mcs: Any, name: str, bases: tuple, namespace: dict):
         declared = namespace.get("__slots__", ())
         inherited = []
         for base in bases:
@@ -62,7 +64,7 @@ class ElementBaseMeta(ABCMeta):
         # to expand an ElementOptions dataclass into the base keyword args
         original_init = cls.__init__
 
-        def config_aware_init(self, *args, **kwargs):
+        def config_aware_init(self, *args: Any, **kwargs: Any):
             config = kwargs.pop("config", None)
             if config is not None:
                 from ..config import ElementOptions
@@ -81,7 +83,7 @@ class ElementBaseMeta(ABCMeta):
             original_init(self, *args, **kwargs)
 
         config_aware_init.__doc__ = original_init.__doc__
-        cls.__init__ = config_aware_init  # ty: ignore[invalid-assignment]
+        cls.__init__ = config_aware_init
         return cls
 
 
@@ -125,16 +127,16 @@ class Element(metaclass=ElementBaseMeta):
 
     def __init__(
         self,
-        key=None,
-        size=(None, None),
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        key: Optional[ElementKey] = None,
+        size: Size = (None, None),
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         self._key = key
         self._window = None
@@ -158,7 +160,7 @@ class Element(metaclass=ElementBaseMeta):
         return self._key
 
     @key.setter
-    def key(self, value):
+    def key(self, value: Any):
         old = self._key
         self._key = value
         if self._window is not None:
@@ -216,14 +218,14 @@ class Element(metaclass=ElementBaseMeta):
         return self._right_click_menu
 
     @right_click_menu.setter
-    def right_click_menu(self, value):
+    def right_click_menu(self, value: Any):
         """Set (and attach) the menu; also usable after finalization."""
         self._right_click_menu = value
         if self._widget is not None and value is not None and self._popup_menu is None:
             self._attach_right_click_menu()
 
     # --- template method ------------------------------------------------------
-    def _build(self, master, window):
+    def _build(self, master: tk.Misc, window: Any):
         """Template method: create the widget and wire it up.
 
         Called by the window during layout construction; user code should
@@ -238,7 +240,7 @@ class Element(metaclass=ElementBaseMeta):
         return self._widget
 
     @abstractmethod
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         """Create and return the tk widget (subclass responsibility)."""
 
     def _post_create(self):
@@ -250,7 +252,13 @@ class Element(metaclass=ElementBaseMeta):
         """Hook for event bindings (default: nothing)."""
 
     # --- grid integration ---------------------------------------------------------
-    def _grid_into(self, master, row, column, default_pad, default_justification):
+    def _grid_into(
+        self,
+        master: tk.Misc,
+        row: int,
+        column: str,
+        default_pad: Any,
+        default_justification: Any):
         """Grid the widget honoring pad/expand/justification hints.
 
         Called by :meth:`Window._build_layout`. Returns ``(expand_x, expand_y)``
@@ -288,7 +296,7 @@ class Element(metaclass=ElementBaseMeta):
         )
         self._bind_target.bind("<Button-3>", self._show_popup_menu)
 
-    def _show_popup_menu(self, event):
+    def _show_popup_menu(self, event: tk.Event):
         if self._popup_menu is not None:
             try:
                 self._popup_menu.tk_popup(event.x_root, event.y_root)
@@ -297,7 +305,7 @@ class Element(metaclass=ElementBaseMeta):
         return "break"
 
     # --- internals -------------------------------------------------------------
-    def _post_event(self, key=None):
+    def _post_event(self, key: Optional[ElementKey] = None):
         """Push an event into the owning window's queue (and the global bus)."""
         if self._window is not None:
             self._window._post_event(key if key is not None else self._key)
@@ -305,7 +313,7 @@ class Element(metaclass=ElementBaseMeta):
     def _attach_tooltip(self):
         self._tooltip_binding = Tooltip(self._bind_target, self._tooltip)
 
-    def _resolve_font(self, font):
+    def _resolve_font(self, font: Optional[FontSpec]):
         return font if font is not None else settings.font
 
     # --- user API ---------------------------------------------------------------
@@ -329,7 +337,12 @@ class Element(metaclass=ElementBaseMeta):
         override this to point at the interactive inner widget)."""
         return self._widget
 
-    def bind(self, event_pattern=None, callback=None, key=None, **kwargs):
+    def bind(
+        self,
+        event_pattern: Any = None,
+        callback: Optional[Callable[..., Any]] = None,
+        key: Optional[ElementKey] = None,
+        **kwargs: Any):
         """Bind a tk event pattern (``"<Double-1>"``, ``"<Motion>"``…).
 
         ``callback(element, event)`` runs on the event, or ``key`` (or the
@@ -351,7 +364,7 @@ class Element(metaclass=ElementBaseMeta):
             widget.bind(event_pattern, lambda _event: self._post_event())
         return self
 
-    def unbind(self, event_pattern):
+    def unbind(self, event_pattern: Any):
         """Remove a binding added with :meth:`bind`. Returns self."""
         widget = self._bind_target
         if widget is not None:
@@ -403,7 +416,7 @@ class Element(metaclass=ElementBaseMeta):
 class Tooltip:
     """Minimal hover tooltip bound to a widget."""
 
-    def __init__(self, widget, text, delay_ms=None):
+    def __init__(self, widget: tk.Widget, text: Optional[str], delay_ms: Optional[int] = None):
         self._widget = widget
         self._text = text
         self._tip = None
@@ -413,7 +426,7 @@ class Tooltip:
         widget.bind("<Leave>", self._hide, add="+")
         self._delay = delay
 
-    def _schedule(self, _event):
+    def _schedule(self, _event: tk.Event):
         if self._id is None:
             self._id = self._widget.after(self._delay, self._show)
 
@@ -426,7 +439,7 @@ class Tooltip:
         self._tip = tk_wrapper = self._make_tip_window(x, y)
         return tk_wrapper
 
-    def _make_tip_window(self, x, y):
+    def _make_tip_window(self, x: float, y: float):
         import tkinter as tk
 
         tip = tk.Toplevel(self._widget)
@@ -436,7 +449,7 @@ class Tooltip:
         colors = theme_mod.theme_manager.tooltip_colors()
         label = tk.Label(
             tip,
-            text=self._text,
+            text=self._text or "",
             background=colors.get("background", "#ffffe0"),
             foreground=colors.get("foreground", "#000000"),
             justify="left",
@@ -446,7 +459,7 @@ class Tooltip:
         label.pack()
         return tip
 
-    def _hide(self, _event=None):
+    def _hide(self, _event: Optional[tk.Event] = None):
         if self._id is not None:
             self._widget.after_cancel(self._id)
             self._id = None
@@ -462,17 +475,17 @@ class InputElement(Element):
 
     def __init__(
         self,
-        key=None,
-        size=(None, None),
-        tooltip=None,
-        visible=True,
-        disabled=False,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        key: Optional[ElementKey] = None,
+        size: Size = (None, None),
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        disabled: bool = False,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -493,10 +506,10 @@ class InputElement(Element):
         """True when the element was disabled at construction."""
         return self._disabled
 
-    def _apply_disabled(self, widget):
+    def _apply_disabled(self, widget: tk.Widget):
         """Apply the constructor ``disabled`` state to a freshly built widget."""
         if self._disabled:
-            widget.configure(state="disabled")
+            widget.configure(state="disabled")  # ty: ignore[unknown-argument]
 
     def get(self) -> Any:
         """Return the element's current value."""
@@ -517,17 +530,17 @@ class ContainerElement(Element):
 
     def __init__(
         self,
-        layout,
-        key=None,
-        size=(None, None),
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        layout: Optional[List[List[Any]]],
+        key: Optional[ElementKey] = None,
+        size: Size = (None, None),
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -564,7 +577,7 @@ class ContainerElement(Element):
         return self
 
 
-def build_popup_menu(owner, master, definition):
+def build_popup_menu(owner: Any, master: tk.Misc, definition: Any):
     """Build a ``tk.Menu`` from a TkSimpleGUI menu definition.
 
     Selecting an item posts its (shortcut-stripped) label as an event on
@@ -590,7 +603,7 @@ def build_popup_menu(owner, master, definition):
     return menu
 
 
-def _fill_popup_items(owner, menu, items):
+def _fill_popup_items(owner: Any, menu: "tk.Menu", items: Iterable[Any]):
     for item in items:
         if isinstance(item, (list, tuple)):
             if len(item) == 2 and isinstance(item[1], (list, tuple)):
@@ -615,7 +628,7 @@ def _fill_popup_items(owner, menu, items):
         )
 
 
-def _validate_layout(layout):
+def _validate_layout(layout: Any):
     """Normalize a layout (list of rows) raising on malformed input."""
     if layout is None:
         return []
@@ -629,14 +642,14 @@ def _validate_layout(layout):
     return rows
 
 
-def _parse_pad(pad):
+def _parse_pad(pad: Optional[PadSpec]):
     """Normalize a pad spec (number, (x, y) or ((l, r), (t, b))) to 4 numbers."""
     if pad is None:
         return 0, 0, 0, 0
     if isinstance(pad, (int, float)):
         return pad, pad, pad, pad
     if len(pad) == 2 and isinstance(pad[0], (list, tuple)):
-        return pad[0][0], pad[0][1], pad[1][0], pad[1][1]
+        return pad[0][0], pad[0][1], pad[1][0], pad[1][1]  # ty: ignore[not-subscriptable]
     return pad[0], pad[0], pad[1], pad[1]
 
 

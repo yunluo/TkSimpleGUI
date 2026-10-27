@@ -12,8 +12,10 @@ and every :meth:`~UserSettings.set` writes through to disk immediately::
 Keys may contain ``/`` to address nested sections ("window/size").
 """
 
+from typing import Any
 import json
 import os
+from .constants import ElementKey
 
 
 _DEFAULT_DIR_NAME = ".tksimplegui"
@@ -31,7 +33,7 @@ class UserSettings:
 
     __slots__ = ("_path", "_root", "_data")
 
-    def __init__(self, filename="settings.json", path=None, root=None):
+    def __init__(self, filename: str = "settings.json", path: Any = None, root: Any = None):
         """``path`` overrides the storage directory; ``root`` namespaces
         this instance inside a shared file."""
         directory = path if path is not None else _default_directory()
@@ -78,7 +80,7 @@ class UserSettings:
         return self._data.setdefault(self._root, {})
 
     # --- key API -----------------------------------------------------------------
-    def get(self, key, default=None):
+    def get(self, key: ElementKey, default: Any = None):
         """The stored value for ``key`` (``/``-separated paths allowed)."""
         node = self._section()
         for part in str(key).split("/"):
@@ -87,7 +89,7 @@ class UserSettings:
             node = node[part]
         return node
 
-    def set(self, key, value):
+    def set(self, key: ElementKey, value: Any):
         """Store ``value`` and persist to disk."""
         node = self._section()
         parts = str(key).split("/")
@@ -101,7 +103,7 @@ class UserSettings:
         self.save()
         return self
 
-    def delete(self, key):
+    def delete(self, key: ElementKey):
         """Remove ``key`` (and empty parent sections) and persist."""
         node = self._section()
         parts = str(key).split("/")
@@ -131,19 +133,19 @@ class UserSettings:
         return json.loads(json.dumps(section)) if isinstance(section, dict) else {}
 
     # --- mapping sugar -------------------------------------------------------------
-    def __getitem__(self, key):
+    def __getitem__(self, key: ElementKey):
         value = self.get(key)
         if value is None and key not in self:
             raise KeyError(key)
         return value
 
-    def __setitem__(self, key, value):
+    def __setitem__(self, key: ElementKey, value: Any):
         self.set(key, value)
 
-    def __delitem__(self, key):
+    def __delitem__(self, key: ElementKey):
         self.delete(key)
 
-    def __contains__(self, key):
+    def __contains__(self, key: ElementKey):
         node = self._section()
         for part in str(key).split("/"):
             if not isinstance(node, dict) or part not in node:

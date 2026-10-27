@@ -15,9 +15,10 @@ decorator based handlers::
 
 import functools
 import time
-from typing import Optional
+from typing import Any, Iterable, Optional
 
 from . import constants as C
+from .window.system_tray import SystemTray
 from .window.window import Window
 
 
@@ -46,10 +47,10 @@ class TkSimpleEvent:
         return {key: entry[0] for key, entry in self._event_handlers.items()}
 
     # --- registration --------------------------------------------------------
-    def bind_event(self, event_names):
+    def bind_event(self, event_names: Any):
         """Decorator binding a handler to one event key or a list of keys."""
 
-        def decorator(func):
+        def decorator(func: Any):
             if isinstance(event_names, str):
                 self._add_event(event_names, func)
             elif isinstance(event_names, (list, tuple)):
@@ -61,7 +62,7 @@ class TkSimpleEvent:
 
         return decorator
 
-    def _add_event(self, event, func):
+    def _add_event(self, event: Any, func: Any):
         if not str(func.__name__).startswith("on_"):
             raise ValueError(
                 f"event handler {func.__name__!r} must be named with an 'on_' prefix"
@@ -72,7 +73,7 @@ class TkSimpleEvent:
             self._event_handlers[event] = entry
 
     # --- dispatch --------------------------------------------------------------
-    def apply_event(self, window, event, values):
+    def apply_event(self, window: "Window | SystemTray", event: Any, values: Iterable[Any]):
         """Dispatch one event to its registered handler (if any).
 
         Timer ticks (``TIMEOUT_KEY``) and other no-handler events are
@@ -82,7 +83,7 @@ class TkSimpleEvent:
             return
         try:
             entry = self._event_handlers.get(event)
-            if entry is None and event in _ENTER_KEYS and window is not None:
+            if entry is None and event in _ENTER_KEYS and isinstance(window, Window):
                 focused = window.find_element_with_focus()
                 if focused is not None and focused.key is not None:
                     entry = self._event_handlers.get(focused.key)
@@ -113,7 +114,7 @@ class TkSimpleEvent:
         except Exception as error:  # keep the loop alive on handler errors
             print(f"TkSimpleEvent handler error for {event!r}: {error}")
 
-    def run_event(self, main_window, close_event=None):
+    def run_event(self, main_window: Any, close_event: Any = None):
         """Run the single application event loop until every window closes.
 
         This is the framework's own loop — user code never writes
@@ -156,7 +157,10 @@ def default_app() -> "TkSimpleEvent":
     return _default_app
 
 
-def run_application(anchor, app: Optional["TkSimpleEvent"] = None, close_event=None):
+def run_application(
+    anchor: "Window | SystemTray",
+    app: Optional["TkSimpleEvent"] = None,
+    close_event: Any = None):
     """Run the application loop with ``anchor`` as the root object.
 
     ``anchor`` is either a :class:`~TkSimpleGUI.window.Window` (a normal
@@ -195,13 +199,13 @@ def run_application(anchor, app: Optional["TkSimpleEvent"] = None, close_event=N
     return manager.run_event(anchor, close_event=close_event)
 
 
-def _handler_signature(func):
+def _handler_signature(func: Any):
     """(arg_names, arg_count) of a handler function."""
     code = func.__code__
     return tuple(code.co_varnames[: code.co_argcount]), code.co_argcount
 
 
-def singleton_window(func):
+def singleton_window(func: Any):
     """Decorator making a window-creating function return a single instance.
 
     Repeated calls bring the existing window to the front instead of creating
@@ -212,7 +216,7 @@ def singleton_window(func):
     instances = {}
 
     @functools.wraps(func)
-    def wrapper(*args, **kwargs):
+    def wrapper(*args: Any, **kwargs: Any):
         key = f"{str(func.__name__)}_{str(args)}_{str(kwargs)}"
         # evict any closed window for this key
         if instances.get(key) is not None and instances[key].was_closed:

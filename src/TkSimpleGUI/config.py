@@ -41,7 +41,7 @@ class ElementOptions:
     metadata: Any = None
     disabled: bool = False
 
-    def merged(self, element: Element, **overrides) -> dict:
+    def merged(self, element: Element, **overrides: Any) -> dict:
         """The resolved kwargs for ``element``: config values with explicit
         ``overrides`` winning. Internal helper for the constructors."""
         resolved = {
@@ -94,7 +94,7 @@ class WindowConfig:
     parent: Optional[Any] = None
     on_close: Optional[Any] = None
 
-    def as_kwargs(self, **overrides) -> dict:
+    def as_kwargs(self, **overrides: Any) -> dict:
         """The resolved kwargs for ``Window``: config values with explicit
         ``overrides`` winning."""
         resolved = {

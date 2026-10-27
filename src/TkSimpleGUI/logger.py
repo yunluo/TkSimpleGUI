@@ -33,6 +33,8 @@ import traceback
 from typing import Any, Dict, List, Optional, Tuple
 
 from .elements._paint import DANGER, INFO, SUCCESS, WARNING
+from .constants import Color, ElementKey
+from .window import Window
 
 # --- level tables -------------------------------------------------------------
 # "info" renders in the widget's own (theme following) text color; the rest
@@ -58,7 +60,7 @@ _LEVEL_RANK = {
 _LABEL_WIDTH = 7  # "warning" is the longest level name
 
 
-def _level_name(level) -> str:
+def _level_name(level: str) -> str:
     """Normalize a level argument to a known level name."""
     name = str(level or "info").lower()
     return name if name in _LEVEL_RANK else "info"
@@ -112,13 +114,13 @@ class Logger:
 
     def __init__(
         self,
-        element,
-        timestamp="%H:%M:%S",
-        max_lines=2000,
-        min_level="debug",
-        colors=None,
-        mirror=None,
-        drain_ms=100,
+        element: Any,
+        timestamp: Optional[str] = "%H:%M:%S",
+        max_lines: int = 2000,
+        min_level: str = "debug",
+        colors: Optional[Dict[str, str]] = None,
+        mirror: Any = None,
+        drain_ms: int = 100,
     ):
         if element is None or not hasattr(element, "print"):
             raise TypeError(
@@ -145,7 +147,7 @@ class Logger:
         self._start_drain_timer()
 
     # --- writing ---------------------------------------------------------------
-    def write(self, *args, level="info", color=None, timestamp=None):
+    def write(self, *args: Any, level: Any = "info", color: Any = None, timestamp: Any = None):
         """Append one line; safe to call from a worker thread.
 
         ``level`` picks the semantic color (and the level filter),
@@ -162,30 +164,30 @@ class Logger:
             self._queue.put(payload)
         return self
 
-    def log(self, *args, **kwargs):
+    def log(self, *args: Any, **kwargs: Any):
         """Alias of :meth:`write` (reads naturally as ``logger.log(...)``)."""
         return self.write(*args, **kwargs)
 
-    def debug(self, *args, **kwargs):
+    def debug(self, *args: Any, **kwargs: Any):
         return self.write(*args, level="debug", **kwargs)
 
-    def info(self, *args, **kwargs):
+    def info(self, *args: Any, **kwargs: Any):
         return self.write(*args, level="info", **kwargs)
 
-    def success(self, *args, **kwargs):
+    def success(self, *args: Any, **kwargs: Any):
         return self.write(*args, level="success", **kwargs)
 
-    def warning(self, *args, **kwargs):
+    def warning(self, *args: Any, **kwargs: Any):
         return self.write(*args, level="warning", **kwargs)
 
-    def error(self, *args, **kwargs):
+    def error(self, *args: Any, **kwargs: Any):
         return self.write(*args, level="error", **kwargs)
 
-    def critical(self, *args, **kwargs):
+    def critical(self, *args: Any, **kwargs: Any):
         return self.write(*args, level="critical", **kwargs)
 
     # --- rendering -------------------------------------------------------------
-    def _emit(self, args, level, color, timestamp):
+    def _emit(self, args: Any, level: str, color: Optional[Color], timestamp: Optional[str]):
         """One line, on the Tk thread: filter, format, mirror, print."""
         if _LEVEL_RANK.get(level, 20) < _LEVEL_RANK.get(self._min_level, 10):
             return
@@ -204,7 +206,7 @@ class Logger:
             return
         self._trim()
 
-    def _format(self, args, level, timestamp):
+    def _format(self, args: Any, level: str, timestamp: Optional[str]):
         if timestamp is False:
             stamp = ""
         else:
@@ -213,7 +215,7 @@ class Logger:
         text = " ".join(str(arg) for arg in args)
         return f"{stamp}{level.upper():<{_LABEL_WIDTH}} {text}"
 
-    def _write_mirror(self, line):
+    def _write_mirror(self, line: Any):
         if self._mirror is None:
             return
         with contextlib.suppress(Exception):
@@ -278,7 +280,7 @@ class Logger:
         return self
 
     # --- standard library bridge ------------------------------------------------
-    def attach_logging(self, level=None, name=None):
+    def attach_logging(self, level: Optional[str] = None, name: Optional[str] = None):
         """Route the standard :mod:`logging` module into this log box::
 
             logger.attach_logging("INFO")          # root logger, INFO and up
@@ -303,7 +305,7 @@ class Logger:
         self._attachments.append((target, bridge, previous))
         return self
 
-    def detach_logging(self, name=None):
+    def detach_logging(self, name: Optional[str] = None):
         """Remove every bridge this logger attached (optionally just ``name``)."""
         keep: List[Tuple[Any, Any, int]] = []
         for target, bridge, previous in self._attachments:
@@ -360,7 +362,7 @@ class Logger:
         return f"<Logger element={key!r} max_lines={self._max_lines}>"
 
 
-def _logging_level(level) -> int:
+def _logging_level(level: str) -> int:
     """Accept "warning" / "WARNING" / a number for the logging bridge."""
     if isinstance(level, int):
         return level
@@ -378,7 +380,7 @@ class _LoggingBridge(logging.Handler):
         super().__init__()
         self._target = logger
 
-    def emit(self, record):
+    def emit(self, record: Any):
         try:
             text = record.getMessage()
             if record.name not in ("root", ""):
@@ -394,7 +396,7 @@ class _LoggingBridge(logging.Handler):
         self._target.write(text, level=_level_for_logging(record.levelno))
 
 
-def find_log_element(key=None, window=None):
+def find_log_element(key: Optional[ElementKey] = None, window: Optional[Window] = None):
     """The TMultiline / TOutput element a log line should be written to.
 
     With ``key`` the element with that key in the searched windows; without
@@ -423,7 +425,12 @@ def find_log_element(key=None, window=None):
     return None
 
 
-def log(*args, key=None, level="info", color=None, window=None) -> bool:
+def log(
+    *args: Any,
+    key: Any = None,
+    level: Any = "info",
+    color: Any = None,
+    window: Any = None) -> bool:
     """Write one line into a window's log box — no logger object needed::
 
         ts.log("started")

@@ -3,10 +3,10 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Optional, cast
+from typing import Any, Iterable, Optional, Sequence, cast
 from .._typing_compat import Literal
 
-from .base import Element
+from .base import Element, ElementKey, Justification, MenuDefinition, PadSpec, Size
 from .. import constants as C
 from .. import enums as E
 import contextlib
@@ -63,25 +63,25 @@ class TTable(Element):
 
     def __init__(
         self,
-        values=(),
-        headings=(),
-        key=None,
-        select_mode=E.SelectMode.EXTENDED,
-        num_rows=C.DEFAULT_TABLE_NUM_ROWS,
-        col_widths=None,
-        enable_events=True,
-        size=(None, None),
-        auto_size_columns=True,
-        enable_edit=False,
-        row_icons=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        values: Iterable[Any] = (),
+        headings: Sequence[str] = (),
+        key: Optional[ElementKey] = None,
+        select_mode: Optional[str] = E.SelectMode.EXTENDED,
+        num_rows: Any = C.DEFAULT_TABLE_NUM_ROWS,
+        col_widths: Optional[Sequence[int]] = None,
+        enable_events: bool = True,
+        size: Size = (None, None),
+        auto_size_columns: bool = True,
+        enable_edit: bool = False,
+        row_icons: Any = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -115,12 +115,12 @@ class TTable(Element):
         self._editor = None
         self._records = []
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         # the stub narrows selectmode to these three literals
         mode = cast(
             Literal["extended", "browse", "none"],
-            _TREEVIEW_SELECT_MODE_MAP.get(self._select_mode, "extended"),
+            _TREEVIEW_SELECT_MODE_MAP.get(str(self._select_mode or ""), "extended"),
         )
         columns = [f"col{i}" for i in range(len(self._headings))]
         # item images render in the #0 tree column, which "headings" mode
@@ -159,7 +159,7 @@ class TTable(Element):
         return tree
 
     # --- row icons ------------------------------------------------------------------
-    def _load_image_spec(self, spec):
+    def _load_image_spec(self, spec: Any):
         """PhotoImage from a row icon spec (bytes = base64, str = filename)."""
         import base64
 
@@ -170,7 +170,7 @@ class TTable(Element):
         self._images.append(photo)
         return photo
 
-    def _apply_row_icon(self, tree, item_id, row_index):
+    def _apply_row_icon(self, tree: Any, item_id: Any, row_index: int):
         if self._row_icons is None or row_index >= len(self._row_icons):
             return
         spec = self._row_icons[row_index]
@@ -180,7 +180,7 @@ class TTable(Element):
             tree.item(item_id, image=self._load_image_spec(spec))
 
     # --- data binding (lightweight TDataSource) ---------------------------------------
-    def set_records(self, records, headings=None):
+    def set_records(self, records: Iterable[Any], headings: Optional[Sequence[str]] = None):
         """Replace the table contents with a list of records (dicts or
         attribute-bearing objects).
 
@@ -247,10 +247,10 @@ class TTable(Element):
         return result
 
     # --- sorting -------------------------------------------------------------------
-    def _on_heading_click(self, column_index):
+    def _on_heading_click(self, column_index: int):
         self.sort_by(column_index)
 
-    def sort_by(self, column_index, ascending=None):
+    def sort_by(self, column_index: int, ascending: Optional[bool] = None):
         """Sort the rows by ``column_index`` (toggles direction by default).
 
         Rows compare numerically when every cell in the column parses as a
@@ -265,7 +265,7 @@ class TTable(Element):
         self._sort_column = column_index
         self._sort_ascending = bool(ascending)
 
-        def sort_key(row):
+        def sort_key(row: Any):
             value = row[column_index] if column_index < len(row) else ""
             try:
                 return (0, float(value), "")
@@ -306,7 +306,7 @@ class TTable(Element):
         # from the header separator ButtonRelease
         self._widget.bind("<ButtonRelease-1>", self._on_header_release, add="+")
 
-    def _on_header_release(self, event):
+    def _on_header_release(self, event: tk.Event):
         region = self._widget.identify("region", event.x, event.y)
         if region != "separator":
             return
@@ -319,16 +319,16 @@ class TTable(Element):
             width = self._widget.column(f"col{index}", "width")
             self._post_event((self._key, "column_resized", index, width))
 
-    def column_width(self, index):
+    def column_width(self, index: int):
         """Current pixel width of column ``index``."""
         return self._widget.column(f"col{index}", "width")
 
-    def set_column_width(self, index, width):
+    def set_column_width(self, index: int, width: int):
         """Set column ``index`` to ``width`` pixels programmatically."""
         self._widget.column(f"col{index}", width=int(width))
         return self
 
-    def see(self, row_index):
+    def see(self, row_index: int):
         """Scroll so row ``row_index`` is visible (native Treeview.see)."""
         children = self._widget.get_children()
         if 0 <= row_index < len(children):
@@ -355,7 +355,12 @@ class TTable(Element):
     def selected_indices(self):
         return list(self._widget.selection())
 
-    def update(self, values=None, select_rows=None, row_icons=None, visible=None):
+    def update(
+        self,
+        values: Optional[Iterable[Any]] = None,
+        select_rows: Any = None,
+        row_icons: Any = None,
+        visible: Optional[bool] = None):
         if values is not None:
             self._values = [list(row) for row in values]
             self._widget.delete(*self._widget.get_children())
@@ -376,13 +381,13 @@ class TTable(Element):
         return self
 
     # --- cell editing (double click) --------------------------------------------------
-    def _on_double_click(self, event):
+    def _on_double_click(self, event: tk.Event):
         item = self._widget.identify_row(event.y)
         column = self._widget.identify_column(event.x)
         if item and column.startswith("#"):
             self._begin_cell_edit(item, column)
 
-    def _begin_cell_edit(self, item, column):
+    def _begin_cell_edit(self, item: Any, column: str):
         """Open an inline editor over ``item``/``column`` ("#1" style)."""
         bbox = self._widget.bbox(item, column)
         if not bbox:
@@ -417,7 +422,7 @@ class TTable(Element):
         )
         editor.bind("<Escape>", lambda _e: self._cancel_cell_edit(editor))
 
-    def _finish_cell_edit(self, editor, item, row, row_index, col_index):
+    def _finish_cell_edit(self, editor: Any, item: Any, row: Any, row_index: int, col_index: int):
         if self._editor is not editor:
             return
         value = editor.get()
@@ -432,13 +437,13 @@ class TTable(Element):
             self._widget.item(item, values=[str(cell) for cell in row])
             self._post_event((self._key, row_index, col_index, value))
 
-    def _cancel_cell_edit(self, editor):
+    def _cancel_cell_edit(self, editor: Any):
         if self._editor is editor:
             editor.destroy()
             self._editor = None
 
 
-def _record_value(record, key):
+def _record_value(record: Any, key: ElementKey):
     """Cell text from a dict record (key) or object (attribute/index)."""
     if isinstance(record, dict):
         value = record.get(key, "")
@@ -469,20 +474,20 @@ class TTree(Element):
 
     def __init__(
         self,
-        headings=(),
-        key=None,
-        num_rows=C.DEFAULT_TABLE_NUM_ROWS,
-        enable_events=True,
-        show_headings=False,
-        auto_size_columns=True,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        headings: Sequence[str] = (),
+        key: Optional[ElementKey] = None,
+        num_rows: Any = C.DEFAULT_TABLE_NUM_ROWS,
+        enable_events: bool = True,
+        show_headings: bool = False,
+        auto_size_columns: bool = True,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -502,7 +507,7 @@ class TTree(Element):
         self._auto_size_columns = auto_size_columns
         self._images = []
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         columns = [f"col{i}" for i in range(len(self._headings))]
         show = "tree headings" if self._show_headings and self._headings else "tree"
         tree = ttk.Treeview(
@@ -522,7 +527,13 @@ class TTree(Element):
             tree.column(column_id, width=80)
         return tree
 
-    def insert_group(self, parent, key, display_text=None, values=None, open=True):
+    def insert_group(
+        self,
+        parent: Any,
+        key: ElementKey,
+        display_text: Optional[str] = None,
+        values: Optional[Iterable[Any]] = None,
+        open: bool = True):
         """Insert a bold group row (a section header that can be collapsed).
 
         Children inserted with ``parent=key`` collapse together with it.
@@ -537,7 +548,12 @@ class TTree(Element):
             open=bool(open),
         )
 
-    def insert_summary(self, parent, key, display_text=None, values=None):
+    def insert_summary(
+        self,
+        parent: Any,
+        key: ElementKey,
+        display_text: Optional[str] = None,
+        values: Optional[Iterable[Any]] = None):
         """Insert a muted summary row (e.g. a totals line under a group)."""
         return self._widget.insert(
             parent,
@@ -548,23 +564,23 @@ class TTree(Element):
             tags=("summary",),
         )
 
-    def collapse(self, key):
+    def collapse(self, key: ElementKey):
         """Collapse the subtree under ``key``. Returns self."""
         self._widget.item(str(key), open=False)
         return self
 
-    def expand(self, key):
+    def expand(self, key: ElementKey):
         """Expand the subtree under ``key``. Returns self."""
         self._widget.item(str(key), open=True)
         return self
 
-    def toggle(self, key):
+    def toggle(self, key: ElementKey):
         """Toggle the open state of the subtree under ``key``."""
         item = str(key)
         self._widget.item(item, open=not self._widget.item(item, "open"))
         return self
 
-    def see(self, key):
+    def see(self, key: ElementKey):
         """Scroll so item ``key`` is visible (native Treeview.see)."""
         self._widget.see(str(key))
         return self
@@ -573,8 +589,14 @@ class TTree(Element):
         if self._enable_events:
             self._widget.bind("<<TreeviewSelect>>", lambda _e: self._post_event())
 
-    def insert(self, parent, key, display_text=None, values=None,
-            image_data=None, image_filename=None):
+    def insert(
+        self,
+        parent: Any,
+        key: ElementKey,
+        display_text: Optional[str] = None,
+        values: Optional[Iterable[Any]] = None,
+        image_data: Optional[bytes] = None,
+        image_filename: Optional[str] = None):
         """Insert an item; ``parent`` is "" for roots. Returns the item id."""
         kwargs = {}
         if image_data is not None or image_filename is not None:
@@ -599,12 +621,12 @@ class TTree(Element):
             **kwargs
         )
 
-    def delete(self, key):
+    def delete(self, key: ElementKey):
         """Delete the item with the given key."""
         self._widget.delete(str(key))
         return self
 
-    def update(self, visible=None):
+    def update(self, visible: Optional[bool] = None):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self

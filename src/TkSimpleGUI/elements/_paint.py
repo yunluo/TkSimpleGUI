@@ -25,10 +25,11 @@ explicit override.
 
 import math
 import tkinter as tk
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from .. import _theming as theme_mod
 from .._theming import _blend as blend
+from ..constants import FontSpec
 
 Point = Tuple[float, float]
 Color = str
@@ -64,7 +65,7 @@ def pil_modules():
     return _PIL
 
 
-def status_color(status, colors: ColorMap) -> Color:
+def status_color(status: str, colors: ColorMap) -> Color:
     """The color for a status name; ``"primary"`` follows the theme accent."""
     key = str(status or "info").lower()
     if key == "primary":
@@ -73,7 +74,7 @@ def status_color(status, colors: ColorMap) -> Color:
 
 
 # --- color resolution ---------------------------------------------------------
-def to_hex(widget, color, fallback: Color = "#808080") -> Color:
+def to_hex(widget: tk.Misc, color: Optional[Color], fallback: Color = "#808080") -> Color:
     """Best effort ``#rrggbb`` for any Tk color (named / system colors).
 
     ``winfo_rgb`` resolves names Tk knows ("SystemButtonFace", "gray70")
@@ -94,7 +95,7 @@ def to_hex(widget, color, fallback: Color = "#808080") -> Color:
     return fallback
 
 
-def _native_color(widget, widget_class, option, fallback: Color) -> Color:
+def _native_color(widget: tk.Misc, widget_class: Any, option: Any, fallback: Color) -> Color:
     """Sample a platform default value (e.g. a plain tk.Frame background)."""
     try:
         value = theme_mod.native_widget_colors(widget_class, widget, (option,))[option]
@@ -103,7 +104,7 @@ def _native_color(widget, widget_class, option, fallback: Color) -> Color:
     return to_hex(widget, value, fallback)
 
 
-def palette(widget, surface=None, ink=None) -> ColorMap:
+def palette(widget: tk.Misc, surface: Any = None, ink: Any = None) -> ColorMap:
     """Resolve the active theme into concrete, blendable hex colors.
 
     Keys: ``surface`` (background to draw on), ``ink`` (primary text),
@@ -149,7 +150,7 @@ def shade(color: Color, colors: ColorMap, ratio: float = 0.30) -> Color:
     return blend(color, colors["ink"], ratio)
 
 
-def themed_canvas(master, width: int, height: int, surface: Color) -> tk.Canvas:
+def themed_canvas(master: tk.Misc, width: int, height: int, surface: Color) -> tk.Canvas:
     """A flat canvas without highlight ring, on the given surface color."""
     return tk.Canvas(
         master,
@@ -161,7 +162,7 @@ def themed_canvas(master, width: int, height: int, surface: Color) -> tk.Canvas:
     )
 
 
-def measure_text(widget, text: str, font) -> int:
+def measure_text(widget: tk.Misc, text: str, font: Optional[FontSpec]) -> int:
     """Pixel width of ``text`` in ``font`` (falls back to an estimate)."""
     try:
         from tkinter import font as tkfont
@@ -172,7 +173,14 @@ def measure_text(widget, text: str, font) -> int:
 
 
 # --- shapes -------------------------------------------------------------------
-def rounded_polygon(canvas, x0, y0, x1, y1, radius, **kwargs) -> int:
+def rounded_polygon(
+    canvas: tk.Canvas,
+    x0: float,
+    y0: float,
+    x1: float,
+    y1: float,
+    radius: float,
+    **kwargs: Any) -> int:
     """A closed rounded rectangle as a smooth canvas polygon.
 
     Tk has no native rounded rectangle; the smooth-polygon approximation
@@ -194,13 +202,13 @@ def rounded_polygon(canvas, x0, y0, x1, y1, radius, **kwargs) -> int:
     return canvas.create_polygon(points, smooth=True, **kwargs)
 
 
-def capsule(canvas, x0, y0, x1, y1, **kwargs) -> int:
+def capsule(canvas: tk.Canvas, x0: float, y0: float, x1: float, y1: float, **kwargs: Any) -> int:
     """A fully rounded (pill) shape spanning the given box."""
     radius = min(abs(x1 - x0), abs(y1 - y0)) / 2.0
     return rounded_polygon(canvas, x0, y0, x1, y1, radius, **kwargs)
 
 
-def cross(canvas, cx, cy, size, **kwargs) -> List[int]:
+def cross(canvas: tk.Canvas, cx: float, cy: float, size: float, **kwargs: Any) -> List[int]:
     """An "x" close glyph centered on (cx, cy) with the given extent."""
     half = size / 2.0
     return [
@@ -209,7 +217,7 @@ def cross(canvas, cx, cy, size, **kwargs) -> List[int]:
     ]
 
 
-def check_mark(canvas, cx, cy, size, **kwargs) -> int:
+def check_mark(canvas: tk.Canvas, cx: float, cy: float, size: float, **kwargs: Any) -> int:
     """A round-capped check mark sized to fit ``size``."""
     half = size / 2.0
     coords = [
@@ -222,7 +230,13 @@ def check_mark(canvas, cx, cy, size, **kwargs) -> int:
     )
 
 
-def triangle(canvas, cx, cy, size, direction: str = "up", **kwargs) -> int:
+def triangle(
+    canvas: tk.Canvas,
+    cx: float,
+    cy: float,
+    size: float,
+    direction: str = "up",
+    **kwargs: Any) -> int:
     """A filled trend arrow pointing ``up`` or ``down``."""
     half = size / 2.0
     if str(direction).lower() == "down":
@@ -232,7 +246,7 @@ def triangle(canvas, cx, cy, size, direction: str = "up", **kwargs) -> int:
     return canvas.create_polygon(points, **kwargs)
 
 
-def star_points(cx, cy, outer, inner, points: int = 5,
+def star_points(cx: float, cy: float, outer: Any, inner: Any, points: int = 5,
                 rotation: float = 90.0) -> List[Point]:
     """The vertex list of a star polygon (alternating outer/inner radii).
 
@@ -252,7 +266,7 @@ def star_points(cx, cy, outer, inner, points: int = 5,
     return vertices
 
 
-def clip_left_half(points: Sequence[Point], limit=None) -> List[Point]:
+def clip_left_half(points: Sequence[Point], limit: Any = None) -> List[Point]:
     """Clip a polygon to the left of a vertical line (Sutherland-Hodgman).
 
     ``limit`` defaults to the horizontal center of the polygon's bounding
@@ -317,7 +331,7 @@ _FONT_FILES = (
 _FONT_CACHE: Dict[str, Any] = {}
 
 
-def system_font_file(family=None):
+def system_font_file(family: Any = None):
     """Best effort path to a TrueType file for Pillow text rendering.
 
     Pillow renders text from font *files*; Tk fonts are not files. The

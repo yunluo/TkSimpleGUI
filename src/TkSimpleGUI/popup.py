@@ -5,9 +5,10 @@ Every popup is built from :class:`~TkSimpleGUI.window.Window` itself, so
 popups automatically follow the active theme.
 """
 
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import constants as C
+from .constants import Size
 from .settings import settings
 from .elements.buttons import TButton
 from .elements.calendar import TCalendar
@@ -21,13 +22,13 @@ ElementRow = List[Any]
 
 
 def _popup_window(
-    title,
-    lines,
-    buttons=("OK",),
-    auto_close_duration=None,
-    no_buttons=False,
-    size=(None, None),
-    closable=True,
+    title: str,
+    lines: Any,
+    buttons: Any = ("OK",),
+    auto_close_duration: Optional[float] = None,
+    no_buttons: bool = False,
+    size: Size = (None, None),
+    closable: bool = True,
 ):
     """Shared helper: build and read a simple popup window.
 
@@ -60,7 +61,7 @@ def _popup_window(
     return event
 
 
-def _message_lines(args):
+def _message_lines(args: Any):
     lines = []
     for arg in args:
         text = str(arg)
@@ -68,7 +69,7 @@ def _message_lines(args):
     return lines or [""]
 
 
-def popup(*args, title="", auto_close=False, auto_close_duration=None):
+def popup(*args: Any, title: Any = "", auto_close: Any = False, auto_close_duration: Any = None):
     """Show a message with an OK button; returns the clicked button text."""
     if auto_close:
         return popup_auto_close(
@@ -77,32 +78,32 @@ def popup(*args, title="", auto_close=False, auto_close_duration=None):
     return _popup_window(title, _message_lines(args))
 
 
-def popup_ok(*args, title=""):
+def popup_ok(*args: Any, title: Any = ""):
     """Show a message with an OK button; returns ``"OK"``."""
     return _popup_window(title, _message_lines(args), buttons=("OK",))
 
 
-def popup_yes_no(*args, title=""):
+def popup_yes_no(*args: Any, title: Any = ""):
     """Show a message with Yes/No buttons; returns ``"Yes"`` or ``"No"``."""
     return _popup_window(title, _message_lines(args), buttons=("Yes", "No"))
 
 
-def popup_ok_cancel(*args, title=""):
+def popup_ok_cancel(*args: Any, title: Any = ""):
     """Show a message with OK/Cancel buttons; returns the clicked one."""
     return _popup_window(title, _message_lines(args), buttons=("OK", "Cancel"))
 
 
-def popup_cancel(*args, title=""):
+def popup_cancel(*args: Any, title: Any = ""):
     """Show a message with a Cancel button; returns ``"Cancel"``."""
     return _popup_window(title, _message_lines(args), buttons=("Cancel",))
 
 
-def popup_error(*args, title="Error"):
+def popup_error(*args: Any, title: Any = "Error"):
     """Show an error message; returns ``"OK"``."""
     return _popup_window(title, _message_lines(args), buttons=("OK",))
 
 
-def popup_no_buttons(*args, title="", auto_close_duration=None):
+def popup_no_buttons(*args: Any, title: Any = "", auto_close_duration: Any = None):
     """Show a message without buttons; auto closes. Returns ``""``."""
     return _popup_window(
         title,
@@ -113,7 +114,11 @@ def popup_no_buttons(*args, title="", auto_close_duration=None):
     )
 
 
-def popup_auto_close(*args, title="", auto_close_duration=None, buttons=("OK",)):
+def popup_auto_close(
+    *args: Any,
+    title: Any = "",
+    auto_close_duration: Any = None,
+    buttons: Any = ("OK",)):
     """Show a message with buttons that closes itself after a delay."""
     duration = (
         auto_close_duration
@@ -130,7 +135,7 @@ def popup_auto_close(*args, title="", auto_close_duration=None, buttons=("OK",))
     return event
 
 
-def popup_scrolled(*args, title="", size=(80, 20)):
+def popup_scrolled(*args: Any, title: Any = "", size: Any = (80, 20)):
     """Show a scrollable message; returns the text (or None on cancel)."""
     rows: List[ElementRow] = [[TMultiline("\n".join(_message_lines(args)), size=size, key="-ML-")]]
     rows.append([TButton("OK", key="OK"), TButton("Cancel", key="Cancel")])
@@ -142,12 +147,12 @@ def popup_scrolled(*args, title="", size=(80, 20)):
     return "\n".join(_message_lines(args))
 
 
-def popup_notify(*args, title="Notification"):
+def popup_notify(*args: Any, title: Any = "Notification"):
     """Show a short auto closing notification."""
     return popup_no_buttons(*args, title=title, auto_close_duration=3)
 
 
-def popup_get_text(message, title="", default_text=""):
+def popup_get_text(message: str, title: str = "", default_text: str = ""):
     """Ask the user for a single line of text; None on cancel."""
     rows = [
         [TText(message)],
@@ -164,13 +169,13 @@ def popup_get_text(message, title="", default_text=""):
 
 
 def popup_get_file(
-    message="",
-    title="",
-    file_types=C.FILE_TYPES_ALL_FILES,
-    save_as=False,
-    multiple_files=False,
-    initial_folder=None,
-    default_path=None,
+    message: str = "",
+    title: str = "",
+    file_types: Sequence[Tuple[str, str]] = C.FILE_TYPES_ALL_FILES,
+    save_as: bool = False,
+    multiple_files: bool = False,
+    initial_folder: Any = None,
+    default_path: Any = None,
 ):
     """Native file picker; returns a path (or delimiter joined paths) or None."""
     from tkinter import filedialog
@@ -193,7 +198,7 @@ def popup_get_file(
     return result if result else None
 
 
-def popup_get_folder(message="", title=""):
+def popup_get_folder(message: str = "", title: str = ""):
     """Native folder picker; returns the path or None."""
     from tkinter import filedialog
 
@@ -201,7 +206,11 @@ def popup_get_folder(message="", title=""):
     return result if result else None
 
 
-def popup_get_date(message="Choose a date", title="", default_date=None, dateformat="%Y-%m-%d"):
+def popup_get_date(
+    message: str = "Choose a date",
+    title: str = "",
+    default_date: Any = None,
+    dateformat: str = "%Y-%m-%d"):
     """TCalendar chooser; returns a :class:`datetime.date` or None.
 
     ``default_date`` accepts a date or a ``(year, month, day)`` tuple
@@ -231,13 +240,13 @@ def popup_get_date(message="Choose a date", title="", default_date=None, datefor
 
 
 # --- find / replace helpers (tk.Text search API) --------------------------------
-def _as_text_widget(target):
+def _as_text_widget(target: Any):
     """The underlying tk.Text of a TMultiline element (or the widget itself)."""
     text = getattr(target, "_text", None)
     return text if text is not None else target
 
 
-def _text_find(widget, needle, start="1.0", case_sensitive=False):
+def _text_find(widget: Any, needle: str, start: str = "1.0", case_sensitive: bool = False):
     """First "line.col" index of ``needle`` in a tk.Text, or None."""
     widget = _as_text_widget(widget)
     needle = str(needle)
@@ -247,7 +256,7 @@ def _text_find(widget, needle, start="1.0", case_sensitive=False):
     return pos or None
 
 
-def _text_replace_all(widget, needle, replacement, case_sensitive=False):
+def _text_replace_all(widget: Any, needle: str, replacement: str, case_sensitive: bool = False):
     """Replace every occurrence in a tk.Text; returns the replacement count.
 
     The search resumes after each inserted replacement so replacements that
@@ -272,7 +281,7 @@ def _text_replace_all(widget, needle, replacement, case_sensitive=False):
     return count
 
 
-def popup_find(multiline, title="Find TText", case_sensitive=False):
+def popup_find(multiline: TMultiline, title: str = "Find TText", case_sensitive: bool = False):
     """Find text in a :class:`~TkSimpleGUI.elements.widgets.TMultiline`.
 
     The first match from the top is selected and scrolled into view.
@@ -301,7 +310,7 @@ def popup_find(multiline, title="Find TText", case_sensitive=False):
     return pos
 
 
-def popup_replace(multiline, title="Replace", case_sensitive=False):
+def popup_replace(multiline: TMultiline, title: str = "Replace", case_sensitive: bool = False):
     """Replace-all dialog for a TMultiline element.
 
     Returns the number of replacements, or None when cancelled. The search
@@ -332,10 +341,10 @@ def popup_replace(multiline, title="Replace", case_sensitive=False):
 
 
 def popup_get_font(
-    message="Pick a font",
-    title="",
-    default_font=("Helvetica", 12),
-    include_bold_italic=False,
+    message: str = "Pick a font",
+    title: str = "",
+    default_font: Any = ("Helvetica", 12),
+    include_bold_italic: bool = False,
 ):
     """Font chooser (Delphi TFontDialog equivalent).
 
@@ -360,7 +369,7 @@ def popup_get_font(
     )
     rows: List[ElementRow] = [
         [TText(message)],
-        [TColumn([TListbox([], key="-FONTS-", size=(26, 10), enable_events=True)]),
+        [TColumn([[TListbox([], key="-FONTS-", size=(26, 10), enable_events=True)]]),
          TColumn(option_rows)],
         [TButton("OK", key="OK"), TButton("Cancel", key="Cancel")],
     ]
@@ -387,7 +396,7 @@ def popup_get_font(
             flags = flags + ("italic",)
         return picked_family, picked_size, flags
 
-    def _refresh_preview(_window=None, _event=None, _values=None):
+    def _refresh_preview(_window: Any = None, _event: Any = None, _values: Any = None):
         picked = _current_font()
         window["-PREVIEW-"].widget.configure(font=(picked[0], picked[1]) + picked[2])
 

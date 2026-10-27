@@ -5,6 +5,7 @@ All mutable global options live in one :class:`Settings` instance instead of
 loose module level variables. The package exposes the ``settings`` singleton.
 """
 
+from typing import Any
 from . import constants as C
 
 
@@ -75,7 +76,7 @@ class Settings:
         return self._font
 
     @font.setter
-    def font(self, value):
+    def font(self, value: Any):
         if value is not None and (not isinstance(value, tuple) or len(value) < 2):
             raise ValueError("font must be a (name, size) tuple")
         self._font = value
@@ -85,7 +86,7 @@ class Settings:
         return self._element_size
 
     @element_size.setter
-    def element_size(self, value):
+    def element_size(self, value: Any):
         self._element_size = value
 
     @property
@@ -93,7 +94,7 @@ class Settings:
         return self._button_element_size
 
     @button_element_size.setter
-    def button_element_size(self, value):
+    def button_element_size(self, value: Any):
         self._button_element_size = value
 
     @property
@@ -101,7 +102,7 @@ class Settings:
         return self._margins
 
     @margins.setter
-    def margins(self, value):
+    def margins(self, value: Any):
         self._margins = value
 
     @property
@@ -109,7 +110,7 @@ class Settings:
         return self._element_padding
 
     @element_padding.setter
-    def element_padding(self, value):
+    def element_padding(self, value: Any):
         self._element_padding = value
 
     @property
@@ -117,7 +118,7 @@ class Settings:
         return self._border_width
 
     @border_width.setter
-    def border_width(self, value):
+    def border_width(self, value: Any):
         self._border_width = int(value)
 
     @property
@@ -125,7 +126,7 @@ class Settings:
         return self._autoclose_time
 
     @autoclose_time.setter
-    def autoclose_time(self, value):
+    def autoclose_time(self, value: Any):
         self._autoclose_time = value
 
     @property
@@ -133,7 +134,7 @@ class Settings:
         return self._tooltip_time
 
     @tooltip_time.setter
-    def tooltip_time(self, value):
+    def tooltip_time(self, value: Any):
         self._tooltip_time = value
 
     @property
@@ -141,7 +142,7 @@ class Settings:
         return self._tooltip_offset
 
     @tooltip_offset.setter
-    def tooltip_offset(self, value):
+    def tooltip_offset(self, value: Any):
         self._tooltip_offset = value
 
     @property
@@ -149,7 +150,7 @@ class Settings:
         return self._keep_on_top
 
     @keep_on_top.setter
-    def keep_on_top(self, value):
+    def keep_on_top(self, value: Any):
         self._keep_on_top = value
 
     @property
@@ -157,7 +158,7 @@ class Settings:
         return self._scaling
 
     @scaling.setter
-    def scaling(self, value):
+    def scaling(self, value: Any):
         self._scaling = value
 
     @property
@@ -165,7 +166,7 @@ class Settings:
         return self._alpha_channel
 
     @alpha_channel.setter
-    def alpha_channel(self, value):
+    def alpha_channel(self, value: Any):
         self._alpha_channel = value
 
     @property
@@ -173,7 +174,7 @@ class Settings:
         return self._suppress_error_popups
 
     @suppress_error_popups.setter
-    def suppress_error_popups(self, value):
+    def suppress_error_popups(self, value: Any):
         self._suppress_error_popups = bool(value)
 
     @property
@@ -181,7 +182,7 @@ class Settings:
         return self._suppress_raise_key_errors
 
     @suppress_raise_key_errors.setter
-    def suppress_raise_key_errors(self, value):
+    def suppress_raise_key_errors(self, value: Any):
         self._suppress_raise_key_errors = bool(value)
 
     @property
@@ -189,7 +190,7 @@ class Settings:
         return self._suppress_key_guessing
 
     @suppress_key_guessing.setter
-    def suppress_key_guessing(self, value):
+    def suppress_key_guessing(self, value: Any):
         self._suppress_key_guessing = bool(value)
 
     @property
@@ -197,7 +198,7 @@ class Settings:
         return self._suppress_widget_not_finalized_warnings
 
     @suppress_widget_not_finalized_warnings.setter
-    def suppress_widget_not_finalized_warnings(self, value):
+    def suppress_widget_not_finalized_warnings(self, value: Any):
         self._suppress_widget_not_finalized_warnings = bool(value)
 
     # --- dict style API ----------------------------------------------------
@@ -205,7 +206,7 @@ class Settings:
         """Snapshot of every option as a dict."""
         return {name: getattr(self, name) for name in _KNOWN_OPTIONS}
 
-    def apply_options(self, **kwargs):
+    def apply_options(self, **kwargs: Any):
         """Validate and apply a batch of options."""
         for name, value in kwargs.items():
             if name not in _KNOWN_OPTIONS:

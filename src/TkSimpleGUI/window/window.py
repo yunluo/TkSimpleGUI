@@ -8,13 +8,22 @@ import threading
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
 
 from .. import constants as C
 from .. import _theming as theme_mod
 from ..settings import settings
 from ..actions import ActionList
-from ..elements.base import Element, build_popup_menu
+from ..elements.base import (
+    Color,
+    Element,
+    ElementKey,
+    FontSpec,
+    Justification,
+    MenuDefinition,
+    Size,
+    build_popup_menu,
+)
 from ..elements.containers import TMenu
 
 # A Window size or on-screen position as (x, y) pixels.
@@ -43,12 +52,12 @@ _NO_PAYLOAD = _NoPayload()
 _task_logger = logging.getLogger("TkSimpleGUI.task")
 
 
-def _func_name(func):
+def _func_name(func: Callable[..., Any]):
     """Readable name of a task callable (thread name, log record)."""
     return getattr(func, "__name__", None) or repr(func)
 
 
-def _log_task_error(func, error):
+def _log_task_error(func: Callable[..., Any], error: BaseException):
     """Report a failed :meth:`Window.start_task` worker through logging."""
     _task_logger.error("start_task %s failed", _func_name(func), exc_info=error)
 
@@ -142,7 +151,7 @@ class Window:
     _no_titlebar: bool
     _grab_anywhere: bool
     _return_keyboard_events: bool
-    _location: OptionalPoint
+    _location: Optional[OptionalPoint]
     _size: OptionalPoint
     _margins: Tuple[int, int]
     _background_color: Optional[str]
@@ -168,29 +177,29 @@ class Window:
 
     def __init__(
         self,
-        title=None,
-        layout=None,
-        size=(None, None),
-        location=(None, None),
-        finalize=False,
-        keep_on_top=False,
-        modal=False,
-        no_titlebar=False,
-        grab_anywhere=False,
-        return_keyboard_events=False,
-        icon=None,
-        background_color=None,
-        margins=None,
-        resizable=None,
-        disable_close=False,
-        disable_esc=False,
-        system_block=False,
-        element_justification=None,
-        right_click_menu=None,
-        actions=None,
-        parent=None,
-        config=None,
-        on_close=None,
+        title: Optional[str] = None,
+        layout: Optional[List[List[Any]]] = None,
+        size: Size = (None, None),
+        location: Optional[OptionalPoint] = None,
+        finalize: bool = False,
+        keep_on_top: bool = False,
+        modal: bool = False,
+        no_titlebar: bool = False,
+        grab_anywhere: bool = False,
+        return_keyboard_events: bool = False,
+        icon: Any = None,
+        background_color: Optional[Color] = None,
+        margins: Any = None,
+        resizable: Optional[bool] = None,
+        disable_close: bool = False,
+        disable_esc: bool = False,
+        system_block: bool = False,
+        element_justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        actions: Any = None,
+        parent: Any = None,
+        config: Any = None,
+        on_close: Optional[Callable[..., Any]] = None,
     ):
         # a WindowConfig dataclass can carry every option; explicit kwargs win
         if config is not None:
@@ -298,7 +307,7 @@ class Window:
         return self._title
 
     @title.setter
-    def title(self, value):
+    def title(self, value: Any):
         self._title = value
         if self._root_alive():
             self._tk_root.title(value)
@@ -331,7 +340,7 @@ class Window:
         return (self._tk_root.winfo_width(), self._tk_root.winfo_height())
 
     @size.setter
-    def size(self, value):
+    def size(self, value: Any):
         self.set_size(value)
 
     # --- window hierarchy --------------------------------------------------------
@@ -359,17 +368,17 @@ class Window:
             node = node._parent
         return chain
 
-    def is_child_of(self, other) -> bool:
+    def is_child_of(self, other: Any) -> bool:
         """True when ``other`` appears in this window's parent chain."""
         return other in self.ancestors
 
-    def _register_child(self, child):
+    def _register_child(self, child: Any):
         """Link ``child`` into this window's children list."""
         if child not in self._children:
             self._children.append(child)
         return self
 
-    def _unregister_child(self, child):
+    def _unregister_child(self, child: Any):
         if child in self._children:
             self._children.remove(child)
         return self
@@ -409,7 +418,7 @@ class Window:
             cls._event_bus.put(entry)
 
     @classmethod
-    def read_all_windows(cls, timeout=0, timeout_key=C.TIMEOUT_KEY):
+    def read_all_windows(cls, timeout: Optional[int] = 0, timeout_key: Any = C.TIMEOUT_KEY):
         """Consume ONE event from the global bus; returns (window, event, values).
 
         Identical to :meth:`read` but returns the owning window too. When
@@ -531,10 +540,11 @@ class Window:
         # a floor small enough that the title bar buttons (minimize /
         # maximize / close) always stay visible and clickable
         root.minsize(C.WINDOW_MIN_WIDTH, C.WINDOW_MIN_HEIGHT)
-        x, y = self._location
-        if x is not None and y is not None:
-            current = root.geometry().split("+", 1)[0]
-            root.geometry(f"{current}+{int(x)}+{int(y)}")
+        if self._location is not None:
+            x, y = self._location
+            if x is not None and y is not None:
+                current = root.geometry().split("+", 1)[0]
+                root.geometry(f"{current}+{int(x)}+{int(y)}")
         if self._no_titlebar:
             root.overrideredirect(True)
         if self._keep_on_top:
@@ -567,7 +577,7 @@ class Window:
         for shortcut, key in self._event_binds:
             root.bind(shortcut, lambda _e, k=key: self._post_event(k))
 
-    def _show_popup_menu(self, event):
+    def _show_popup_menu(self, event: tk.Event):
         if self._popup_menu is not None:
             try:
                 self._popup_menu.tk_popup(event.x_root, event.y_root)
@@ -575,7 +585,7 @@ class Window:
                 self._popup_menu.grab_release()
         return "break"
 
-    def _apply_icon(self, icon):
+    def _apply_icon(self, icon: Any):
         """Set the icon from base64 data (one item or a tuple of sizes)."""
         try:
             if isinstance(icon, (bytes, str)):
@@ -599,24 +609,24 @@ class Window:
             self._start_system_block()
 
     # --- drag when grab_anywhere ------------------------------------------------
-    def _start_move(self, event):
+    def _start_move(self, event: tk.Event):
         self._drag_offset = (event.x, event.y)
 
-    def _stop_move(self, _event):
+    def _stop_move(self, _event: tk.Event):
         self._drag_offset = None
 
-    def _on_motion(self, event):
+    def _on_motion(self, event: tk.Event):
         offset = self._drag_offset
         if offset:
             x = self._tk_root.winfo_x() - offset[0] + event.x
             y = self._tk_root.winfo_y() - offset[1] + event.y
             self._tk_root.geometry(f"+{x}+{y}")
 
-    def _on_keyboard_event(self, event):
+    def _on_keyboard_event(self, event: tk.Event):
         self._post_event(str(event.keysym))
 
     # --- layout building -----------------------------------------------------------
-    def _build_layout(self, layout, master):
+    def _build_layout(self, layout: List[List[Any]], master: tk.Misc):
         padding = settings.element_padding
         default_justification = self._element_justification
         expand_columns = set()
@@ -643,7 +653,7 @@ class Window:
         for row in expand_rows:
             master.rowconfigure(row, weight=1)
 
-    def _register_element(self, element):
+    def _register_element(self, element: Any):
         # every element lands in the flat list (update_theme repaints all
         # of them); only keyed ones additionally join the lookup dict
         self._elements.append(element)
@@ -654,19 +664,19 @@ class Window:
             raise ValueError(f"Duplicate element key: {key!r}")
         self._elements_by_key[key] = element
 
-    def _register_key(self, element):
+    def _register_key(self, element: Any):
         self._register_element(element)
 
-    def _unregister_key(self, key):
+    def _unregister_key(self, key: ElementKey):
         self._elements_by_key.pop(key, None)
 
-    def radio_group_variable(self, group_id):
+    def radio_group_variable(self, group_id: Any):
         """The shared ``StringVar`` for a radio button group."""
         if group_id not in self._radio_groups:
             self._radio_groups[group_id] = tk.StringVar(value="", master=self._tk_root)
         return self._radio_groups[group_id]
 
-    def _press_toggle(self, group_id, button):
+    def _press_toggle(self, group_id: Any, button: Any):
         """Exclusive-press bookkeeping for toggle buttons sharing ``group_id``."""
         group = self._toggle_groups.setdefault(group_id, [])
         for other in group:
@@ -676,7 +686,7 @@ class Window:
             group.append(button)
 
     # --- event plumbing ---------------------------------------------------------------
-    def set_actions(self, actions):
+    def set_actions(self, actions: Any):
         """Register :class:`~TkSimpleGUI.actions.Action` objects.
 
         TMenu/right-click item texts matching an action's text are normalized
@@ -694,7 +704,7 @@ class Window:
                 self.bind(action.shortcut, action.key)
         return self
 
-    def bind(self, shortcut, key=None):
+    def bind(self, shortcut: Any, key: Optional[ElementKey] = None):
         """Bind a tk event pattern (e.g. ``"<Control-o>"``) to an event key.
 
         The binding works before and after :meth:`finalize`. Returns self.
@@ -704,7 +714,7 @@ class Window:
             self._tk_root.bind(shortcut, lambda _e, k=key: self._post_event(k))
         return self
 
-    def _dispatch_action(self, event, values):
+    def _dispatch_action(self, event: tk.Event, values: Iterable[Any]):
         """Auto-fire the callback of the action matching ``event``."""
         if not self._action_by_key or not isinstance(event, str):
             return
@@ -712,7 +722,7 @@ class Window:
         if action is not None:
             action.trigger(self, values)
 
-    def _post_event(self, key, value=_NO_PAYLOAD):
+    def _post_event(self, key: ElementKey, value: Any = _NO_PAYLOAD):
         """Queue an event on the global bus (elements/user code; consumed by
         any ``Window.read`` or ``ts.main_loop``).
 
@@ -730,7 +740,7 @@ class Window:
             return
         self._post_event_now(key, value)
 
-    def _post_event_now(self, key, value=_NO_PAYLOAD):
+    def _post_event_now(self, key: ElementKey, value: Any = _NO_PAYLOAD):
         """The main-thread half of :meth:`_post_event`: action normalization,
         values snapshot and the actual bus put. With ``value`` given it
         overrides ``key`` in the values dict (PySimpleGUI convention)."""
@@ -767,7 +777,7 @@ class Window:
                 values[key] = None
         return values
 
-    def write_event_value(self, key, value=_NO_PAYLOAD):
+    def write_event_value(self, key: ElementKey, value: Any = _NO_PAYLOAD):
         """Queue a custom event; the one call that is safe from a worker
         thread (it only enqueues — the main thread does the work).
 
@@ -783,7 +793,7 @@ class Window:
         self._post_event(key, value)
         return self
 
-    def start_task(self, func, end_key=C.DEFAULT_THREAD_KEY):
+    def start_task(self, func: Callable[..., Any], end_key: Any = C.DEFAULT_THREAD_KEY):
         """Run ``func`` in a background thread without blocking the GUI.
 
         When the task finishes, ``end_key`` is posted as an event and the
@@ -833,7 +843,7 @@ class Window:
         return thread
 
     # --- timers (Delphi TTimer equivalent) --------------------------------------------
-    def after(self, interval_ms, callback):
+    def after(self, interval_ms: int, callback: Callable[..., Any]):
         """Run ``callback`` once after ``interval_ms`` on the tk event loop.
 
         Returns a :class:`_TimerHandle` — call ``.cancel()`` to abort. The
@@ -846,7 +856,7 @@ class Window:
         )
         return handle
 
-    def every(self, interval_ms, callback):
+    def every(self, interval_ms: int, callback: Callable[..., Any]):
         """Call ``callback`` every ``interval_ms`` until cancelled or closed.
 
         Returns a :class:`_TimerHandle` — call ``.cancel()`` to stop.
@@ -858,7 +868,7 @@ class Window:
         )
         return handle
 
-    def _run_timer(self, handle, callback, repeat_ms):
+    def _run_timer(self, handle: Any, callback: Callable[..., Any], repeat_ms: Any):
         if handle._cancelled or self._closed or not self._root_alive():
             handle._id = None
             return
@@ -879,7 +889,11 @@ class Window:
                 handle._id = None
 
     # --- reading -----------------------------------------------------------------------
-    def read(self, timeout=None, close=False, timeout_key=C.TIMEOUT_KEY):
+    def read(
+        self,
+        timeout: Optional[int] = None,
+        close: bool = False,
+        timeout_key: Any = C.TIMEOUT_KEY):
         """Consume ONE event from the application wide event bus.
 
         The global bus receives events from **every** open window, so any
@@ -957,7 +971,7 @@ class Window:
         return values
 
     # --- element access ---------------------------------------------------------------
-    def __getitem__(self, key):
+    def __getitem__(self, key: ElementKey):
         element = self._elements_by_key.get(key)
         if element is None:
             raise KeyError(
@@ -965,10 +979,10 @@ class Window:
             )
         return element
 
-    def __contains__(self, key):
+    def __contains__(self, key: ElementKey):
         return key in self._elements_by_key
 
-    def find_element(self, key):
+    def find_element(self, key: ElementKey):
         """Return the element with the given key or ``None``."""
         return self._elements_by_key.get(key)
 
@@ -993,7 +1007,7 @@ class Window:
         """All registered element keys."""
         return list(self._elements_by_key.keys())
 
-    def fill(self, values):
+    def fill(self, values: Dict[str, Any]):
         """Push a dict of {key: value} into the matching elements."""
         for key, value in values.items():
             element = self._elements_by_key.get(key)
@@ -1001,7 +1015,7 @@ class Window:
                 element.update(value=value)
         return self
 
-    def set_focus(self, element):
+    def set_focus(self, element: Any):
         """Give the focus to an element (instance or key)."""
         if isinstance(element, str):
             element = self._elements_by_key.get(element)
@@ -1009,7 +1023,7 @@ class Window:
             element.set_focus()
         return self
 
-    def hide_row(self, element):
+    def hide_row(self, element: Any):
         """Hide the element (instance or key)."""
         if isinstance(element, str):
             element = self._elements_by_key.get(element)
@@ -1017,7 +1031,7 @@ class Window:
             element.hide()
         return self
 
-    def unhide_row(self, element):
+    def unhide_row(self, element: Any):
         """Show a previously hidden element (instance or key)."""
         if isinstance(element, str):
             element = self._elements_by_key.get(element)
@@ -1026,13 +1040,13 @@ class Window:
         return self
 
     # --- window management ---------------------------------------------------------------
-    def set_size(self, size):
+    def set_size(self, size: Tuple[int, int]):
         """Resize the window to ``(width, height)`` pixels."""
         if self._root_alive() and size is not None:
             self._tk_root.geometry(f"{int(size[0])}x{int(size[1])}")
         return self
 
-    def set_min_size(self, size):
+    def set_min_size(self, size: Tuple[int, int]):
         """Set the smallest allowed window size ``(width, height)``."""
         if self._root_alive() and size is not None:
             self._tk_root.minsize(int(size[0]), int(size[1]))
@@ -1044,7 +1058,7 @@ class Window:
             return (0, 0)
         return (self._tk_root.winfo_x(), self._tk_root.winfo_y())
 
-    def move(self, x, y):
+    def move(self, x: float, y: float):
         """Move the window to the given screen position."""
         if self._root_alive():
             self._tk_root.geometry(f"+{int(x)}+{int(y)}")
@@ -1089,7 +1103,7 @@ class Window:
                 self._tk_root.deiconify()
         return self
 
-    def set_alpha_channel(self, alpha):
+    def set_alpha_channel(self, alpha: float):
         """Set the window transparency (``0.0`` invisible - ``1.0`` opaque)."""
         if self._root_alive():
             with contextlib.suppress(tk.TclError):
@@ -1124,7 +1138,7 @@ class Window:
             self._start_system_block()
         return self
 
-    def set_icon(self, icon):
+    def set_icon(self, icon: Any):
         """Set the window icon from base64 image data.
 
         Pass a single base64 payload or a tuple (small, large); ``None``
@@ -1141,20 +1155,20 @@ class Window:
             self._apply_icon(icon)
         return self
 
-    def set_fullscreen(self, fullscreen=True):
+    def set_fullscreen(self, fullscreen: bool = True):
         """Toggle true fullscreen (no title bar, covers the whole screen)."""
         if self._root_alive():
             self._tk_root.attributes("-fullscreen", bool(fullscreen))
         return self
 
-    def make_toolwindow(self, toolwindow=True):
+    def make_toolwindow(self, toolwindow: bool = True):
         """Windows-only small tool window (no task bar entry)."""
         if self._root_alive():
             with contextlib.suppress(tk.TclError):
                 self._tk_root.attributes("-toolwindow", bool(toolwindow))
         return self
 
-    def transient(self, parent_window=None):
+    def transient(self, parent_window: Any = None):
         """Mark this window as a transient (dialog) of ``parent_window``.
 
         Also records ``parent_window`` as this window's :attr:`parent` (or
@@ -1178,7 +1192,7 @@ class Window:
                 self._tk_root.transient(parent_root)
         return self
 
-    def stack_above(self, other_window):
+    def stack_above(self, other_window: Any):
         """Keep this window stacked above ``other_window`` (WM transient hint)."""
         if self._root_alive():
             other_root = getattr(other_window, "tk_root", other_window)
@@ -1186,7 +1200,7 @@ class Window:
                 self._tk_root.transient(other_root)
         return self
 
-    def set_max_size(self, size):
+    def set_max_size(self, size: Tuple[int, int]):
         """Limit the largest allowed window size ``(width, height)``."""
         if self._root_alive() and size is not None:
             self._tk_root.maxsize(int(size[0]), int(size[1]))
@@ -1208,7 +1222,7 @@ class Window:
         except tk.TclError:
             return ""
 
-    def selection_set(self, text):
+    def selection_set(self, text: str):
         """Own the PRIMARY selection with ``text`` (e.g. highlighted text)."""
         if self._root_alive():
             self._tk_root.selection_clear()
@@ -1219,7 +1233,7 @@ class Window:
         return self
 
     # --- ttk style hooks -------------------------------------------------------------------
-    def configure_style(self, style=".", **options):
+    def configure_style(self, style: Optional[str] = ".", **options: Any):
         """Advanced hook: ``style.configure`` on the window's ttk style.
 
         Tweak the ttk engine beyond what ThemeManager offers::
@@ -1227,29 +1241,29 @@ class Window:
             window.configure_style("TButton", padding=(12, 6))
         """
         if self._root_alive():
-            self._ttk_style.configure(style, **options)
+            self._ttk_style.configure(style, **options)  # ty: ignore[no-matching-overload]  dynamic tk options
         return self
 
-    def map_style(self, style, **query_options):
+    def map_style(self, style: Optional[str], **query_options: Any):
         """Advanced hook: ``style.map`` for dynamic state colors::
 
             window.map_style("TButton",
                              background=[("active", "#3a7bd5")])
         """
         if self._root_alive():
-            self._ttk_style.map(style, **query_options)
+            self._ttk_style.map(style, **query_options)  # ty: ignore[no-matching-overload]  dynamic tk options
         return self
 
     # --- clipboard / desktop integration -------------------------------------------------
     def toast(
         self,
-        message,
-        title="",
-        duration_ms=2500,
-        background_color="#333333",
-        text_color="#ffffff",
-        font=None,
-        location=None,
+        message: str,
+        title: str = "",
+        duration_ms: int = 2500,
+        background_color: Optional[Color] = "#333333",
+        text_color: Optional[Color] = "#ffffff",
+        font: Optional[FontSpec] = None,
+        location: Optional[Size] = None,
     ):
         """Show an in-window toast notification (bottom-right by default).
 
@@ -1266,8 +1280,8 @@ class Window:
         body = tk.Label(
             toast,
             text=f"{title}\n{message}" if title else str(message),
-            background=background_color,
-            foreground=text_color,
+            background=background_color,  # ty: ignore[invalid-argument-type]  tkinter drops None
+            foreground=text_color,  # ty: ignore[invalid-argument-type]  tkinter drops None
             font=font or ("Helvetica", 10),
             justify="left",
             padx=14,
@@ -1278,7 +1292,7 @@ class Window:
         toast.update_idletasks()
         margin = 16
         if location is not None:
-            x, y = int(location[0]), int(location[1])
+            x, y = int(location[0]), int(location[1])  # ty: ignore[invalid-argument-type]  location guard excludes None
         else:
             x = self._tk_root.winfo_rootx() + self._tk_root.winfo_width() \
                 - toast.winfo_reqwidth() - margin
@@ -1289,7 +1303,7 @@ class Window:
         steps = 8
         interval = max(20, int(duration_ms * 0.15) // steps)
 
-        def fade(final_alpha, then=None):
+        def fade(final_alpha: float, then: Any = None):
             state = {"index": 0}
 
             def tick():
@@ -1318,14 +1332,14 @@ class Window:
             return toast
         fade(1.0, then=hold_then_fade_out)
         return toast
-    def clipboard_set(self, text):
+    def clipboard_set(self, text: str):
         """Replace the system clipboard contents with ``text``."""
         if self._root_alive():
             self._tk_root.clipboard_clear()
             self._tk_root.clipboard_append(str(text))
         return self
 
-    def clipboard_append(self, text):
+    def clipboard_append(self, text: str):
         """Append ``text`` to the system clipboard."""
         if self._root_alive():
             self._tk_root.clipboard_append(str(text))
@@ -1448,7 +1462,7 @@ class Window:
     def __enter__(self):
         return self.finalize()
 
-    def __exit__(self, exc_type, exc_value, traceback):
+    def __exit__(self, exc_type: Any, exc_value: Any, traceback: Any):
         self.close()
         return False
 
@@ -1479,7 +1493,7 @@ class Window:
         return self._on_close
 
     @on_close.setter
-    def on_close(self, value):
+    def on_close(self, value: Any):
         """Install or replace the ``on_close`` callback at runtime.
 
         When set, the window's title-bar close (X) button is rerouted
@@ -1496,7 +1510,7 @@ class Window:
                 self._tk_root.protocol("WM_DELETE_WINDOW",
                                        lambda: self._post_event(C.WIN_CLOSED))
 
-    def run(self, app=None, close_event=None):
+    def run(self, app: Any = None, close_event: Any = None):
         """Start the application event loop with THIS window as the root.
 
         The standard way to launch an application — no ``while True``, no
@@ -1526,7 +1540,7 @@ class _TimerHandle:
 
     __slots__ = ("_window", "_id", "_cancelled")
 
-    def __init__(self, window):
+    def __init__(self, window: Any):
         self._window = window
         self._id = None
         self._cancelled = False
@@ -1545,7 +1559,7 @@ class _TimerHandle:
         return not self._cancelled and self._id is not None
 
 
-def _validate_layout(layout):
+def _validate_layout(layout: Any):
     """Normalize a layout (list of rows) raising on malformed input."""
     if layout is None:
         return []

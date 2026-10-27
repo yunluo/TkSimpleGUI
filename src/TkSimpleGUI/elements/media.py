@@ -3,9 +3,9 @@
 
 import base64
 import tkinter as tk
-from typing import Optional, Tuple, Union
+from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
-from .base import Element
+from .base import Color, Element, ElementKey, FontSpec, MenuDefinition, PadSpec, Size
 from .. import _theming as theme_mod
 import contextlib
 
@@ -37,21 +37,21 @@ class TImage(Element):
 
     def __init__(
         self,
-        source=None,
-        filename=None,
-        data_base64=None,
-        key=None,
-        size=(None, None),
-        zoom=None,
-        subsample=None,
-        enable_animation=True,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        source: Any = None,
+        filename: Any = None,
+        data_base64: Any = None,
+        key: Optional[ElementKey] = None,
+        size: Size = (None, None),
+        zoom: Optional[int] = None,
+        subsample: Optional[int] = None,
+        enable_animation: bool = True,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -77,12 +77,12 @@ class TImage(Element):
         if source is not None and filename is None and data_base64 is None:
             self._filename = source
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         label = tk.Label(master, bd=0, highlightthickness=0)
         self._apply_image(label)
         return label
 
-    def _load_photo(self, master):
+    def _load_photo(self, master: tk.Misc):
         """PhotoImage from the source, honouring zoom/subsample scaling."""
         if self._data_base64 is not None:
             photo = tk.PhotoImage(data=base64.b64decode(self._data_base64), master=master)
@@ -101,7 +101,7 @@ class TImage(Element):
                 photo = photo.subsample(int(sx), int(sy))
         return photo
 
-    def _apply_image(self, label):
+    def _apply_image(self, label: Any):
         self._stop_animation()
         self._photo = self._load_photo(label)
         if self._photo is not None:
@@ -116,7 +116,7 @@ class TImage(Element):
             return {"data": base64.b64decode(self._data_base64)}
         return {"file": self._filename}
 
-    def _gif_frame_count(self, label):
+    def _gif_frame_count(self, label: tk.Label):
         """Return True when the source GIF has a second frame (animated)."""
         probe = tk.PhotoImage(
             format="gif -index 1", **self._photo_kwargs(), master=label
@@ -126,7 +126,7 @@ class TImage(Element):
         del probe
         return True
 
-    def _start_animation_if_gif(self, label):
+    def _start_animation_if_gif(self, label: tk.Label):
         """Load every GIF frame and start an ``after`` loop when animated."""
         try:
             self._gif_frame_count(label)
@@ -151,12 +151,12 @@ class TImage(Element):
         self._frame_delay = 100  # ~10 fps default; animation_control() retunes
         self._start_animation(label)
 
-    def _animate(self, label):
+    def _animate(self, label: tk.Label):
         self._frame_index = (self._frame_index + 1) % len(self._frames)
-        label.configure(image=self._frames[self._frame_index])
+        label.configure(image=self._frames[self._frame_index])  # ty: ignore[invalid-argument-type]  tk stub
         self._animation_job = label.after(self._frame_delay, lambda: self._animate(label))
 
-    def _start_animation(self, label):
+    def _start_animation(self, label: tk.Label):
         if self._animation_job is None and len(self._frames) > 1:
             self._animation_job = label.after(self._frame_delay, lambda: self._animate(label))
 
@@ -166,7 +166,7 @@ class TImage(Element):
                 self._widget.after_cancel(self._animation_job)
             self._animation_job = None
 
-    def animation_control(self, start=True, delay=None):
+    def animation_control(self, start: bool = True, delay: Optional[int] = None):
         """Start or pause a GIF animation manually. Returns self."""
         if delay is not None:
             self._frame_delay = int(delay)
@@ -176,7 +176,12 @@ class TImage(Element):
             self._stop_animation()
         return self
 
-    def update(self, source=None, filename=None, data_base64=None, visible=None):
+    def update(
+        self,
+        source: Any = None,
+        filename: Any = None,
+        data_base64: Any = None,
+        visible: Optional[bool] = None):
         if filename is not None:
             self._filename = filename
         if data_base64 is not None:
@@ -197,14 +202,14 @@ class TImage(Element):
         """The current :class:`tk.PhotoImage` (None before finalize)."""
         return self._photo
 
-    def zoom(self, factor):
+    def zoom(self, factor: float):
         """Re-render the image enlarged by ``factor`` (native PhotoImage.zoom)."""
         self._zoom = factor
         if self._widget is not None:
             self._apply_image(self._widget)
         return self
 
-    def subsample(self, factor):
+    def subsample(self, factor: float):
         """Re-render the image shrunk by ``factor`` (native subsample)."""
         self._subsample = factor
         if self._widget is not None:
@@ -229,17 +234,17 @@ class TCanvas(Element):
 
     def __init__(
         self,
-        size=(300, 300),
-        background_color=None,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        size: Size = (300, 300),
+        background_color: Optional[Color] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -255,15 +260,15 @@ class TCanvas(Element):
         self._background_color = background_color
         self._canvas_size = size
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         bg = theme_mod.theme_manager.effective_background(self._background_color)
         if bg is not None:
             kwargs["background"] = bg
         return tk.Canvas(
             master,
-            width=self._canvas_size[0],
-            height=self._canvas_size[1],
+            width=self._canvas_size[0],  # ty: ignore[invalid-argument-type]  tkinter drops None
+            height=self._canvas_size[1],  # ty: ignore[invalid-argument-type]  tkinter drops None
             highlightthickness=0,
             **kwargs
         )
@@ -285,23 +290,29 @@ class TCanvas(Element):
         """The yview command a standalone :class:`TScrollbar` can drive."""
         return self._widget.yview
 
-    def _on_click(self, event):
+    def _on_click(self, event: tk.Event):
         self._post_event()
 
     def get(self):
         return (self._widget.winfo_width(), self._widget.winfo_height())
 
     # --- native tk.Canvas API passthrough ----------------------------------------
-    def itemconfigure(self, item_id, **options):
+    def itemconfigure(self, item_id: Any, **options: Any):
         """Native ``TCanvas.itemconfigure`` — restyle any drawn item."""
         self._widget.itemconfigure(item_id, **options)
         return self
 
-    def itemconfig(self, item_id, **options):
+    def itemconfig(self, item_id: Any, **options: Any):
         """Alias of :meth:`itemconfigure`."""
         return self.itemconfigure(item_id, **options)
 
-    def create_window(self, position, window_element=None, widget=None, anchor="nw", **options):
+    def create_window(
+        self,
+        position: Any,
+        window_element: Any = None,
+        widget: Optional[tk.Widget] = None,
+        anchor: Optional[str] = "nw",
+        **options: Any):
         """Embed a widget (an element's or a raw tk widget) in the canvas.
 
         Accepts either a TkSimpleGUI element (its widget is used; the
@@ -318,15 +329,15 @@ class TCanvas(Element):
             x, y = position
         return self._widget.create_window(x, y, window=target, anchor=anchor, **options)
 
-    def itembbox(self, item_id):
+    def itembbox(self, item_id: Any):
         """The bounding box ``(x, y, w, h)`` of a canvas item."""
         return self._widget.bbox(item_id)
 
-    def coords(self, item_id):
+    def coords(self, item_id: Any):
         """The current canvas coordinates of an item."""
         return self._widget.coords(item_id)
 
-    def tag_bind(self, item_id, event_pattern, callback):
+    def tag_bind(self, item_id: Any, event_pattern: Any, callback: Callable[..., Any]):
         """Bind an event to one drawn item (native ``tag_bind``).
 
         ``callback(event)`` receives the tk event; combine with
@@ -350,21 +361,26 @@ class TGraph(TCanvas):
 
     __slots__ = ("_bottom_left", "_top_right", "_x_scale", "_y_scale", "_images")
 
+    # graph coordinates are always concrete; float()/subtraction sites rely on it
+    _canvas_size: Tuple[int, int]
+    _bottom_left: Tuple[float, float]
+    _top_right: Tuple[float, float]
+
     def __init__(
         self,
-        canvas_size=(300, 300),
-        graph_bottom_left=(0, 0),
-        graph_top_right=(100, 100),
-        background_color=None,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        canvas_size: Size = (300, 300),
+        graph_bottom_left: Tuple[float, float] = (0, 0),
+        graph_top_right: Tuple[float, float] = (100, 100),
+        background_color: Optional[Color] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             size=canvas_size,
@@ -397,15 +413,20 @@ class TGraph(TCanvas):
         self._x_scale = width / graph_width
         self._y_scale = height / graph_height
 
-    def _to_canvas(self, point):
+    def _to_canvas(self, point: Tuple[float, float]):
         """Convert a graph coordinate pair to canvas pixel coordinates."""
         x = (point[0] - self._bottom_left[0]) * self._x_scale
         y = self._canvas_size[1] - (point[1] - self._bottom_left[1]) * self._y_scale
         return (x, y)
 
     # --- drawing API -----------------------------------------------------------
-    def draw_circle(self, center_location, radius, fill_color=None,
-            line_color="black", line_width=1):
+    def draw_circle(
+        self,
+        center_location: Tuple[float, float],
+        radius: float,
+        fill_color: Optional[Color] = None,
+        line_color: Optional[Color] = "black",
+        line_width: int = 1):
         """Draw a circle; returns the canvas item id."""
         cx, cy = self._to_canvas(center_location)
         r = radius * self._x_scale
@@ -414,13 +435,22 @@ class TGraph(TCanvas):
             fill=fill_color, outline=line_color, width=line_width,
         )
 
-    def draw_line(self, point_from, point_to, color="black", width=1):
+    def draw_line(
+        self,
+        point_from: Tuple[float, float],
+        point_to: Tuple[float, float],
+        color: Optional[Color] = "black",
+        width: int = 1):
         """Draw a line; returns the canvas item id."""
         x1, y1 = self._to_canvas(point_from)
         x2, y2 = self._to_canvas(point_to)
         return self._widget.create_line(x1, y1, x2, y2, fill=color, width=width)
 
-    def draw_point(self, point, size=2, color="black"):
+    def draw_point(
+        self,
+        point: Tuple[float, float],
+        size: float = 2,
+        color: Optional[Color] = "black"):
         """Draw a single point; returns the canvas item id."""
         x, y = self._to_canvas(point)
         r = size / 2.0
@@ -428,8 +458,13 @@ class TGraph(TCanvas):
             x - r, y - r, x + r, y + r, fill=color, outline=color
         )
 
-    def draw_rectangle(self, top_left, bottom_right, fill_color=None,
-            line_color="black", line_width=1):
+    def draw_rectangle(
+        self,
+        top_left: Tuple[float, float],
+        bottom_right: Tuple[float, float],
+        fill_color: Optional[Color] = None,
+        line_color: Optional[Color] = "black",
+        line_width: int = 1):
         """Draw a rectangle; returns the canvas item id."""
         x1, y1 = self._to_canvas(top_left)
         x2, y2 = self._to_canvas(bottom_right)
@@ -437,7 +472,13 @@ class TGraph(TCanvas):
             x1, y1, x2, y2, fill=fill_color, outline=line_color, width=line_width
         )
 
-    def draw_oval(self, top_left, bottom_right, fill_color=None, line_color="black", line_width=1):
+    def draw_oval(
+        self,
+        top_left: Tuple[float, float],
+        bottom_right: Tuple[float, float],
+        fill_color: Optional[Color] = None,
+        line_color: Optional[Color] = "black",
+        line_width: int = 1):
         """Draw an ellipse bounded by the two corners; returns the item id."""
         x1, y1 = self._to_canvas(top_left)
         x2, y2 = self._to_canvas(bottom_right)
@@ -445,8 +486,16 @@ class TGraph(TCanvas):
             x1, y1, x2, y2, fill=fill_color, outline=line_color, width=line_width
         )
 
-    def draw_arc(self, top_left, bottom_right, start_angle=0, extent=90, style="arc",
-            fill_color=None, line_color="black", line_width=1):
+    def draw_arc(
+        self,
+        top_left: Tuple[float, float],
+        bottom_right: Tuple[float, float],
+        start_angle: int = 0,
+        extent: int = 90,
+        style: Optional[str] = "arc",
+        fill_color: Optional[Color] = None,
+        line_color: Optional[Color] = "black",
+        line_width: int = 1):
         """Draw an arc/pieslice/chord; ``style`` in ("arc", "chord", "pieslice")."""
         x1, y1 = self._to_canvas(top_left)
         x2, y2 = self._to_canvas(bottom_right)
@@ -456,7 +505,12 @@ class TGraph(TCanvas):
             fill=fill_color, outline=line_color, width=line_width,
         )
 
-    def draw_polygon(self, points, fill_color=None, line_color="black", line_width=1):
+    def draw_polygon(
+        self,
+        points: Sequence[Tuple[float, float]],
+        fill_color: Optional[Color] = None,
+        line_color: Optional[Color] = "black",
+        line_width: int = 1):
         """Draw a closed polygon from a list of (x, y) points; returns the id."""
         canvas_points = []
         for point in points:
@@ -466,7 +520,11 @@ class TGraph(TCanvas):
             fill=fill_color, outline=line_color, width=line_width
         )
 
-    def draw_image(self, location, filename=None, data_base64=None):
+    def draw_image(
+        self,
+        location: Tuple[float, float],
+        filename: Any = None,
+        data_base64: Any = None):
         """Draw a PNG/GIF with its top-left corner at ``location``.
 
         Returns the canvas item id. The photo is retained by the graph.
@@ -479,7 +537,13 @@ class TGraph(TCanvas):
         x, y = self._to_canvas(location)
         return self._widget.create_image(x, y, image=photo, anchor="nw")
 
-    def draw_text(self, text, location, color="black", font=None, angle=0):
+    def draw_text(
+        self,
+        text: str,
+        location: Tuple[float, float],
+        color: Optional[Color] = "black",
+        font: Optional[FontSpec] = None,
+        angle: int = 0):
         """Draw text; returns the canvas item id."""
         x, y = self._to_canvas(location)
         return self._widget.create_text(
@@ -493,19 +557,19 @@ class TGraph(TCanvas):
         return self
 
     # --- figure handles ---------------------------------------------------------
-    def delete_figure(self, figure_id):
+    def delete_figure(self, figure_id: int):
         """Delete one figure by its canvas id."""
         self._widget.delete(figure_id)
         return self
 
-    def move_figure(self, figure_id, x_direction, y_direction):
+    def move_figure(self, figure_id: int, x_direction: int, y_direction: int):
         """Move one figure by an offset in graph coordinates."""
         dx = x_direction * self._x_scale
         dy = -y_direction * self._y_scale
         self._widget.move(figure_id, dx, dy)
         return self
 
-    def relocate_figure(self, figure_id, point):
+    def relocate_figure(self, figure_id: int, point: Tuple[float, float]):
         """Move a figure so its top-left reference point sits at ``point``."""
         coords = self._widget.coords(figure_id)
         if not coords:
@@ -516,21 +580,21 @@ class TGraph(TCanvas):
         )
         return self
 
-    def bring_figure_to_front(self, figure_id):
+    def bring_figure_to_front(self, figure_id: int):
         self._widget.tag_raise(figure_id)
         return self
 
-    def send_figure_to_back(self, figure_id):
+    def send_figure_to_back(self, figure_id: int):
         self._widget.tag_lower(figure_id)
         return self
 
-    def get_figures_at_location(self, point):
+    def get_figures_at_location(self, point: Tuple[float, float]):
         """Ids of the figures overlapping ``point`` (topmost first)."""
         x, y = self._to_canvas(point)
         overlapping = self._widget.find_overlapping(x - 1, y - 1, x + 1, y + 1)
         return list(reversed(overlapping))
 
-    def move(self, x_direction, y_direction):
+    def move(self, x_direction: int, y_direction: int):
         """Move all drawn items (in graph coordinates)."""
         dx = x_direction * self._x_scale
         dy = -y_direction * self._y_scale
@@ -556,20 +620,20 @@ class TShape(Element):
 
     def __init__(
         self,
-        shape_type="rectangle",
-        size=(40, 20),
-        fill_color=None,
-        line_color="black",
-        line_width=1,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        shape_type: str = "rectangle",
+        size: Size = (40, 20),
+        fill_color: Optional[Color] = None,
+        line_color: Optional[Color] = "black",
+        line_width: int = 1,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -593,7 +657,7 @@ class TShape(Element):
         self._line_width = line_width
         self._enable_events = bool(enable_events)
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = theme_mod.theme_manager.text_kwargs(background_color=None)
         canvas = tk.Canvas(
             master,
@@ -608,17 +672,17 @@ class TShape(Element):
         if self._shape_type == "rectangle":
             canvas.create_rectangle(
                 0, 0, width, height,
-                fill=fill, outline=self._line_color,
+                fill=fill, outline=self._line_color,  # ty: ignore[invalid-argument-type]  tkinter drops None
                 width=self._line_width,
             )
         elif self._shape_type == "oval":
             canvas.create_oval(
                 0, 0, width, height,
-                fill=fill, outline=self._line_color,
+                fill=fill, outline=self._line_color,  # ty: ignore[invalid-argument-type]  tkinter drops None
                 width=self._line_width,
             )
         elif self._shape_type == "triangle":
-            canvas.create_polygon(
+            canvas.create_polygon(  # ty: ignore[no-matching-overload]  tk stub
                 width / 2.0, 0, width, height, 0, height,
                 fill=fill, outline=self._line_color,
                 width=self._line_width,
@@ -626,7 +690,7 @@ class TShape(Element):
         else:  # line
             canvas.create_line(
                 0, height / 2.0, width, height / 2.0,
-                fill=self._line_color, width=self._line_width,
+                fill=self._line_color, width=self._line_width,  # ty: ignore[invalid-argument-type]  tkinter drops None
             )
         return canvas
 
@@ -637,7 +701,11 @@ class TShape(Element):
     def get(self):
         return self._shape_type
 
-    def update(self, fill_color=None, line_color=None, visible=None):
+    def update(
+        self,
+        fill_color: Optional[Color] = None,
+        line_color: Optional[Color] = None,
+        visible: Optional[bool] = None):
         if fill_color is not None:
             self._fill_color = fill_color
             for item in self._widget.find_all():

@@ -20,7 +20,7 @@ from tkinter import ttk
 from typing import Any, List, Optional, Sequence, Tuple, Union
 
 from . import _paint
-from .base import Element
+from .base import Element, ElementKey, FontSpec, MenuDefinition, PadSpec, Size
 from .. import _theming as theme_mod
 
 # canvas elements measure text with the font they draw it with, so the
@@ -36,7 +36,7 @@ _DOUBLE_RIGHT = "\u00bb"   # "»" move everything right
 _PAGE_ELLIPSIS = "\u2026"  # "…" page numbers skipped by the window
 
 
-def _segmented_options(options):
+def _segmented_options(options: Sequence[Any]):
     """Normalize ``["A", "B"]`` / ``[("A", 1), ("B", 2)]`` to (label, value)."""
     pairs: List[Tuple[str, Any]] = []
     for option in options or ():
@@ -80,20 +80,20 @@ class TSegmented(Element):
 
     def __init__(
         self,
-        options,
-        default_value=None,
-        size=None,
-        font=None,
-        key=None,
-        enable_events=True,
-        readonly=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        options: Sequence[Any],
+        default_value: Any = None,
+        size: Optional[Size] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = True,
+        readonly: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -117,7 +117,7 @@ class TSegmented(Element):
         self._cells = []
 
     # --- state ---------------------------------------------------------------
-    def _find_index(self, value):
+    def _find_index(self, value: Any):
         """The index of the option carrying ``value`` (None when absent)."""
         for index, (_label, option_value) in enumerate(self._options):
             if option_value == value:
@@ -131,12 +131,12 @@ class TSegmented(Element):
         return self._options[self._index][1]
 
     # --- geometry ------------------------------------------------------------
-    def _item_width(self, widget, label):
+    def _item_width(self, widget: tk.Misc, label: str):
         """Pixel width of one segment: label + 24, never under 40."""
         font = self._font if self._font is not None else _DEFAULT_FONT
         return max(40, _paint.measure_text(widget, label, font) + 24)
 
-    def _layout(self, widget=None):
+    def _layout(self, widget: Optional[tk.Misc] = None):
         """(cells, total width): the x range of every segment inside the track."""
         root = widget if widget is not None else self._widget
         widths = [float(self._item_width(root, label)) for label, _value in self._options]
@@ -156,7 +156,7 @@ class TSegmented(Element):
             left += width
         return cells, total
 
-    def _geometry(self, widget=None):
+    def _geometry(self, widget: Optional[tk.Misc] = None):
         """(width, height) of the segmented track in pixels."""
         _cells, total = self._layout(widget)
         return int(total), int(self._size[1] or 30)
@@ -167,7 +167,7 @@ class TSegmented(Element):
             self._draw(self._widget)
 
     # --- rendering -----------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width, height = self._geometry(master)
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, width, height, colors["surface"])
@@ -175,7 +175,7 @@ class TSegmented(Element):
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         """Draw the track, the selected pill and every label."""
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
@@ -190,7 +190,15 @@ class TSegmented(Element):
             left, right = self._cells[index]
             self._draw_segment(canvas, index, label, left, right, height, colors)
 
-    def _draw_segment(self, canvas, index, label, left, right, height, colors):
+    def _draw_segment(
+        self,
+        canvas: tk.Canvas,
+        index: int,
+        label: str,
+        left: Any,
+        right: Any,
+        height: int,
+        colors: _paint.ColorMap):
         """One segment: selected pill, label and (when focused) the focus ring."""
         selected = index == self._index
         if selected:
@@ -222,14 +230,14 @@ class TSegmented(Element):
         return self
 
     # --- interaction ---------------------------------------------------------
-    def _index_at(self, x):
+    def _index_at(self, x: float):
         """The segment index covering ``x`` (None in the track margin)."""
         for index, (left, right) in enumerate(self._cells):
             if left <= x <= right:
                 return index
         return None
 
-    def _on_click(self, event):
+    def _on_click(self, event: tk.Event):
         if self._readonly:
             return
         index = self._index_at(event.x)
@@ -246,7 +254,7 @@ class TSegmented(Element):
         elif not was_focused:
             self._redraw()
 
-    def _on_motion(self, event):
+    def _on_motion(self, event: tk.Event):
         if self._readonly:
             return
         index = self._index_at(event.x)
@@ -254,22 +262,22 @@ class TSegmented(Element):
             self._hover = index
             self._redraw()
 
-    def _on_leave(self, _event):
+    def _on_leave(self, _event: tk.Event):
         if self._hover is not None:
             self._hover = None
             self._redraw()
 
-    def _on_focus_in(self, _event):
+    def _on_focus_in(self, _event: tk.Event):
         if not self._focused:
             self._focused = True
             self._redraw()
 
-    def _on_focus_out(self, _event):
+    def _on_focus_out(self, _event: tk.Event):
         if self._focused:
             self._focused = False
             self._redraw()
 
-    def _on_arrow(self, step, _event):
+    def _on_arrow(self, step: int, _event: tk.Event):
         """Move the selection by ``step`` segments (Left / Right key)."""
         if self._readonly or not self._options:
             return
@@ -291,7 +299,11 @@ class TSegmented(Element):
         self._widget.bind("<Right>", partial(self._on_arrow, 1))
 
     # --- public API ----------------------------------------------------------
-    def update(self, value=None, options=None, visible=None):
+    def update(
+        self,
+        value: Any = None,
+        options: Optional[Sequence[Any]] = None,
+        visible: Optional[bool] = None):
         """Change the selection, rebuild the options or toggle visibility.
 
         Rebuilding keeps the current value when it is still offered, and
@@ -346,22 +358,22 @@ class TRate(Element):
 
     def __init__(
         self,
-        max_value=5,
-        default_value=0,
-        allow_half=True,
-        size=None,
-        colors=None,
-        font=None,
-        key=None,
-        enable_events=True,
-        readonly=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        max_value: float = 5,
+        default_value: Any = 0,
+        allow_half: bool = True,
+        size: Optional[Size] = None,
+        colors: Any = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = True,
+        readonly: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -389,7 +401,7 @@ class TRate(Element):
         self._value = self._clamp(default_value)
 
     # --- state ---------------------------------------------------------------
-    def _clamp(self, value):
+    def _clamp(self, value: Any):
         """Quantize to the allowed step and clamp into [0, max_value]."""
         number = _paint.as_float(value, 0.0)
         number = (
@@ -397,7 +409,7 @@ class TRate(Element):
         )
         return min(max(number, 0.0), float(self._max_value))
 
-    def _value_at(self, x):
+    def _value_at(self, x: float):
         """The value a click at ``x`` would select (half stars when allowed)."""
         index = min(max(int(x / self._step) + 1, 1), self._max_value)
         if self._allow_half and x - (index - 1) * self._step < self._star_size / 2.0:
@@ -416,14 +428,14 @@ class TRate(Element):
             self._draw(self._widget)
 
     # --- rendering -----------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width, height = self._geometry()
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, width, height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         """Draw every star for the current value (or the hover preview)."""
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
@@ -440,7 +452,13 @@ class TRate(Element):
             points = _paint.star_points(cx, radius, radius, inner)
             self._draw_star(canvas, points, shown - index, filled, empty)
 
-    def _draw_star(self, canvas, points, fraction, filled, empty):
+    def _draw_star(
+        self,
+        canvas: tk.Canvas,
+        points: Sequence[Tuple[float, float]],
+        fraction: Any,
+        filled: Any,
+        empty: Any):
         """One star: filled, empty, or the clipped left half of a half star."""
         if fraction >= 1.0:
             canvas.create_polygon(_paint.flatten(points), fill=filled, outline="")
@@ -457,7 +475,7 @@ class TRate(Element):
         return self
 
     # --- interaction ---------------------------------------------------------
-    def _on_click(self, event):
+    def _on_click(self, event: tk.Event):
         if self._readonly:
             return
         value = self._value_at(event.x)
@@ -467,7 +485,7 @@ class TRate(Element):
             if self._enable_events:
                 self._post_event()
 
-    def _on_motion(self, event):
+    def _on_motion(self, event: tk.Event):
         if self._readonly:
             return
         value = self._value_at(event.x)
@@ -475,12 +493,12 @@ class TRate(Element):
             self._hover = value
             self._redraw()
 
-    def _on_leave(self, _event):
+    def _on_leave(self, _event: tk.Event):
         if self._hover is not None:
             self._hover = None
             self._redraw()
 
-    def _on_key(self, event):
+    def _on_key(self, event: tk.Event):
         """Keyboard parity for the rating: Left/Right step by 1, Home/End
         jump to the ends, 0 clears. Each press posts a TkSimpleEvent only
         if the value actually changed (mirrors the click handler)."""
@@ -528,7 +546,12 @@ class TRate(Element):
         """The rating as a float (0 means "not rated")."""
         return self._value
 
-    def update(self, value=None, max_value=None, readonly=None, visible=None):
+    def update(
+        self,
+        value: Any = None,
+        max_value: Optional[float] = None,
+        readonly: Optional[bool] = None,
+        visible: Optional[bool] = None):
         """Set the rating, the star count, the read-only flag or visibility."""
         redraw = False
         if max_value is not None:
@@ -583,23 +606,23 @@ class TPagination(Element):
 
     def __init__(
         self,
-        total,
-        page_size=10,
-        current_page=1,
-        pager_count=5,
-        show_total=False,
-        total_text="Total {total}",
-        size=None,
-        font=None,
-        key=None,
-        enable_events=True,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        total: Any,
+        page_size: int = 10,
+        current_page: int = 1,
+        pager_count: int = 5,
+        show_total: bool = False,
+        total_text: str = "Total {total}",
+        size: Optional[Size] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = True,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -633,7 +656,7 @@ class TPagination(Element):
         """The number of pages (``ceil(total / page_size)``, minimum 1)."""
         return max(1, int(math.ceil(self._total / float(self._page_size))))
 
-    def _clamp_page(self, page):
+    def _clamp_page(self, page: int):
         """Clamp a page number into ``[1, page_count]``."""
         return min(max(int(page), 1), self.page_count)
 
@@ -666,7 +689,7 @@ class TPagination(Element):
         entries.append("next")
         return entries
 
-    def _entry_label(self, entry):
+    def _entry_label(self, entry: Any):
         """The label drawn inside one button box."""
         if entry == "prev":
             return _CHEVRON_LEFT
@@ -674,7 +697,7 @@ class TPagination(Element):
             return _CHEVRON_RIGHT
         return str(entry)
 
-    def _step_target(self, entry):
+    def _step_target(self, entry: Any):
         """The page a click on ``entry`` goes to (the current page when inert)."""
         if isinstance(entry, int):
             return entry
@@ -684,12 +707,12 @@ class TPagination(Element):
             return self._current_page + 1
         return self._current_page
 
-    def _is_active(self, entry):
+    def _is_active(self, entry: Any):
         """True when clicking ``entry`` would turn to another page."""
         return self._step_target(entry) != self._current_page
 
     # --- geometry ------------------------------------------------------------
-    def _layout(self, widget=None):
+    def _layout(self, widget: Optional[tk.Misc] = None):
         """(boxes, width, total x): the button boxes and the row width."""
         root = widget if widget is not None else self._widget
         font = self._font if self._font is not None else _DEFAULT_FONT
@@ -711,7 +734,7 @@ class TPagination(Element):
             width = max(width, float(self._size[0]))
         return boxes, width, total_x
 
-    def _geometry(self, widget=None):
+    def _geometry(self, widget: Optional[tk.Misc] = None):
         """(width, height) of the pager row in pixels."""
         _boxes, width, _total_x = self._layout(widget)
         return int(width), int(self._size[1] or 28)
@@ -722,14 +745,14 @@ class TPagination(Element):
             self._draw(self._widget)
 
     # --- rendering -----------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width, height = self._geometry(master)
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, width, height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         """Draw the optional total label and every page button."""
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
@@ -745,7 +768,13 @@ class TPagination(Element):
         for index, box in enumerate(self._boxes):
             self._draw_button(canvas, index, box, colors, font)
 
-    def _draw_button(self, canvas, index, box, colors, font):
+    def _draw_button(
+        self,
+        canvas: tk.Canvas,
+        index: int,
+        box: Any,
+        colors: _paint.ColorMap,
+        font: Optional[FontSpec]):
         """One page button: pill when current or hovered, label otherwise."""
         left, top, right, bottom, entry = box
         page = isinstance(entry, int)
@@ -766,7 +795,7 @@ class TPagination(Element):
             fill = colors["muted"]  # ellipsis and disabled chevrons
         canvas.create_text(
             (left + right) / 2.0, (top + bottom) / 2.0,
-            text=self._entry_label(entry), fill=fill, font=font,
+            text=self._entry_label(entry), fill=fill, font=font,  # ty: ignore[invalid-argument-type]  tk accepts font tuples
         )
 
     def apply_theme(self):
@@ -775,14 +804,14 @@ class TPagination(Element):
         return self
 
     # --- interaction ---------------------------------------------------------
-    def _button_at(self, x, y):
+    def _button_at(self, x: float, y: float):
         """The index of the button box under (x, y), or None."""
         for index, (left, top, right, bottom, _entry) in enumerate(self._boxes):
             if left <= x <= right and top <= y <= bottom:
                 return index
         return None
 
-    def _goto(self, page):
+    def _goto(self, page: int):
         """Turn to ``page`` and post the key when it really changed."""
         page = self._clamp_page(page)
         if page == self._current_page:
@@ -792,13 +821,13 @@ class TPagination(Element):
         if self._enable_events:
             self._post_event()
 
-    def _on_click(self, event):
+    def _on_click(self, event: tk.Event):
         index = self._button_at(event.x, event.y)
         if index is None:
             return
         self._goto(self._step_target(self._boxes[index][4]))
 
-    def _on_motion(self, event):
+    def _on_motion(self, event: tk.Event):
         index = self._button_at(event.x, event.y)
         if index is not None and not self._is_active(self._boxes[index][4]):
             index = None
@@ -806,12 +835,12 @@ class TPagination(Element):
             self._hover = index
             self._redraw()
 
-    def _on_leave(self, _event):
+    def _on_leave(self, _event: tk.Event):
         if self._hover is not None:
             self._hover = None
             self._redraw()
 
-    def _on_key(self, event):
+    def _on_key(self, event: tk.Event):
         """Keyboard parity for the pager: Left/Right move one page,
         Home/End jump to the first/last page. Posts the key only when the
         page actually changes (mirrors :meth:`_goto`)."""
@@ -843,7 +872,12 @@ class TPagination(Element):
         """The current page number."""
         return self._current_page
 
-    def update(self, current_page=None, total=None, page_size=None, visible=None):
+    def update(
+        self,
+        current_page: Optional[int] = None,
+        total: Any = None,
+        page_size: Optional[int] = None,
+        visible: Optional[bool] = None):
         """Change the page, the item count or the page size.
 
         The current page is clamped into the new ``[1, page_count]`` range
@@ -909,20 +943,20 @@ class TTransfer(Element):
 
     def __init__(
         self,
-        source_items,
-        target_items=None,
-        titles=("Source", "Target"),
-        size=(18, 8),
-        key=None,
-        enable_events=False,
-        font=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        source_items: Sequence[Any],
+        target_items: Optional[Sequence[Any]] = None,
+        titles: Sequence[str] = ("Source", "Target"),
+        size: Size = (18, 8),
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        font: Optional[FontSpec] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -960,7 +994,7 @@ class TTransfer(Element):
         height = int(self._size[1]) if self._size[1] else 8
         return width, height
 
-    def _listbox_options(self, master):
+    def _listbox_options(self, master: tk.Misc):
         """Theme options for the listboxes (sampled defaults when native)."""
         options = theme_mod.theme_manager.input_kwargs(include_caret=False)
         if not options:
@@ -969,7 +1003,7 @@ class TTransfer(Element):
             )
         return options
 
-    def _make_listbox(self, master, width, height):
+    def _make_listbox(self, master: tk.Misc, width: int, height: int):
         """One listbox, themed and sized in text units."""
         options = self._listbox_options(master)
         if self._font is not None:
@@ -983,7 +1017,7 @@ class TTransfer(Element):
             **options
         )
 
-    def _make_arrows(self, master, colors):
+    def _make_arrows(self, master: tk.Misc, colors: _paint.ColorMap):
         """A single row of four move buttons between the two listboxes.
 
         Order left-to-right: all-target, sel-target, sel-source, all-source.
@@ -1004,7 +1038,7 @@ class TTransfer(Element):
             self._buttons.append(button)
         return frame
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         frame = tk.Frame(master, background=colors["surface"])
         width, height = self._list_size()
@@ -1036,7 +1070,7 @@ class TTransfer(Element):
         self._render()
         return frame
 
-    def _make_title(self, master, text, colors):
+    def _make_title(self, master: tk.Misc, text: str, colors: _paint.ColorMap):
         """One muted column title."""
         label = tk.Label(
             master, text=text, anchor="w",
@@ -1081,19 +1115,19 @@ class TTransfer(Element):
             self._post_event()
         return True
 
-    def move_selected(self, to_target=True):
+    def move_selected(self, to_target: bool = True):
         """Move the selected items; False when nothing was selected."""
         listbox = self._source_list if to_target else self._target_list
         if listbox is None:
             return False
         return self._move(listbox.curselection(), to_target)
 
-    def move_all(self, to_target=True):
+    def move_all(self, to_target: bool = True):
         """Move every item; False when the origin list was empty."""
         origin = self._source if to_target else self._target
         return self._move(range(len(origin)), to_target)
 
-    def _on_double_click(self, from_source, event):
+    def _on_double_click(self, from_source: bool, event: tk.Event):
         """Move the double-clicked item to the other list."""
         listbox = self._source_list if from_source else self._target_list
         if listbox is None:
@@ -1109,7 +1143,11 @@ class TTransfer(Element):
         """The items currently in the target (right) list."""
         return list(self._target)
 
-    def update(self, source_items=None, target_items=None, visible=None):
+    def update(
+        self,
+        source_items: Optional[Sequence[Any]] = None,
+        target_items: Optional[Sequence[Any]] = None,
+        visible: Optional[bool] = None):
         """Replace both sides wholesale (any selection is cleared)."""
         if source_items is not None:
             self._source = [str(item) for item in source_items]

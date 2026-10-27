@@ -6,6 +6,21 @@ the Settings and ThemeManager singletons, never at module level.
 """
 
 from enum import Enum
+from typing import Any, List, Optional, Tuple, Union
+
+# --- shared type aliases (leaf module: safe to import from anywhere) ---------
+# A user-visible element key (str or any hashable); None means "no key".
+ElementKey = Optional[Any]
+# Colors are Tk color strings ("#rrggbb", "red", ...).
+Color = str
+# Fonts are (family, size[, modifiers...]) tuples or tk font descriptions.
+FontSpec = Union[Tuple[str, int], Tuple[str, int, str], str]
+# Pixel sizes are (width, height); either side may stay None (auto).
+Size = Tuple[Optional[int], Optional[int]]
+# Padding: a single int, an (x, y) pair, or per-side quadrants.
+PadSpec = Union[int, float, Tuple[int, int], Tuple[Tuple[int, int], Tuple[int, int]]]
+Justification = Optional[str]
+MenuDefinition = List[Any]
 
 
 class ButtonType(Enum):

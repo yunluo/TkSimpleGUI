@@ -15,6 +15,7 @@ Usage::
     window.close()
 """
 
+from typing import Any, List, Optional
 from ._version import __version__, __author__, __email__, __license__
 
 from . import constants as C  # noqa: F401
@@ -184,7 +185,7 @@ from .event import (
 )
 
 
-def bind_event(event_names):
+def bind_event(event_names: Any):
     """Register an ``on_*`` handler on the global default event manager.
 
     The recommended way to wire events — no imports beyond ``sg``, no
@@ -203,7 +204,7 @@ def bind_event(event_names):
     return default_app().bind_event(event_names)
 
 
-def main_loop(window, app=None):
+def main_loop(window: Window, app: Any = None):
     """Run the single application event loop (user code never writes one).
 
     The lighter form is ``window.run()`` / ``ts.SystemTray(...).run()`` —
@@ -303,7 +304,7 @@ __all__ = [
 ]
 
 
-def dbg(*args, **kwargs):
+def dbg(*args: Any, **kwargs: Any):
     """Print into a quick auto-closing debug popup (TkSimpleGUI dbg)."""
     text = " ".join(
         str(arg) if not isinstance(arg, str) else arg for arg in args
@@ -311,7 +312,7 @@ def dbg(*args, **kwargs):
     return popup_no_buttons(text, title=kwargs.get("title", "Debug"))
 
 
-def main(argv=None):
+def main(argv: Optional[List[str]] = None):
     """Command line entry: ``python -m TkSimpleGUI [--version | --themes]``."""
     import argparse
 

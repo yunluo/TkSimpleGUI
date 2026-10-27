@@ -13,16 +13,14 @@ shared Element options, and keep their figure ids alive on the element.
 import base64
 import math
 import tkinter as tk
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Optional, Tuple
 
-from .base import Element
+from .base import Color, Element, ElementKey, FontSpec, MenuDefinition, PadSpec, Size
 from ._paint import blend as _mix_color
 from ._paint import rounded_polygon as _rounded_polygon
 from .. import _theming as theme_mod
 import contextlib
 
-# A Tk color string ("#rrggbb" or a name); "" means transparent.
-Color = str
 Point = Tuple[float, float]
 
 
@@ -44,20 +42,20 @@ class _CanvasButton(Element):
 
     def __init__(
         self,
-        size=(100, 32),
-        fill_color=None,
-        hover_color=None,
-        text_color=None,
-        font=None,
-        key=None,
-        enable_events=True,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        size: Size = (100, 32),
+        fill_color: Optional[Color] = None,
+        hover_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = True,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -117,7 +115,7 @@ class _CanvasButton(Element):
         return ""
 
     # --- element plumbing -------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         canvas = tk.Canvas(
             master,
             width=self._width,
@@ -132,7 +130,7 @@ class _CanvasButton(Element):
         canvas.bind("<Leave>", self._on_leave)
         return canvas
 
-    def _hit(self, event) -> bool:
+    def _hit(self, event: tk.Event) -> bool:
         """True when the click lands on the button figure (tag check)."""
         canvas = self._widget
         overlapping = canvas.find_overlapping(
@@ -156,15 +154,15 @@ class _CanvasButton(Element):
                 self._widget.itemconfigure(self._text_id, fill=self._text_color)
         return self
 
-    def _on_click(self, event):
+    def _on_click(self, event: tk.Event):
         if self._hit(event):
             self._post_event()
 
-    def _on_enter(self, _event):
+    def _on_enter(self, _event: tk.Event):
         if self._background_id is not None:
             self._widget.itemconfigure(self._background_id, fill=self._hover_fill)
 
-    def _on_leave(self, _event):
+    def _on_leave(self, _event: tk.Event):
         if self._background_id is not None:
             self._widget.itemconfigure(self._background_id, fill=self._fill)
 
@@ -176,7 +174,7 @@ class _CanvasButton(Element):
         self._clicked = callback
         return self
 
-    def _post_event(self, key=None):
+    def _post_event(self, key: Optional[ElementKey] = None):
         if self._clicked is not None:
             self._clicked(self)
         super()._post_event(key)
@@ -194,22 +192,22 @@ class TRoundButton(_CanvasButton):
 
     def __init__(
         self,
-        text="",
-        size=(100, 32),
-        radius=10,
-        fill_color=None,
-        hover_color=None,
-        text_color=None,
-        font=None,
-        key=None,
-        enable_events=True,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        text: str = "",
+        size: Size = (100, 32),
+        radius: float = 10,
+        fill_color: Optional[Color] = None,
+        hover_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = True,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         self._radius = int(radius)
         self._text = str(text)
@@ -249,7 +247,7 @@ class TRoundButton(_CanvasButton):
     def text(self) -> str:
         return self._text
 
-    def update(self, value=None, visible=None):
+    def update(self, value: Any = None, visible: Optional[bool] = None):
         if value is not None:
             self._text = str(value)
             if self._widget is not None and self._text_id is not None:
@@ -279,19 +277,19 @@ class TImageButton(_CanvasButton):
 
     def __init__(
         self,
-        data_base64=None,
-        filename=None,
-        size=(None, None),
-        hover_brightness=28,
-        key=None,
-        enable_events=True,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        data_base64: Any = None,
+        filename: Any = None,
+        size: Size = (None, None),
+        hover_brightness: int = 28,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = True,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         self._image_data = data_base64
         self._image_filename = filename
@@ -316,7 +314,7 @@ class TImageButton(_CanvasButton):
         self._photo = None
         self._photo_hover = None
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         canvas = super()._create_widget(master)
         if self._image_data is not None:
             self._photo = tk.PhotoImage(
@@ -335,7 +333,7 @@ class TImageButton(_CanvasButton):
     def _draw_background(self, canvas: tk.Canvas) -> int:
         return 0  # the image itself is created in _create_widget
 
-    def _hit(self, event) -> bool:
+    def _hit(self, event: tk.Event) -> bool:
         # every pixel of the image is a click target
         return 0 <= event.x < self._width and 0 <= event.y < self._height
 
@@ -347,13 +345,13 @@ class TImageButton(_CanvasButton):
             result.tk.call(result, "write", photo, "-compositingrule", "overlay")
         return result
 
-    def _on_enter(self, _event):
+    def _on_enter(self, _event: tk.Event):
         if self._photo is not None and self._photo_hover is None:
             self._photo_hover = self._brighten(self._photo, self._hover_brightness)
         if self._photo_hover is not None:
             self._widget.itemconfigure(self._background_id, image=self._photo_hover)
 
-    def _on_leave(self, _event):
+    def _on_leave(self, _event: tk.Event):
         if self._photo is not None:
             self._widget.itemconfigure(self._background_id, image=self._photo)
 
@@ -384,22 +382,22 @@ class TTextProgressBar(Element):
 
     def __init__(
         self,
-        max_value,
-        current_value=0,
-        size=(140, 20),
-        bar_color=None,
-        trough_color=None,
-        text_color=None,
-        font=None,
-        show_text=True,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        max_value: float,
+        current_value: float = 0,
+        size: Size = (140, 20),
+        bar_color: Optional[Color] = None,
+        trough_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        font: Optional[FontSpec] = None,
+        show_text: bool = True,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -453,7 +451,7 @@ class TTextProgressBar(Element):
             self._widget.itemconfigure(self._label_id, fill=self._text_color)
         return self
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width = int(self._size[0] or 140)
         height = int(self._size[1] or 20)
         canvas = tk.Canvas(
@@ -498,7 +496,12 @@ class TTextProgressBar(Element):
     def get(self):
         return self._current
 
-    def update(self, current_value=None, max_value=None, visible=None, **kwargs):
+    def update(
+        self,
+        current_value: Optional[float] = None,
+        max_value: Optional[float] = None,
+        visible: Optional[bool] = None,
+        **kwargs: Any):
         if max_value is not None:
             self._max_value = max_value
         if current_value is not None:
@@ -549,28 +552,28 @@ class TGauge(Element):
 
     def __init__(
         self,
-        max_value,
-        min_value=0.0,
-        value=None,
-        size=(150, 120),
-        zones=None,
-        title=None,
-        units="",
-        show_value=True,
-        show_ticks=True,
-        divisions=5,
-        needle_color=None,
-        background_color=None,
-        text_color=None,
-        font=None,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        max_value: float,
+        min_value: float = 0.0,
+        value: Any = None,
+        size: Size = (150, 120),
+        zones: Any = None,
+        title: Optional[str] = None,
+        units: str = "",
+        show_value: bool = True,
+        show_ticks: bool = True,
+        divisions: int = 5,
+        needle_color: Optional[Color] = None,
+        background_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -617,19 +620,19 @@ class TGauge(Element):
         ]
 
     # --- geometry ------------------------------------------------------------
-    def _fraction(self, value):
+    def _fraction(self, value: Any):
         span = self._max_value - self._min_value
         return min(1.0, max(0.0, (float(value) - self._min_value) / span))
 
-    def _angle(self, fraction):
+    def _angle(self, fraction: Any):
         return self._START_ANGLE + self._SWEEP * fraction
 
-    def _point(self, cx, cy, radius, angle_tk):
+    def _point(self, cx: float, cy: float, radius: float, angle_tk: float):
         radians = math.radians(angle_tk)
         return (cx + radius * math.cos(radians),
                 cy - radius * math.sin(radians))
 
-    def _fmt_value(self, value):
+    def _fmt_value(self, value: Any):
         if float(value).is_integer():
             return f"{int(value)}{self._units}"
         return f"{value:g}{self._units}"
@@ -653,7 +656,7 @@ class TGauge(Element):
         track = _mix_color(ink, surface or "#f0f0f0", 0.75)
         return surface, ink, muted, needle, track
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width = int(self._size[0] or 150)
         height = int(self._size[1] or 120)
         surface, _ink, _muted, _needle, _track = self._theme_colors()
@@ -665,7 +668,7 @@ class TGauge(Element):
         self._draw_dial(canvas)
         return canvas
 
-    def _draw_dial(self, canvas):
+    def _draw_dial(self, canvas: tk.Canvas):
         canvas.delete("all")
         self._ids = []
         width = int(self._size[0] or 150)
@@ -759,7 +762,7 @@ class TGauge(Element):
     def get(self):
         return self._value
 
-    def update(self, value=None, visible=None, zones=None):
+    def update(self, value: Any = None, visible: Optional[bool] = None, zones: Any = None):
         """Set the needle value (clamped to the range) and redraw."""
         if zones is not None:
             self._zones = list(zones)
@@ -771,7 +774,7 @@ class TGauge(Element):
             self.unhide() if visible else self.hide()
         return self
 
-    def set_range(self, min_value, max_value):
+    def set_range(self, min_value: float, max_value: float):
         """Change the dial range; the needle stays at its value (clamped).
 
         Default (auto) alarm zones are rescaled to the new range; explicit
@@ -841,21 +844,21 @@ class TLED(Element):
 
     def __init__(
         self,
-        value=0,
-        digits=4,
-        size=(120, 36),
-        color="#ff3b30",
-        off_color=None,
-        background="#1a1a1a",
-        allow_colon=False,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        value: Any = 0,
+        digits: int = 4,
+        size: Size = (120, 36),
+        color: Optional[Color] = "#ff3b30",
+        off_color: Optional[Color] = None,
+        background: str = "#1a1a1a",
+        allow_colon: bool = False,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -879,7 +882,7 @@ class TLED(Element):
         self._last_text = self._format(value)
 
     # --- text shaping ------------------------------------------------------------
-    def _format(self, value):
+    def _format(self, value: Any):
         """Value -> display string of supported characters."""
         if isinstance(value, str):
             text = value
@@ -913,7 +916,16 @@ class TLED(Element):
             out.append((char, digit_w, digit_h, thickness, gap, x0, x1, y0, y1))
         return out
 
-    def _segment_rects(self, digit_w, digit_h, thickness, gap, x0, x1, y0, y1):
+    def _segment_rects(
+        self,
+        digit_w: Any,
+        digit_h: Any,
+        thickness: Any,
+        gap: int,
+        x0: float,
+        x1: float,
+        y0: float,
+        y1: float):
         """The seven segment rectangles: a b c d e f g (horizontal bars)."""
         mid_y = (y0 + y1) / 2
         return [
@@ -927,7 +939,7 @@ class TLED(Element):
         ]
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width = int(self._size[0] or 120)
         height = int(self._size[1] or 36)
         canvas = tk.Canvas(
@@ -943,14 +955,16 @@ class TLED(Element):
                     canvas.create_oval(
                         (x0 + x1) / 2 - dot / 2, cy + dy - dot / 2,
                         (x0 + x1) / 2 + dot / 2, cy + dy + dot / 2,
-                        fill=self._color, outline="",
+                        fill=self._color,  # ty: ignore[invalid-argument-type]  tkinter drops None
+                        outline="",
                     )
                 continue
             if char == ".":
                 dot = max(thickness * 0.9, 2.0)
                 canvas.create_oval(
                     x1 - dot, y1 - dot, x1, y1,
-                    fill=self._color, outline="",
+                    fill=self._color,  # ty: ignore[invalid-argument-type]  tkinter drops None
+                    outline="",
                 )
                 continue
             on = self._SEGMENTS.get(char, self._SEGMENTS[" "])
@@ -959,7 +973,7 @@ class TLED(Element):
             for segment_index, (rx0, ry0, rx1, ry1) in enumerate(rects):
                 slot_ids.append(canvas.create_rectangle(
                     rx0, ry0, rx1, ry1,
-                    fill=self._color if on[segment_index] else self._off_color,
+                    fill=self._color if on[segment_index] else self._off_color,  # ty: ignore[invalid-argument-type]  tkinter drops None
                     outline="",
                 ))
             self._segment_ids.append(slot_ids)
@@ -979,14 +993,16 @@ class TLED(Element):
                     widget.create_oval(
                         (x0 + x1) / 2 - dot / 2, cy + dy - dot / 2,
                         (x0 + x1) / 2 + dot / 2, cy + dy + dot / 2,
-                        fill=self._color, outline="",
+                        fill=self._color,
+                        outline="",
                     )
                 continue
             if char == ".":
                 dot = max(thickness * 0.9, 2.0)
                 widget.create_oval(
                     x1 - dot, y1 - dot, x1, y1,
-                    fill=self._color, outline="",
+                    fill=self._color,
+                    outline="",
                 )
                 continue
             on = self._SEGMENTS.get(char, self._SEGMENTS[" "])
@@ -1007,7 +1023,12 @@ class TLED(Element):
     def digits(self):
         return self._digits
 
-    def update(self, value=None, color=None, visible=None, **kwargs):
+    def update(
+        self,
+        value: Any = None,
+        color: Optional[Color] = None,
+        visible: Optional[bool] = None,
+        **kwargs: Any):
         if color is not None:
             self._color = color
             self._off_color = _mix_color(color, "#111111", 0.82)

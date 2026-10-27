@@ -4,10 +4,15 @@ simplified). Every helper returns a cancellable ``_TimerHandle``; the window
 must keep pumping events (``read``/``refresh``) for the animation to run.
 """
 
+from typing import Any, Callable, Optional
 import tkinter as tk
 
 
-def fade_in(window, duration_ms=300, steps=10, on_done=None):
+def fade_in(
+    window: Any,
+    duration_ms: int = 300,
+    steps: int = 10,
+    on_done: Optional[Callable[[], Any]] = None):
     """Fade the window from transparent to opaque."""
     interval = max(1, int(duration_ms) // max(1, steps))
     step = 1.0 / max(1, steps)
@@ -30,7 +35,11 @@ def fade_in(window, duration_ms=300, steps=10, on_done=None):
     return handle
 
 
-def fade_out(window, duration_ms=300, steps=10, on_done=None):
+def fade_out(
+    window: Any,
+    duration_ms: int = 300,
+    steps: int = 10,
+    on_done: Optional[Callable[[], Any]] = None):
     """Fade the window towards invisible (does not close it)."""
     interval = max(1, int(duration_ms) // max(1, steps))
     step = 1.0 / max(1, steps)
@@ -53,7 +62,12 @@ def fade_out(window, duration_ms=300, steps=10, on_done=None):
     return handle
 
 
-def slide(window, to_location, duration_ms=500, steps=10, on_done=None):
+def slide(
+    window: Any,
+    to_location: Any,
+    duration_ms: int = 500,
+    steps: int = 10,
+    on_done: Optional[Callable[[], Any]] = None):
     """Move the window smoothly to ``to_location`` (x, y) on the screen."""
     if not window._root_alive():
         return None
@@ -79,7 +93,13 @@ def slide(window, to_location, duration_ms=500, steps=10, on_done=None):
     return handle
 
 
-def animate_progress(window, bar, to_value, duration_ms=500, steps=10, on_done=None):
+def animate_progress(
+    window: Any,
+    bar: Any,
+    to_value: float,
+    duration_ms: int = 500,
+    steps: int = 10,
+    on_done: Optional[Callable[[], Any]] = None):
     """Animate a :class:`~TkSimpleGUI.elements.widgets.TProgressBar` (element
     or key) from its current value to ``to_value``."""
     element = window[bar] if isinstance(bar, str) else bar

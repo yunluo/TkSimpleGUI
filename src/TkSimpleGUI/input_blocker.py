@@ -21,6 +21,7 @@ fully usable. This is the standard technique behind exam/kiosk overlays.
   ``ImportError`` (callers degrade instead of blocking).
 """
 
+from typing import Any
 import ctypes
 import threading
 
@@ -80,7 +81,7 @@ class _KBDLLHOOKSTRUCT(ctypes.Structure):
     ]
 
 
-def _is_own_window(hwnd):
+def _is_own_window(hwnd: Any):
     """True when the window belongs to this process."""
     if not hwnd:
         return False
@@ -109,7 +110,7 @@ class InputBlocker:
         self._lock = threading.Lock()
 
     # --- hook procedures (run on the hook thread) -----------------------------
-    def _mouse_proc(self, code, w_param, l_param):
+    def _mouse_proc(self, code: Any, w_param: Any, l_param: Any):
         try:
             if code >= 0 and w_param in _BLOCKED_MOUSE:
                 info = ctypes.cast(
@@ -122,7 +123,7 @@ class InputBlocker:
             pass  # fail-open: never hang or break the system hook chain
         return user32.CallNextHookEx(None, code, w_param, l_param)
 
-    def _keyboard_proc(self, code, w_param, l_param):
+    def _keyboard_proc(self, code: Any, w_param: Any, l_param: Any):
         try:
             if code >= 0 and w_param in (WM_KEYDOWN, WM_SYSKEYDOWN):
                 info = ctypes.cast(

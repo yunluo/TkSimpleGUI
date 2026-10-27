@@ -3,10 +3,21 @@
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Dict, List, cast
+from typing import Any, Dict, Iterable, List, Optional, cast
 from .._typing_compat import Literal
 
-from .base import ContainerElement, Element, _validate_layout
+from .base import (
+    Color,
+    ContainerElement,
+    Element,
+    ElementKey,
+    FontSpec,
+    Justification,
+    MenuDefinition,
+    PadSpec,
+    Size,
+    _validate_layout,
+)
 from .widgets import TInput, TText
 from .. import constants as C
 from .. import _theming as theme_mod
@@ -24,19 +35,19 @@ class TFrame(ContainerElement):
 
     def __init__(
         self,
-        title,
-        layout,
-        key=None,
-        size=(None, None),
-        label_anchor="nw",
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        title: str,
+        layout: List[List[Any]],
+        key: Optional[ElementKey] = None,
+        size: Size = (None, None),
+        label_anchor: str = "nw",
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             layout=layout,
@@ -58,7 +69,7 @@ class TFrame(ContainerElement):
     def title(self):
         return self._title
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         manager = theme_mod.theme_manager
         # ttk.Labelframe takes ttk-style options: let the style sheet carry
         # the palette unless a per-widget background was requested
@@ -79,7 +90,7 @@ class TFrame(ContainerElement):
             master, text=self._title, labelanchor=anchor, **kwargs
         )
 
-    def update(self, value=None, visible=None):
+    def update(self, value: Any = None, visible: Optional[bool] = None):
         if value is not None:
             self._title = value
             self._widget.configure(text=value)
@@ -107,19 +118,19 @@ class TColumn(ContainerElement):
 
     def __init__(
         self,
-        layout,
-        key=None,
-        size=(None, None),
-        background_color=None,
-        vertical_alignment=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        layout: List[List[Any]],
+        key: Optional[ElementKey] = None,
+        size: Size = (None, None),
+        background_color: Optional[Color] = None,
+        vertical_alignment: Any = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             layout=layout,
@@ -137,7 +148,7 @@ class TColumn(ContainerElement):
         self._background_color = background_color
         self._vertical_alignment = vertical_alignment
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
@@ -154,7 +165,7 @@ class TColumn(ContainerElement):
             self._widget.configure(background=bg)
         return self
 
-    def update(self, visible=None):
+    def update(self, visible: Optional[bool] = None):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -167,16 +178,16 @@ class TTab(ContainerElement):
 
     def __init__(
         self,
-        title,
-        layout,
-        key=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        title: str,
+        layout: List[List[Any]],
+        key: Optional[ElementKey] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             layout=layout,
@@ -195,12 +206,12 @@ class TTab(ContainerElement):
     def title(self):
         return self._title
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         # ttk.Frame carries colors through the style sheet, not options;
         # only fall back to a derived style when the palette is overridden
         return ttk.Frame(master, style="Tab.TFrame")
 
-    def update(self, title=None, visible=None):
+    def update(self, title: Optional[str] = None, visible: Optional[bool] = None):
         if title is not None:
             self._title = title
         if visible is not None:
@@ -232,20 +243,20 @@ class TTabGroup(Element):
 
     def __init__(
         self,
-        layout,
-        key=None,
-        tab_location=C.Location.TOP,
-        enable_events=True,
-        enable_traversal=False,
-        enable_close=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        layout: List[List[Any]],
+        key: Optional[ElementKey] = None,
+        tab_location: Any = C.Location.TOP,
+        enable_events: bool = True,
+        enable_traversal: bool = False,
+        enable_close: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -275,7 +286,7 @@ class TTabGroup(Element):
     def tabs(self):
         return list(self._tabs)
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         notebook = ttk.Notebook(master, **kwargs)
         for tab in self._tabs:
@@ -294,7 +305,7 @@ class TTabGroup(Element):
         if self._enable_close:
             self._widget.bind("<Button-1>", self._on_tab_click, add="+")
 
-    def _on_tab_click(self, event):
+    def _on_tab_click(self, event: tk.Event):
         """Detect clicks in the trailing × hit-zone of a tab header."""
         try:
             index = self._widget.index(f"@{event.x},{event.y}")
@@ -310,7 +321,7 @@ class TTabGroup(Element):
             title = self._tabs[index].title
             self.close_tab(title)
 
-    def close_tab(self, title):
+    def close_tab(self, title: str):
         """Remove the tab titled ``title`` and post the close event."""
         index = next(
             (i for i, tab in enumerate(self._tabs) if tab.title == title), None
@@ -331,7 +342,7 @@ class TTabGroup(Element):
         """Titles of the tabs closed through the × button."""
         return list(self._closed_titles)
 
-    def _on_tab_changed(self, _event):
+    def _on_tab_changed(self, _event: tk.Event):
         try:
             index = self._widget.index("current")
         except tk.TclError:
@@ -349,7 +360,7 @@ class TTabGroup(Element):
         index = self._widget.index("current")
         return self._tabs[index].title if 0 <= index < len(self._tabs) else None
 
-    def select_tab(self, title_or_index):
+    def select_tab(self, title_or_index: Any):
         """Programmatically select a tab by title or index."""
         if isinstance(title_or_index, int):
             index = title_or_index
@@ -363,7 +374,7 @@ class TTabGroup(Element):
         self._widget.select(index)
         return self
 
-    def update(self, visible=None, tab=None, tab_state=None):
+    def update(self, visible: Optional[bool] = None, tab: Any = None, tab_state: Any = None):
         """Show/hide the group, or set one tab's state ("normal"/"disabled"/"hidden").
 
         ``tab`` identifies the target tab by title or index.
@@ -395,16 +406,16 @@ class TMenu(Element):
 
     def __init__(
         self,
-        menu_definition,
-        key=None,
-        tearoff=False,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        menu_definition: Any,
+        key: Optional[ElementKey] = None,
+        tearoff: bool = False,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -423,7 +434,7 @@ class TMenu(Element):
     def menu_definition(self):
         return self._menu_definition
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         menubar = tk.Menu(master.winfo_toplevel(), tearoff=self._tearoff)
         for entry in self._menu_definition:
             self._add_top_level(menubar, entry)
@@ -433,14 +444,14 @@ class TMenu(Element):
         window_root = self._window.tk_root
         window_root.configure(menu=self._widget)
 
-    def _add_top_level(self, menubar, entry):
+    def _add_top_level(self, menubar: Any, entry: Any):
         label, items = entry[0], entry[1]
         label = self._strip_shortcut(label)
         cascade = tk.Menu(menubar, tearoff=self._tearoff)
         self._fill_items(cascade, items)
         menubar.add_cascade(label=label, menu=cascade)
 
-    def _fill_items(self, menu, items):
+    def _fill_items(self, menu: "tk.Menu", items: Iterable[Any]):
         for item in items:
             if isinstance(item, list):  # nested submenu
                 self._fill_items(menu, item)
@@ -453,10 +464,10 @@ class TMenu(Element):
             menu.add_command(label=label, state="disabled" if disabled else "normal")
 
     @staticmethod
-    def _strip_shortcut(label):
+    def _strip_shortcut(label: str):
         return label.replace(C.MENU_SHORTCUT_CHARACTER, "")
 
-    def update(self, menu_definition=None, visible=None):
+    def update(self, menu_definition: Any = None, visible: Optional[bool] = None):
         if menu_definition is not None:
             self._menu_definition = menu_definition
             self._widget.delete(0, "end")
@@ -487,18 +498,18 @@ class TSplitter(ContainerElement):
 
     def __init__(
         self,
-        layouts,
-        orientation="h",
-        handle_size=8,
-        key=None,
-        background_color=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        layouts: Any,
+        orientation: Optional[str] = "h",
+        handle_size: int = 8,
+        key: Optional[ElementKey] = None,
+        background_color: Optional[Color] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             layout=None,
@@ -519,7 +530,7 @@ class TSplitter(ContainerElement):
         self._background_color = background_color
         self._pane_frames = []
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         orient = (
             "horizontal"
             if str(self._orientation).lower() in ("h", "horizontal")
@@ -541,7 +552,7 @@ class TSplitter(ContainerElement):
             if layout:
                 self._window._build_layout(layout, frame)
 
-    def update(self, visible=None):
+    def update(self, visible: Optional[bool] = None):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -570,19 +581,19 @@ class TScrollableColumn(ContainerElement):
 
     def __init__(
         self,
-        layout,
-        key=None,
-        size=(300, 200),
-        background_color=None,
-        scroll_y=True,
-        scroll_x=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        layout: List[List[Any]],
+        key: Optional[ElementKey] = None,
+        size: Size = (300, 200),
+        background_color: Optional[Color] = None,
+        scroll_y: bool = True,
+        scroll_x: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             layout=layout,
@@ -602,7 +613,7 @@ class TScrollableColumn(ContainerElement):
         self._canvas = None  # ty: ignore[invalid-assignment]
         self._inner_frame = None  # ty: ignore[invalid-assignment]
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         bg = theme_mod.theme_manager.effective_background(self._background_color)
         if bg is not None:
@@ -650,17 +661,17 @@ class TScrollableColumn(ContainerElement):
         """The yview command a standalone :class:`TScrollbar` can drive."""
         return self._canvas.yview
 
-    def _bind_wheel(self, _event):
+    def _bind_wheel(self, _event: tk.Event):
         self._canvas.bind_all("<MouseWheel>", self._on_wheel)
         self._canvas.bind_all("<Button-4>", self._on_wheel)
         self._canvas.bind_all("<Button-5>", self._on_wheel)
 
-    def _unbind_wheel(self, _event):
+    def _unbind_wheel(self, _event: tk.Event):
         self._canvas.unbind_all("<MouseWheel>")
         self._canvas.unbind_all("<Button-4>")
         self._canvas.unbind_all("<Button-5>")
 
-    def _on_wheel(self, event):
+    def _on_wheel(self, event: tk.Event):
         if getattr(event, "num", None) == 4:
             delta = -1
         elif getattr(event, "num", None) == 5:
@@ -672,7 +683,7 @@ class TScrollableColumn(ContainerElement):
         elif self._scroll_x and not self._scroll_y:
             self._canvas.xview_scroll(delta, "units")
 
-    def update(self, visible=None):
+    def update(self, visible: Optional[bool] = None):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -688,11 +699,11 @@ class TScrollableColumn(ContainerElement):
         return self
 
 
-def _width_of(size):
+def _width_of(size: Size):
     return size[0] if size and size[0] else 300
 
 
-def _height_of(size):
+def _height_of(size: Size):
     return size[1] if size and size[1] else 200
 
 
@@ -712,18 +723,18 @@ class TToolbar(Element):
 
     def __init__(
         self,
-        tools,
-        key=None,
-        background_color=None,
-        button_color=None,
-        font=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        tools: Any,
+        key: Optional[ElementKey] = None,
+        background_color: Optional[Color] = None,
+        button_color: Optional[Color] = None,
+        font: Optional[FontSpec] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -741,7 +752,7 @@ class TToolbar(Element):
         self._font = font
         self._buttons = {}
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         bg = theme_mod.theme_manager.effective_background(self._background_color)
         if bg is not None:
@@ -764,7 +775,7 @@ class TToolbar(Element):
         return frame
 
     @staticmethod
-    def _parse_tool(tool):
+    def _parse_tool(tool: Any):
         if isinstance(tool, (list, tuple)):
             text = str(tool[0])
             tool_key = tool[1] if len(tool) > 1 else text
@@ -775,7 +786,7 @@ class TToolbar(Element):
             items = None
         return text, tool_key, items
 
-    def _make_button(self, frame, text, tool_key):
+    def _make_button(self, frame: Any, text: str, tool_key: Any):
         style_name = theme_mod.theme_manager.ttk_widget_style(
             frame, "TButton", font=self._font
         )
@@ -788,7 +799,7 @@ class TToolbar(Element):
         self._buttons[tool_key] = button
         return button
 
-    def _make_dropdown(self, frame, text, tool_key, items):
+    def _make_dropdown(self, frame: Any, text: str, tool_key: Any, items: Iterable[Any]):
         menu = tk.Menu(frame, tearoff=False)
         for item in items:
             if item == C.MENU_SEPARATOR_LINE:
@@ -801,7 +812,7 @@ class TToolbar(Element):
         self._buttons[tool_key] = button
         return button
 
-    def update(self, visible=None):
+    def update(self, visible: Optional[bool] = None):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self
@@ -818,21 +829,21 @@ class TLabeledEdit(ContainerElement):
 
     def __init__(
         self,
-        label,
-        default_text="",
-        key=None,
-        label_position="above",
-        label_size=(None, None),
-        input_size=(None, None),
-        input_text_color=None,
-        input_background_color=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        label: str,
+        default_text: str = "",
+        key: Optional[ElementKey] = None,
+        label_position: str = "above",
+        label_size: Any = (None, None),
+        input_size: Any = (None, None),
+        input_text_color: Any = None,
+        input_background_color: Any = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         self._label = str(label)
         self._label_element = TText(self._label, size=label_size)
@@ -867,7 +878,7 @@ class TLabeledEdit(ContainerElement):
         """The embedded :class:`TInput` element."""
         return self._input
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
@@ -877,7 +888,11 @@ class TLabeledEdit(ContainerElement):
     def get(self):
         return self._input.get()
 
-    def update(self, value=None, label=None, visible=None):
+    def update(
+        self,
+        value: Any = None,
+        label: Optional[str] = None,
+        visible: Optional[bool] = None):
         if value is not None:
             self._input.update(value=value)
         if label is not None:
@@ -900,17 +915,17 @@ class TKeyValueEditor(ContainerElement):
 
     def __init__(
         self,
-        pairs,
-        key=None,
-        label_size=(None, None),
-        value_size=(None, None),
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        pairs: Any,
+        key: Optional[ElementKey] = None,
+        label_size: Any = (None, None),
+        value_size: Any = (None, None),
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         if isinstance(pairs, dict):
             pairs = list(pairs.items())
@@ -944,14 +959,14 @@ class TKeyValueEditor(ContainerElement):
             for label, element in zip(self._labels, self._inputs)
         }
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
             kwargs["background"] = bg
         return tk.Frame(master, **kwargs)
 
-    def update(self, values=None, visible=None):
+    def update(self, values: Optional[Dict[str, Any]] = None, visible: Optional[bool] = None):
         if values is not None:
             for label, element in zip(self._labels, self._inputs):
                 if label in values:
@@ -980,19 +995,19 @@ class TFlowPanel(Element):
 
     def __init__(
         self,
-        elements,
-        horizontal_padding=5,
-        vertical_padding=5,
-        wrap_width=600,
-        key=None,
-        background_color=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        elements: Any,
+        horizontal_padding: int = 5,
+        vertical_padding: int = 5,
+        wrap_width: int = 600,
+        key: Optional[ElementKey] = None,
+        background_color: Optional[Color] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -1010,7 +1025,7 @@ class TFlowPanel(Element):
         self._background_color = background_color
         self._wrap_width = int(wrap_width)
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         kwargs = {}
         bg = theme_mod.theme_manager.effective_background()
         if bg is not None:
@@ -1025,7 +1040,7 @@ class TFlowPanel(Element):
         self._widget.bind("<Configure>", self._reflow)
         self._reflow()
 
-    def _reflow(self, _event=None):
+    def _reflow(self, _event: Optional[tk.Event] = None):
         width = self._widget.winfo_width()
         if width <= 1:
             # not mapped yet — lay out against the fallback width and size
@@ -1054,7 +1069,7 @@ class TFlowPanel(Element):
         if self._children:
             self._widget.configure(height=y + row_height + self._vpadding)
 
-    def update(self, visible=None):
+    def update(self, visible: Optional[bool] = None):
         if visible is not None:
             self.unhide() if visible else self.hide()
             if visible:
@@ -1067,11 +1082,17 @@ class TVerticalSeparator(Element):
 
     __slots__ = ("_padding",)
 
-    def __init__(self, padding=1, key=None, visible=True, pad=None, metadata=None):
+    def __init__(
+        self,
+        padding: int = 1,
+        key: Optional[ElementKey] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        metadata: Any = None):
         super().__init__(key=key, visible=visible, pad=pad, metadata=metadata)
         self._padding = padding
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         return ttk.Separator(master, orient="vertical")
 
 
@@ -1080,11 +1101,17 @@ class THorizontalSeparator(Element):
 
     __slots__ = ("_padding",)
 
-    def __init__(self, padding=1, key=None, visible=True, pad=None, metadata=None):
+    def __init__(
+        self,
+        padding: int = 1,
+        key: Optional[ElementKey] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        metadata: Any = None):
         super().__init__(key=key, visible=visible, pad=pad, metadata=metadata)
         self._padding = padding
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         return ttk.Separator(master, orient="horizontal")
 
 
@@ -1093,10 +1120,15 @@ class TSizegrip(Element):
 
     __slots__ = ()
 
-    def __init__(self, key=None, visible=True, pad=None, metadata=None):
+    def __init__(
+        self,
+        key: Optional[ElementKey] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        metadata: Any = None):
         super().__init__(key=key, visible=visible, pad=pad, metadata=metadata)
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         return ttk.Sizegrip(master)
 
 
@@ -1113,14 +1145,14 @@ class TScrollbar(Element):
 
     def __init__(
         self,
-        target,
-        orientation="v",
-        key=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        metadata=None,
+        target: Any,
+        orientation: Optional[str] = "v",
+        key: Optional[ElementKey] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -1138,7 +1170,7 @@ class TScrollbar(Element):
             else "horizontal"
         )
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         widget = tk.Scrollbar(
             master,
             orient=cast(Literal["horizontal", "vertical"], self._orientation),
@@ -1152,7 +1184,7 @@ class TScrollbar(Element):
         widget.configure(command=command())
         return widget
 
-    def update(self, visible=None):
+    def update(self, visible: Optional[bool] = None):
         if visible is not None:
             self.unhide() if visible else self.hide()
         return self

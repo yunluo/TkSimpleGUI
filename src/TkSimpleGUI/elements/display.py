@@ -23,7 +23,7 @@ import tkinter as tk
 from typing import Any, Dict, Optional, Tuple
 
 from . import _paint
-from .base import Element
+from .base import Color, Element, ElementKey, FontSpec, MenuDefinition, PadSpec, Size
 from .. import _theming as theme_mod
 
 # status glyph families, shared by the TResult circle and the TAlert icon
@@ -33,7 +33,7 @@ _GLYPH_BANG = "bang"
 _GLYPH_INFO = "info"
 
 
-def _as_pair(size) -> Tuple[Optional[int], Optional[int]]:
+def _as_pair(size: Any) -> Tuple[Optional[int], Optional[int]]:
     """A ``size`` argument as an ``(width, height)`` pair.
 
     Accepts ``None`` (both entries unknown), a single int (square) or a
@@ -60,7 +60,7 @@ def _status_glyph(status: str) -> str:
     return _GLYPH_INFO
 
 
-def _font_size(font) -> int:
+def _font_size(font: Optional[FontSpec]) -> int:
     """The pixel size of a font spec (Pillow works in pixels, Tk in points)."""
     if isinstance(font, (tuple, list)) and len(font) > 1:
         try:
@@ -70,14 +70,14 @@ def _font_size(font) -> int:
     return 16
 
 
-def _font_family(font):
+def _font_family(font: Optional[FontSpec]):
     """The family name of a font spec, when it names one."""
     if isinstance(font, (tuple, list)) and font:
         return font[0]
     return None
 
 
-def _resample(image_mod, name: str):
+def _resample(image_mod: Any, name: str):
     """A Pillow resampling filter looked up across Pillow versions."""
     try:
         return getattr(image_mod.Resampling, name)
@@ -85,13 +85,13 @@ def _resample(image_mod, name: str):
         return getattr(image_mod, name)
 
 
-def _ppm_bytes(image) -> bytes:
+def _ppm_bytes(image: Any) -> bytes:
     """An RGB Pillow image as P6 PPM bytes (``tk.PhotoImage`` reads PPM)."""
     header = f"P6\n{image.width} {image.height}\n255\n".encode("ascii")
     return header + image.tobytes()
 
 
-def _pil_font(font_file, size):
+def _pil_font(font_file: Any, size: int):
     """A Pillow font object for a font file (None when it cannot load).
 
     ``ImageFont`` is imported here because ``_paint.pil_modules`` only
@@ -105,7 +105,7 @@ def _pil_font(font_file, size):
         return None
 
 
-def _photo_from_image(image, master) -> tk.PhotoImage:
+def _photo_from_image(image: Any, master: tk.Misc) -> tk.PhotoImage:
     """A tk photo of an RGB Pillow image without needing ImageTk."""
     return tk.PhotoImage(data=_ppm_bytes(image), master=master)
 
@@ -154,22 +154,22 @@ class TTag(Element):
 
     def __init__(
         self,
-        text="",
-        size=None,
-        tag_color=None,
-        text_color=None,
-        effect="light",
-        closable=False,
-        font=None,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        text: str = "",
+        size: Optional[Size] = None,
+        tag_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        effect: str = "light",
+        closable: bool = False,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -200,7 +200,7 @@ class TTag(Element):
     def _font_spec(self):
         return self._font if self._font is not None else ("TkDefaultFont", 10)
 
-    def _geometry(self, widget=None):
+    def _geometry(self, widget: Optional[tk.Misc] = None):
         """(width, height): sized to the text plus 10px padding per side."""
         height = self._size[1] or 22
         target = widget if widget is not None else self._widget
@@ -229,7 +229,7 @@ class TTag(Element):
         )
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width, height = self._geometry(master)
         self._width = int(width)
         self._height = int(height)
@@ -267,7 +267,7 @@ class TTag(Element):
             )
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -336,7 +336,7 @@ class TTag(Element):
                 )
         return self
 
-    def _on_close_event(self, _event):
+    def _on_close_event(self, _event: tk.Event):
         """Close-button press handler (tk <Button-1> event signature)."""
         return self._perform_close()
 
@@ -359,7 +359,7 @@ class TTag(Element):
             # event is delivered even if the canvas somehow misses it)
             self._close_button.configure(command=self._perform_close)
 
-    def _on_click(self, event):
+    def _on_click(self, event: tk.Event):
         if self._closable and event.x >= self._width - self._CLOSE_ZONE:
             self._perform_close()
             return "break"
@@ -376,7 +376,12 @@ class TTag(Element):
         """The tag text (still the last text after the tag was closed)."""
         return self._text
 
-    def update(self, value=None, tag_color=None, text_color=None, visible=None):
+    def update(
+        self,
+        value: Any = None,
+        tag_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        visible: Optional[bool] = None):
         """Change the text / colors; a new text also re-shows a closed tag."""
         redraw = False
         if value is not None:
@@ -421,22 +426,22 @@ class TBadge(Element):
 
     def __init__(
         self,
-        value=None,
-        max_value=99,
-        is_dot=False,
-        badge_color=None,
-        text_color=None,
-        size=None,
-        font=None,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        value: Any = None,
+        max_value: float = 99,
+        is_dot: bool = False,
+        badge_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        size: Optional[Size] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -475,7 +480,7 @@ class TBadge(Element):
             return f"{self._max_value}+"
         return str(number)
 
-    def _geometry(self, widget=None):
+    def _geometry(self, widget: Optional[tk.Misc] = None):
         """(width, height): a dot is square, a count is a pill around the text."""
         if self._value is None and not self._is_dot:
             return (int(self._size[0] or 1), int(self._size[1] or 1))
@@ -489,7 +494,7 @@ class TBadge(Element):
         return (width, height)
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width, height = self._geometry(master)
         self._width = int(width)
         self._height = int(height)
@@ -498,7 +503,7 @@ class TBadge(Element):
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -558,7 +563,11 @@ class TBadge(Element):
         self._refresh()
         return self
 
-    def update(self, value=None, is_dot=None, visible=None):
+    def update(
+        self,
+        value: Any = None,
+        is_dot: Optional[bool] = None,
+        visible: Optional[bool] = None):
         """Set the value / dot mode; ``None`` leaves an argument unchanged."""
         redraw = False
         if value is not None:
@@ -607,24 +616,24 @@ class TAvatar(Element):
 
     def __init__(
         self,
-        text=None,
-        initials=None,
-        filename=None,
-        data_base64=None,
-        size=40,
-        shape="circle",
-        background_color=None,
-        text_color=None,
-        font=None,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        text: Optional[str] = None,
+        initials: Any = None,
+        filename: Any = None,
+        data_base64: Any = None,
+        size: int = 40,
+        shape: str = "circle",
+        background_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         width, height = _as_pair(size)
         super().__init__(
@@ -681,7 +690,7 @@ class TAvatar(Element):
             return io.BytesIO(base64.b64decode(self._data_base64))
         return None
 
-    def _load_photo(self, master):
+    def _load_photo(self, master: tk.Misc):
         """The plain tk photo of the source image (None when unreadable)."""
         try:
             if self._data_base64 is not None:
@@ -690,7 +699,7 @@ class TAvatar(Element):
         except Exception:
             return None
 
-    def _circular_photo(self, master):
+    def _circular_photo(self, master: tk.Misc):
         """A true circular crop of the image, or None without Pillow/ImageTk."""
         modules = _paint.pil_modules()
         if not modules:
@@ -718,13 +727,13 @@ class TAvatar(Element):
         return photo
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -743,7 +752,7 @@ class TAvatar(Element):
                 font=self._font_spec(),
             )
 
-    def _draw_photo(self, canvas, colors) -> bool:
+    def _draw_photo(self, canvas: tk.Canvas, colors: _paint.ColorMap) -> bool:
         """Draw the image path; False falls back to the initials path."""
         photo = self._circular_photo(canvas)
         if photo is not None:
@@ -760,7 +769,7 @@ class TAvatar(Element):
         self._draw_shape(canvas, "", colors["border"], 2)
         return True
 
-    def _draw_shape(self, canvas, fill, outline, width=1):
+    def _draw_shape(self, canvas: tk.Canvas, fill: Any, outline: Any, width: int = 1):
         """The avatar figure: an oval or a rounded square."""
         radius = min(self._width, self._height) * 0.12
         if self._shape == "square":
@@ -793,7 +802,12 @@ class TAvatar(Element):
         """The avatar text (the initials source, even when an image shows)."""
         return self._text
 
-    def update(self, text=None, filename=None, data_base64=None, visible=None):
+    def update(
+        self,
+        text: Optional[str] = None,
+        filename: Any = None,
+        data_base64: Any = None,
+        visible: Optional[bool] = None):
         """Swap the text or the image source; ``None`` leaves it unchanged."""
         redraw = False
         if text is not None:
@@ -848,26 +862,26 @@ class TStatistic(Element):
 
     def __init__(
         self,
-        label,
-        value=0,
-        prefix="",
-        suffix="",
-        precision=None,
-        trend=None,
-        trend_color=None,
-        size=(170, 70),
-        font=None,
-        label_font=None,
-        label_color=None,
-        value_color=None,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        label: str,
+        value: Any = 0,
+        prefix: Optional[str] = "",
+        suffix: Optional[str] = "",
+        precision: Optional[int] = None,
+        trend: Any = None,
+        trend_color: Optional[Color] = None,
+        size: Size = (170, 70),
+        font: Optional[FontSpec] = None,
+        label_font: Optional[FontSpec] = None,
+        label_color: Optional[Color] = None,
+        value_color: Optional[Color] = None,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -898,7 +912,7 @@ class TStatistic(Element):
     def _geometry(self):
         return (self._width, self._height)
 
-    def _content_width(self, widget) -> int:
+    def _content_width(self, widget: tk.Misc) -> int:
         """Pixel width the value line needs: prefix, number, suffix, trend.
 
         A big number with a prefix and a trend can outgrow the configured
@@ -920,7 +934,7 @@ class TStatistic(Element):
         )
         return int(max(width, label_width)) + 4
 
-    def _refit(self, widget=None):
+    def _refit(self, widget: Optional[tk.Misc] = None):
         """Widen the canvas when the content needs more room than ``size``."""
         target = widget if widget is not None else self._widget
         if target is None:
@@ -960,14 +974,14 @@ class TStatistic(Element):
         return f"{abs(float(trend)):g}%"
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         self._refit(master)
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -990,15 +1004,23 @@ class TStatistic(Element):
         if self._trend:
             self._draw_trend(canvas, box, right, colors)
 
-    def _affix(self, canvas, x, text, color, baseline) -> float:
+    def _affix(
+        self,
+        canvas: tk.Canvas,
+        x: float,
+        text: str,
+        color: Optional[Color],
+        baseline: Any) -> float:
         """Draw a prefix/suffix in the small font; return the new right edge."""
         item = canvas.create_text(
-            x, baseline, anchor="sw", text=text, fill=color, font=self._AFFIX_FONT
+            x, baseline, anchor="sw", text=text,
+            fill=color,  # ty: ignore[invalid-argument-type]  tkinter drops None
+            font=self._AFFIX_FONT
         )
         box = canvas.bbox(item)
         return float(box[2]) if box is not None else float(x)
 
-    def _draw_trend(self, canvas, box, right, colors):
+    def _draw_trend(self, canvas: tk.Canvas, box: Any, right: Any, colors: _paint.ColorMap):
         """Arrow (and percentage) to the right of the number, on its midline."""
         up = self._trend_direction()
         fill = self._trend_color or (_paint.SUCCESS if up else _paint.DANGER)
@@ -1033,8 +1055,14 @@ class TStatistic(Element):
         """The raw value (never the formatted string)."""
         return self._value
 
-    def update(self, value=None, label=None, trend=None, prefix=None, suffix=None,
-               visible=None):
+    def update(
+        self,
+        value: Any = None,
+        label: Optional[str] = None,
+        trend: Any = None,
+        prefix: Optional[str] = None,
+        suffix: Optional[str] = None,
+        visible: Optional[bool] = None):
         """Set the value / texts / trend; ``trend=False`` removes the trend."""
         redraw = False
         if value is not None:
@@ -1097,21 +1125,21 @@ class TEmpty(Element):
 
     def __init__(
         self,
-        text="No data",
-        size=None,
-        font=None,
-        text_color=None,
-        icon_color=None,
-        filename=None,
-        data_base64=None,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        text: str = "No data",
+        size: Optional[Size] = None,
+        font: Optional[FontSpec] = None,
+        text_color: Optional[Color] = None,
+        icon_color: Optional[Color] = None,
+        filename: Any = None,
+        data_base64: Any = None,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         if size is None:
             size = (None, None)
@@ -1149,13 +1177,13 @@ class TEmpty(Element):
         return (self._width, self._height)
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -1194,7 +1222,7 @@ class TEmpty(Element):
                     font=self._font or ("TkDefaultFont", 9),
                 )
 
-    def _draw_icon(self, canvas, colors) -> bool:
+    def _draw_icon(self, canvas: tk.Canvas, colors: _paint.ColorMap) -> bool:
         """Try the image icon; False falls back to the document glyph."""
         if self._filename is None and self._data_base64 is None:
             return False
@@ -1221,7 +1249,7 @@ class TEmpty(Element):
             )
         return True
 
-    def _draw_document_centered(self, canvas, colors):
+    def _draw_document_centered(self, canvas: tk.Canvas, colors: _paint.ColorMap):
         """The classic dog-eared document outline (legacy big-box layout)."""
         color = self._icon_color or _paint.blend(colors["track"], colors["ink"], 0.72)
         height = min(self._height * 0.42, 54.0)
@@ -1239,7 +1267,7 @@ class TEmpty(Element):
             fill=colors["surface"], outline=color, width=2,
         )
 
-    def _draw_document_inline(self, canvas, colors):
+    def _draw_document_inline(self, canvas: tk.Canvas, colors: _paint.ColorMap):
         """16x16 dog-eared outline laid out at the left of the caption."""
         color = self._icon_color or _paint.blend(colors["track"], colors["ink"], 0.72)
         icon = self._COMPACT_ICON
@@ -1270,7 +1298,7 @@ class TEmpty(Element):
         """The caption ("" when the element shows no text)."""
         return self._text
 
-    def update(self, value=None, visible=None):
+    def update(self, value: Any = None, visible: Optional[bool] = None):
         """Change the caption (``""`` hides it); ``None`` leaves it alone."""
         if value is not None:
             self._text = str(value)
@@ -1309,21 +1337,21 @@ class TResult(Element):
 
     def __init__(
         self,
-        title,
-        subtitle=None,
-        status="info",
-        size=(300, 200),
-        icon_color=None,
-        title_color=None,
-        font=None,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        title: str,
+        subtitle: Optional[str] = None,
+        status: str = "info",
+        size: Size = (300, 200),
+        icon_color: Optional[Color] = None,
+        title_color: Optional[Color] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -1353,13 +1381,13 @@ class TResult(Element):
         return min(self._width * 0.12, 30.0)
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -1385,7 +1413,7 @@ class TResult(Element):
                 font=self._SUBTITLE_FONT, width=max(20, self._width - 40),
             )
 
-    def _draw_glyph(self, canvas, fill, cx, cy, radius):
+    def _draw_glyph(self, canvas: tk.Canvas, fill: Any, cx: float, cy: float, radius: float):
         """The status mark inside the circle, in the contrasting ink."""
         ink = theme_mod.contrast_on(fill)
         glyph = _status_glyph(self._status)
@@ -1413,7 +1441,12 @@ class TResult(Element):
         """The title text."""
         return self._title
 
-    def update(self, title=None, subtitle=None, status=None, visible=None):
+    def update(
+        self,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+        status: Optional[str] = None,
+        visible: Optional[bool] = None):
         """Change the texts / status; ``None`` leaves an argument unchanged."""
         redraw = False
         if title is not None:
@@ -1461,20 +1494,20 @@ class TSkeleton(Element):
 
     def __init__(
         self,
-        rows=3,
-        animated=True,
-        avatar=False,
-        size=None,
-        bar_height=14,
-        gap=10,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        rows: int = 3,
+        animated: bool = True,
+        avatar: bool = False,
+        size: Optional[Size] = None,
+        bar_height: int = 14,
+        gap: int = 10,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -1508,7 +1541,7 @@ class TSkeleton(Element):
                 height = max(height, 40)
         return (int(self._size[0] or 240), int(height))
 
-    def _bar_box(self, index, height):
+    def _bar_box(self, index: int, height: int):
         """(left, top, right) of one bar: the last of many is 60% wide."""
         diameter = min(40, height) if self._avatar else 0
         left = float(diameter + 12) if self._avatar else 0.0
@@ -1519,13 +1552,13 @@ class TSkeleton(Element):
         return (left, top, right)
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -1598,7 +1631,11 @@ class TSkeleton(Element):
         """The placeholder row count."""
         return self._rows
 
-    def update(self, rows=None, animated=None, visible=None):
+    def update(
+        self,
+        rows: Any = None,
+        animated: Optional[bool] = None,
+        visible: Optional[bool] = None):
         """Change the row count / animation; ``None`` leaves it unchanged."""
         redraw = False
         if rows is not None:
@@ -1657,24 +1694,24 @@ class TAlert(Element):
 
     def __init__(
         self,
-        text,
-        type="info",
-        title=None,
-        closable=True,
-        show_icon=True,
-        effect="light",
-        size=(None, None),
-        font=None,
-        text_color=None,
-        key=None,
-        enable_events=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        text: str,
+        type: str = "info",
+        title: Optional[str] = None,
+        closable: bool = True,
+        show_icon: bool = True,
+        effect: str = "light",
+        size: Size = (None, None),
+        font: Optional[FontSpec] = None,
+        text_color: Optional[Color] = None,
+        key: Optional[ElementKey] = None,
+        enable_events: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -1724,7 +1761,7 @@ class TAlert(Element):
         return max(40, int(self._size[0]) - 70)
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         style = self._style(colors)
         frame = tk.Frame(
@@ -1759,7 +1796,11 @@ class TAlert(Element):
         self._draw_close()
         return frame
 
-    def _make_label(self, master, font, style) -> tk.Label:
+    def _make_label(
+        self,
+        master: tk.Misc,
+        font: Optional[FontSpec],
+        style: _paint.ColorMap) -> tk.Label:
         return tk.Label(
             master,
             text="",
@@ -1767,7 +1808,7 @@ class TAlert(Element):
             anchor="w",
             background=style["fill"],
             foreground=self._text_color or style["text"],
-            font=font,
+            font=font,  # ty: ignore[invalid-argument-type]  tk accepts tuple specs
             bd=0,
             highlightthickness=0,
         )
@@ -1848,7 +1889,7 @@ class TAlert(Element):
         if self._close_canvas is not None:
             self._close_canvas.bind("<Button-1>", self._on_close_click)
 
-    def _on_body_click(self, _event):
+    def _on_body_click(self, _event: tk.Event):
         if self._enable_events:
             self._post_event()
 
@@ -1879,7 +1920,7 @@ class TAlert(Element):
         if self._key is not None:
             self._post_event((self._key, "close"))
 
-    def _on_close_click(self, _event):
+    def _on_close_click(self, _event: tk.Event):
         self._perform_close()
 
     # --- state ----------------------------------------------------------------
@@ -1895,7 +1936,12 @@ class TAlert(Element):
         """The message text (not the title)."""
         return self._text
 
-    def update(self, text=None, title=None, type=None, visible=None):
+    def update(
+        self,
+        text: Optional[str] = None,
+        title: Optional[str] = None,
+        type: Any = None,
+        visible: Optional[bool] = None):
         """Change the message, title or status; ``""`` clears the title."""
         redraw = False
         if text is not None:
@@ -1946,20 +1992,20 @@ class TWatermark(Element):
 
     def __init__(
         self,
-        text,
-        size=(400, 260),
-        font=None,
-        color=None,
-        gap=(140, 90),
-        angle=-30,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        text: str,
+        size: Size = (400, 260),
+        font: Optional[FontSpec] = None,
+        color: Optional[Color] = None,
+        gap: Tuple[int, int] = (140, 90),
+        angle: int = -30,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -1988,7 +2034,7 @@ class TWatermark(Element):
     def _font_spec(self):
         return self._font if self._font is not None else self._DEFAULT_FONT
 
-    def _grid_points(self, pitch_x, pitch_y):
+    def _grid_points(self, pitch_x: float, pitch_y: float):
         """The tile anchor points: one per cell of the (pitch_x, pitch_y) grid."""
         points = []
         for y in range(int(pitch_y) // 2, self._height, max(1, int(pitch_y))):
@@ -1997,13 +2043,13 @@ class TWatermark(Element):
         return points
 
     # --- rendering ------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, self._width, self._height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
         canvas.delete("all")
@@ -2013,16 +2059,22 @@ class TWatermark(Element):
             return
         self._draw_grid(canvas, color)
 
-    def _draw_grid(self, canvas, color):
+    def _draw_grid(self, canvas: tk.Canvas, color: Optional[Color]):
         """Plain horizontal tiling (also the fallback for the rotated look)."""
         gap_x, gap_y = self._gap
         for x, y in self._grid_points(gap_x, gap_y):
             canvas.create_text(
-                x, y, text=self._text, fill=color, font=self._font_spec(),
+                x, y, text=self._text,
+                fill=color,  # ty: ignore[invalid-argument-type]  tkinter drops None
+                font=self._font_spec(),
                 anchor="center",
             )
 
-    def _draw_rotated(self, canvas, color, colors) -> bool:
+    def _draw_rotated(
+        self,
+        canvas: tk.Canvas,
+        color: Optional[Color],
+        colors: _paint.ColorMap) -> bool:
         """Rotated tiling through Pillow; False when it is not available."""
         modules = _paint.pil_modules()
         if not modules:
@@ -2052,7 +2104,7 @@ class TWatermark(Element):
         canvas.create_image(0, 0, anchor="nw", image=photo)
         return True
 
-    def _text_patch(self, image_mod, draw_mod, font_file, rgb):
+    def _text_patch(self, image_mod: Any, draw_mod: Any, font_file: Any, rgb: Any):
         """One RGBA text tile, rendered with a Pillow font file."""
         text = self._text
         font = _pil_font(font_file, _font_size(self._font_spec()))
@@ -2085,7 +2137,7 @@ class TWatermark(Element):
         """The watermark text."""
         return self._text
 
-    def update(self, value=None, visible=None):
+    def update(self, value: Any = None, visible: Optional[bool] = None):
         """Change the text; ``None`` leaves it unchanged."""
         if value is not None:
             self._text = str(value)

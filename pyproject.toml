@@ -130,6 +130,9 @@ ignore = [
 # method names mirror the upstream Win32 spelling (ShowMessage, Update,
 # Hide, UnHide) and we do not want to break that mapping.
 "src/TkSimpleGUI/window/system_tray.py" = ["N802"]
+# base.py is the re-export hub for the shared type aliases (submodules do
+# ``from .base import Color``); the redundant-alias form marks that intent.
+"src/TkSimpleGUI/elements/base.py" = ["PLC0414"]
 
 [tool.coverage.run]
 source = ["TkSimpleGUI"]

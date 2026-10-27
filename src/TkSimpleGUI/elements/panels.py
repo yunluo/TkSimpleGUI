@@ -16,10 +16,20 @@ redraw -- a color passed in explicitly always wins over the theme.
 
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, List, Optional, Tuple
+from typing import Any, Iterable, List, Optional, Tuple
 
 from . import _paint
-from .base import ContainerElement, Element
+from .base import (
+    Color,
+    ContainerElement,
+    Element,
+    ElementKey,
+    FontSpec,
+    Justification,
+    MenuDefinition,
+    PadSpec,
+    Size,
+)
 from .. import _theming as theme_mod
 from ..settings import settings
 
@@ -30,12 +40,12 @@ StepItem = Tuple[str, Optional[str]]
 TimelineItem = Tuple[Any, str, Optional[str], Optional[str]]
 
 
-def _as_text(value):
+def _as_text(value: Any):
     """TText form of a display value ("" for None)."""
     return "" if value is None else str(value)
 
 
-def _parse_descriptions(items):
+def _parse_descriptions(items: Iterable[Any]):
     """Normalise ``items`` (a dict or (label, value) pairs) into tuples.
 
     Labels become strings (they are display text); values keep the object
@@ -56,7 +66,7 @@ def _parse_descriptions(items):
     return [(str(label), value) for label, value in pairs]
 
 
-def _parse_steps(items):
+def _parse_steps(items: Iterable[Any]):
     """Normalise step titles and ``(title, description)`` pairs to tuples."""
     steps: List[StepItem] = []
     for entry in items:
@@ -70,7 +80,7 @@ def _parse_steps(items):
     return steps
 
 
-def _parse_timeline(items):
+def _parse_timeline(items: Iterable[Any]):
     """Normalise the accepted timeline entry forms to 4-tuples.
 
     Preferred spellings: a plain string for content only, or a
@@ -108,7 +118,7 @@ def _parse_timeline(items):
     return entries
 
 
-def _has_timestamp(stamp):
+def _has_timestamp(stamp: Any):
     """True when a timeline entry carries a usable timestamp."""
     return stamp is not None and str(stamp) != ""
 
@@ -158,24 +168,24 @@ class TCard(ContainerElement):
 
     def __init__(
         self,
-        title=None,
-        layout=(),
-        subtitle=None,
-        extra=None,
-        size=(None, None),
-        background_color=None,
-        border_color=None,
-        padding=12,
-        font=None,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        title: Optional[str] = None,
+        layout: Any = (),
+        subtitle: Optional[str] = None,
+        extra: Any = None,
+        size: Size = (None, None),
+        background_color: Optional[Color] = None,
+        border_color: Optional[Color] = None,
+        padding: int = 12,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             layout=layout,
@@ -217,7 +227,7 @@ class TCard(ContainerElement):
         return self._subtitle
 
     # --- widget construction ---------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master, self._background_color)
         border = self._border_color or colors["border"]
         outer = tk.Frame(
@@ -310,7 +320,11 @@ class TCard(ContainerElement):
         """The card title."""
         return self._title
 
-    def update(self, title=None, subtitle=None, visible=None):
+    def update(
+        self,
+        title: Optional[str] = None,
+        subtitle: Optional[str] = None,
+        visible: Optional[bool] = None):
         """Set the header texts (``None`` leaves a value unchanged)."""
         if title is not None:
             self._title = str(title)
@@ -383,24 +397,24 @@ class TDescriptions(Element):
 
     def __init__(
         self,
-        items,
-        columns=2,
-        bordered=False,
-        label_width=None,
-        label_suffix="",
-        font=None,
-        label_color=None,
-        text_color=None,
-        size=(None, None),
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        items: Iterable[Any],
+        columns: int = 2,
+        bordered: bool = False,
+        label_width: Optional[int] = None,
+        label_suffix: str = "",
+        font: Optional[FontSpec] = None,
+        label_color: Optional[Color] = None,
+        text_color: Optional[Color] = None,
+        size: Size = (None, None),
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -430,7 +444,7 @@ class TDescriptions(Element):
         """The (label, value) pairs currently displayed."""
         return list(self._items)
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         colors = _paint.palette(master)
         frame = tk.Frame(
             master,
@@ -442,7 +456,7 @@ class TDescriptions(Element):
         self._populate(frame, colors)
         return frame
 
-    def _populate(self, frame, colors: _paint.ColorMap):
+    def _populate(self, frame: Any, colors: _paint.ColorMap):
         """(Re)create the label/value grid cells inside ``frame``."""
         self._label_widgets = []
         self._value_widgets = []
@@ -500,7 +514,7 @@ class TDescriptions(Element):
         """``{label: value}`` for the current rows (values as passed in)."""
         return dict(self._items)
 
-    def update(self, items=None, visible=None):
+    def update(self, items: Optional[Iterable[Any]] = None, visible: Optional[bool] = None):
         """Replace the rows with ``items`` (``None`` keeps them)."""
         if items is not None:
             self._items = _parse_descriptions(items)
@@ -558,21 +572,21 @@ class TSteps(Element):
 
     def __init__(
         self,
-        items,
-        active=0,
-        direction="horizontal",
-        status="process",
-        size=None,
-        font=None,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        items: Iterable[Any],
+        active: int = 0,
+        direction: Optional[str] = "horizontal",
+        status: str = "process",
+        size: Optional[Size] = None,
+        font: Optional[FontSpec] = None,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         if size is None:
             size = (None, None)
@@ -609,18 +623,18 @@ class TSteps(Element):
         return self._direction
 
     # --- geometry --------------------------------------------------------------
-    def _geometry(self, master=None):
+    def _geometry(self, master: Optional[tk.Misc] = None):
         """TCanvas size in pixels (``master`` is only used to measure text)."""
         count = max(1, len(self._items))
         if self._direction == "vertical":
             width = self._size[0] or self._DEFAULT_WIDTH
             height = self._size[1] or int(count * self._ROW_HEIGHT)
             return int(width), int(height)
-        width = self._size[0] or int(count * self._cell_width(master))
+        width = self._size[0] or int(count * self._cell_width(master))  # ty: ignore[invalid-argument-type]  guarded by size
         height = self._size[1] or self._DEFAULT_HEIGHT
         return int(width), int(height)
 
-    def _cell_width(self, master):
+    def _cell_width(self, master: tk.Misc):
         """Horizontal cell width driven by the widest title/description."""
         widest = 0
         for title, description in self._items:
@@ -638,7 +652,7 @@ class TSteps(Element):
         return self._font if self._font is not None else self._TITLE_FONT
 
     # --- rendering -------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width, height = self._geometry(master)
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, width, height, colors["surface"])
@@ -656,7 +670,7 @@ class TSteps(Element):
         self._widget.bind("<Home>", self._on_key)
         self._widget.bind("<End>", self._on_key)
 
-    def _on_key(self, event):
+    def _on_key(self, event: tk.Event):
         if not self._items:
             return "break"
         symbol = getattr(event, "keysym", "")
@@ -675,7 +689,7 @@ class TSteps(Element):
             self._draw(self._widget)
         return "break"
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         """Redraw every figure from a freshly resolved palette."""
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
@@ -687,7 +701,7 @@ class TSteps(Element):
         width, height = self._geometry(canvas)
         canvas.configure(width=width, height=height)
 
-    def _draw_horizontal(self, canvas, colors: _paint.ColorMap):
+    def _draw_horizontal(self, canvas: tk.Canvas, colors: _paint.ColorMap):
         count = len(self._items)
         if not count:
             return
@@ -716,7 +730,7 @@ class TSteps(Element):
                     width=max(20, int(cell) - 10),
                 )
 
-    def _draw_vertical(self, canvas, colors: _paint.ColorMap):
+    def _draw_vertical(self, canvas: tk.Canvas, colors: _paint.ColorMap):
         count = len(self._items)
         if not count:
             return
@@ -745,7 +759,7 @@ class TSteps(Element):
                     width=max(20, width - 40),
                 )
 
-    def _state(self, index):
+    def _state(self, index: int):
         """The circle style for a step: finish / process / danger / wait."""
         if index < self._active:
             return "finish"
@@ -760,7 +774,14 @@ class TSteps(Element):
             return "wait"
         return "process"
 
-    def _draw_dot(self, canvas, cx, cy, index, state, colors: _paint.ColorMap):
+    def _draw_dot(
+        self,
+        canvas: tk.Canvas,
+        cx: float,
+        cy: float,
+        index: int,
+        state: Optional[str],
+        colors: _paint.ColorMap):
         radius = self._DOT_RADIUS
         box = (cx - radius, cy - radius, cx + radius, cy + radius)
         if state == "wait":
@@ -795,7 +816,12 @@ class TSteps(Element):
         """Index of the current step."""
         return self._active
 
-    def update(self, active=None, status=None, items=None, visible=None):
+    def update(
+        self,
+        active: Optional[bool] = None,
+        status: Optional[str] = None,
+        items: Optional[Iterable[Any]] = None,
+        visible: Optional[bool] = None):
         """Move the current step, restyle it or replace the step list."""
         changed = items is not None or active is not None or status is not None
         if items is not None:
@@ -851,20 +877,20 @@ class TTimeline(Element):
 
     def __init__(
         self,
-        items,
-        size=None,
-        row_height=None,
-        font=None,
-        line_color=None,
-        key=None,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        items: Iterable[Any],
+        size: Optional[Size] = None,
+        row_height: Optional[int] = None,
+        font: Optional[FontSpec] = None,
+        line_color: Optional[Color] = None,
+        key: Optional[ElementKey] = None,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         if size is None:
             size = (None, None)
@@ -894,7 +920,7 @@ class TTimeline(Element):
             return width, int(self._size[1])
         return width, int(max(40.0, self._auto_height))
 
-    def _item_height(self, has_timestamp):
+    def _item_height(self, has_timestamp: bool):
         """Minimum row pitch for one entry."""
         if self._row_height is not None:
             return float(self._row_height)
@@ -908,14 +934,14 @@ class TTimeline(Element):
         return int(max(40.0, total))
 
     # --- rendering -------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         width, height = self._geometry()
         colors = _paint.palette(master)
         canvas = _paint.themed_canvas(master, width, height, colors["surface"])
         self._draw(canvas)
         return canvas
 
-    def _draw(self, canvas):
+    def _draw(self, canvas: tk.Canvas):
         """Redraw every figure from a freshly resolved palette."""
         colors = _paint.palette(canvas)
         canvas.configure(background=colors["surface"])
@@ -968,7 +994,7 @@ class TTimeline(Element):
         """The ``(timestamp, content)`` pairs (timestamp is ``None`` if absent)."""
         return [(timestamp, content) for timestamp, content, _kind, _color in self._items]
 
-    def update(self, items=None, visible=None):
+    def update(self, items: Optional[Iterable[Any]] = None, visible: Optional[bool] = None):
         """Replace the entries with ``items`` (``None`` keeps them)."""
         if items is not None:
             self._items = _parse_timeline(items)

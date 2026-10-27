@@ -3,10 +3,10 @@
 
 import tkinter as tk
 from tkinter import ttk, filedialog, colorchooser
-from typing import cast
+from typing import Any, Iterable, Optional, Sequence, Tuple, cast
 from .._typing_compat import Literal
 
-from .base import Element
+from .base import Color, Element, ElementKey, FontSpec, Justification, MenuDefinition, PadSpec, Size
 from .. import constants as C
 from .. import _theming as theme_mod
 
@@ -39,29 +39,29 @@ class TButton(Element):
 
     def __init__(
         self,
-        button_text="",
-        key=None,
-        button_type=C.ButtonType.READ,
-        button_color=None,
-        size=(None, None),
-        target_key=None,
-        file_types=None,
-        image_filename=None,
-        image_data=None,
-        compound="left",
-        font=None,
-        disabled=False,
-        toggle=False,
-        group_id=None,
-        down=False,
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        justification=None,
-        right_click_menu=None,
-        metadata=None,
+        button_text: str = "",
+        key: Optional[ElementKey] = None,
+        button_type: Any = C.ButtonType.READ,
+        button_color: Optional[Color] = None,
+        size: Size = (None, None),
+        target_key: Optional[ElementKey] = None,
+        file_types: Optional[Sequence[Tuple[str, str]]] = None,
+        image_filename: Optional[str] = None,
+        image_data: Optional[bytes] = None,
+        compound: Optional[str] = "left",
+        font: Optional[FontSpec] = None,
+        disabled: bool = False,
+        toggle: bool = False,
+        group_id: Any = None,
+        down: bool = False,
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        justification: Optional[Justification] = None,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -91,7 +91,12 @@ class TButton(Element):
         self._down = bool(down)
 
     @classmethod
-    def browse_file(cls, button_text="Browse", target_key=None, file_types=None, **kwargs):
+    def browse_file(
+        cls,
+        button_text: str = "Browse",
+        target_key: Optional[ElementKey] = None,
+        file_types: Optional[Sequence[Tuple[str, str]]] = None,
+        **kwargs: Any):
         """Create a button that opens a single-file picker."""
         return cls(
             button_text,
@@ -102,7 +107,12 @@ class TButton(Element):
         )
 
     @classmethod
-    def browse_files(cls, button_text="Browse", target_key=None, file_types=None, **kwargs):
+    def browse_files(
+        cls,
+        button_text: str = "Browse",
+        target_key: Optional[ElementKey] = None,
+        file_types: Optional[Sequence[Tuple[str, str]]] = None,
+        **kwargs: Any):
         """Create a button that opens a multi-file picker."""
         return cls(
             button_text,
@@ -113,7 +123,11 @@ class TButton(Element):
         )
 
     @classmethod
-    def browse_folder(cls, button_text="Browse", target_key=None, **kwargs):
+    def browse_folder(
+        cls,
+        button_text: str = "Browse",
+        target_key: Optional[ElementKey] = None,
+        **kwargs: Any):
         """Create a button that opens a folder picker."""
         return cls(
             button_text,
@@ -123,7 +137,12 @@ class TButton(Element):
         )
 
     @classmethod
-    def save_as(cls, button_text="Save As...", target_key=None, file_types=None, **kwargs):
+    def save_as(
+        cls,
+        button_text: str = "Save As...",
+        target_key: Optional[ElementKey] = None,
+        file_types: Optional[Sequence[Tuple[str, str]]] = None,
+        **kwargs: Any):
         """Create a button that opens a save-as dialog."""
         return cls(
             button_text,
@@ -134,7 +153,11 @@ class TButton(Element):
         )
 
     @classmethod
-    def color_chooser(cls, button_text="Choose Color", target_key=None, **kwargs):
+    def color_chooser(
+        cls,
+        button_text: str = "Choose Color",
+        target_key: Optional[ElementKey] = None,
+        **kwargs: Any):
         """Create a button that opens the native color chooser."""
         return cls(
             button_text,
@@ -144,7 +167,7 @@ class TButton(Element):
         )
 
     @classmethod
-    def from_action(cls, action, **kwargs):
+    def from_action(cls, action: Any, **kwargs: Any):
         """Create a button wired to an :class:`~TkSimpleGUI.actions.Action`."""
         return cls(action.text, key=action.key, **kwargs)
 
@@ -162,7 +185,7 @@ class TButton(Element):
         return self._disabled
 
     # --- widget ----------------------------------------------------------------
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         if self._toggle:
             return self._create_toggle_button(master)
         kwargs = {}
@@ -209,7 +232,7 @@ class TButton(Element):
             button.configure(state="disabled")
         return button
 
-    def _create_toggle_button(self, master):
+    def _create_toggle_button(self, master: tk.Misc):
         """Toggle buttons use tk.Button: ttk has no pressed-in relief."""
         kwargs = {}
         width = self._size[0] if self._size else None
@@ -286,7 +309,7 @@ class TButton(Element):
         self._set_down(new_state)
         self._post_event()
 
-    def _set_down(self, down):
+    def _set_down(self, down: bool):
         self._down = bool(down)
         if self._widget is not None:
             self._widget.configure(relief="sunken" if self._down else "raised")
@@ -296,10 +319,10 @@ class TButton(Element):
         """Pressed state of a toggle button (False for normal buttons)."""
         return self._down
 
-    def _on_press(self, _event):
+    def _on_press(self, _event: tk.Event):
         self._post_event()
 
-    def _on_release(self, _event):
+    def _on_release(self, _event: tk.Event):
         self._post_event()
 
     def _run_browse(self):
@@ -326,7 +349,11 @@ class TButton(Element):
         """Toggle buttons return their pressed state; others their text."""
         return self._down if self._toggle else self._button_text
 
-    def update(self, text=None, disabled=None, visible=None):
+    def update(
+        self,
+        text: Optional[str] = None,
+        disabled: Optional[bool] = None,
+        visible: Optional[bool] = None):
         if text is not None:
             self._button_text = text
             self._widget.configure(text=text)
@@ -376,17 +403,17 @@ class TMenubutton(Element):
 
     def __init__(
         self,
-        text,
-        items,
-        key=None,
-        direction="below",
-        tooltip=None,
-        visible=True,
-        pad=None,
-        expand_x=False,
-        expand_y=False,
-        right_click_menu=None,
-        metadata=None,
+        text: str,
+        items: Iterable[Any],
+        key: Optional[ElementKey] = None,
+        direction: Optional[str] = "below",
+        tooltip: Optional[str] = None,
+        visible: bool = True,
+        pad: Optional[PadSpec] = None,
+        expand_x: bool = False,
+        expand_y: bool = False,
+        right_click_menu: Optional[MenuDefinition] = None,
+        metadata: Any = None,
     ):
         super().__init__(
             key=key,
@@ -403,7 +430,7 @@ class TMenubutton(Element):
         self._menu = None  # ty: ignore[invalid-assignment]
         self._direction = direction
 
-    def _create_widget(self, master):
+    def _create_widget(self, master: tk.Misc):
         self._menu = tk.Menu(master, tearoff=False)
         for item in self._items:
             if item == C.MENU_SEPARATOR_LINE:
@@ -427,7 +454,11 @@ class TMenubutton(Element):
     def items(self):
         return list(self._items)
 
-    def update(self, text=None, items=None, visible=None):
+    def update(
+        self,
+        text: Optional[str] = None,
+        items: Optional[Iterable[Any]] = None,
+        visible: Optional[bool] = None):
         if text is not None:
             self._text = str(text)
             self._widget.configure(text=self._text)

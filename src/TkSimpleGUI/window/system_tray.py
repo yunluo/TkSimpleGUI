@@ -15,6 +15,7 @@ tray creates its own hidden Tk root to pump with::
 On non-Windows platforms the constructor raises ``RuntimeError``.
 """
 
+from typing import Any, Optional
 import base64
 import ctypes
 import ctypes.wintypes
@@ -27,6 +28,7 @@ import tkinter
 
 from .. import constants as C
 import contextlib
+from ..constants import MenuDefinition
 
 
 # --- win32 constants ---------------------------------------------------------
@@ -97,7 +99,12 @@ class SystemTray:
     # borrowed from an open Window or a private hidden Tk root
     _tk_root: "tkinter.Tk"
 
-    def __init__(self, title="Tray", icon=None, tooltip=None, menu=None):
+    def __init__(
+        self,
+        title: str = "Tray",
+        icon: Any = None,
+        tooltip: Optional[str] = None,
+        menu: Optional[MenuDefinition] = None):
         if not hasattr(ctypes, "windll"):
             raise RuntimeError("SystemTray requires Windows")
         self._title = title
@@ -207,7 +214,7 @@ class SystemTray:
         self._created = True
 
     # --- tray events -------------------------------------------------------------
-    def _on_tray_event(self, l_param):
+    def _on_tray_event(self, l_param: Any):
         if l_param == WM_LBUTTONUP:
             self._events.put(EVENT_CLICKED)
         elif l_param == WM_LBUTTONDBLCLK:
@@ -255,7 +262,7 @@ class SystemTray:
             user32.DestroyMenu(menu)
 
     # --- public API ----------------------------------------------------------
-    def show_message(self, title, message, messageicon=NIIF_INFO):
+    def show_message(self, title: str, message: str, messageicon: Any = NIIF_INFO):
         """Show a balloon notification."""
         if not self._created:
             return self
@@ -271,7 +278,7 @@ class SystemTray:
         shell32.Shell_NotifyIconW(NIM_MODIFY, ctypes.byref(notify_data))
         return self
 
-    def update(self, tooltip=None, icon=None):
+    def update(self, tooltip: Optional[str] = None, icon: Any = None):
         """Change the tooltip or icon."""
         if tooltip is not None:
             self._tooltip = tooltip
@@ -304,7 +311,7 @@ class SystemTray:
             self._add_icon()
         return self
 
-    def read(self, timeout=None):
+    def read(self, timeout: Optional[int] = None):
         """Pump events and return ``(event, None)``.
 
         Events: a menu item label, or one of the ``__...__`` mouse/balloon
@@ -338,7 +345,7 @@ class SystemTray:
             self._tk_root = None  # ty: ignore[invalid-assignment]
         return self
 
-    def run(self, app=None):
+    def run(self, app: Any = None):
         """Start a tray-only application loop with THIS tray icon as root.
 
         The tray icon becomes the application: its menu items arrive as
@@ -360,7 +367,7 @@ class SystemTray:
 
 
 
-def _copy_utf16(char_array, text, limit_chars):
+def _copy_utf16(char_array: Any, text: str, limit_chars: int):
     """Copy ``text`` into a ``c_wchar * N`` field, UTF-16 with NUL pad.
 
     ctypes.memmove rejects bytes containing embedded NULs on Python 3.7,
@@ -395,7 +402,7 @@ class _NotifyIconData(ctypes.Structure):
         self.cbSize = ctypes.sizeof(self)
 
 
-def _wrap_png_as_ico(png_bytes):
+def _wrap_png_as_ico(png_bytes: bytes):
     """Wrap a single-image PNG into a minimal ICO container (Vista+)."""
     width = png_bytes[16]
     height = png_bytes[20]  # IHDR dimensions, big-endian; low bytes enough
@@ -404,7 +411,7 @@ def _wrap_png_as_ico(png_bytes):
     return header + entry + png_bytes
 
 
-def _tray_wnd_proc(hwnd, msg, w_param, l_param):
+def _tray_wnd_proc(hwnd: Any, msg: str, w_param: Any, l_param: Any):
     """Window procedure for the hidden tray window (per-hwnd dispatch).
 
     Tk owns the thread's message pump, so this must never call

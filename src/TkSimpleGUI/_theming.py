@@ -8,15 +8,17 @@ system's native look (Windows Vista style, macOS Aqua, ...). Applying a named
 theme from :data:`THEMES` switches to TkSimpleGUI colors.
 """
 
+from typing import Any, Optional, Sequence
 import contextlib
 import tkinter as tk
 from tkinter import ttk
 
 from . import constants as C
 from ._theme_data import THEMES
+from .constants import Color, ElementKey
 
 
-def _is_system_default(value):
+def _is_system_default(value: Any):
     """True when ``value`` is the ``COLOR_SYSTEM_DEFAULT`` sentinel.
 
     Several built-in themes encode "use the platform default color" as the
@@ -28,8 +30,10 @@ def _is_system_default(value):
 
 
 # --- small hex color helpers (module level, used by the ttk skin) --------------
-def _parse_hex(color):
+def _parse_hex(color: Optional[Color]):
     """``#rrggbb`` -> ``(r, g, b)``, or ``None`` for named/invalid colors."""
+    if not color:
+        return None
     try:
         value = color.lstrip("#")
         if len(value) != 6:
@@ -39,7 +43,7 @@ def _parse_hex(color):
         return None
 
 
-def _blend(color, other, ratio):
+def _blend(color: Optional[Color], other: Any, ratio: float):
     """Mix ``color`` toward ``other`` by ``ratio`` (0..1). Non-hex passthrough."""
     base, target = _parse_hex(color), _parse_hex(other)
     if base is None or target is None:
@@ -48,7 +52,7 @@ def _blend(color, other, ratio):
     return "#{:02x}{:02x}{:02x}".format(*mixed)
 
 
-def _luminance(color):
+def _luminance(color: Optional[Color]):
     """Perceived brightness 0..1 (unknown colors count as mid gray)."""
     rgb = _parse_hex(color)
     if rgb is None:
@@ -56,12 +60,12 @@ def _luminance(color):
     return (0.299 * rgb[0] + 0.587 * rgb[1] + 0.114 * rgb[2]) / 255.0
 
 
-def contrast_on(color):
+def contrast_on(color: Optional[Color]):
     """Black or white text color — whichever reads better on ``color``."""
     return "#ffffff" if _luminance(color) < 0.55 else "#1e2228"
 
 
-def native_widget_colors(widget_class, master, options):
+def native_widget_colors(widget_class: Any, master: tk.Misc, options: Sequence[Any]):
     """Sample platform-default option values from a throwaway widget.
 
     Classic tk widgets reject ``""`` as a color, so the only reliable way
@@ -129,7 +133,7 @@ class ThemeManager:
         """
         return self._name is None or self._name == "System"
 
-    def apply(self, name):
+    def apply(self, name: str):
         """Apply a theme by name (case insensitive). Returns the canonical name."""
         if name is None:
             self._name = None
@@ -153,7 +157,7 @@ class ThemeManager:
         self._theme_version += 1
         return canonical
 
-    def add_new(self, name, colors):
+    def add_new(self, name: str, colors: Any):
         """Register a new theme definition (dict of color entries)."""
         if not isinstance(name, str) or not name:
             raise ValueError("theme name must be a non-empty string")
@@ -167,7 +171,7 @@ class ThemeManager:
             return {}
         return THEMES.get(self._name, {})
 
-    def _get(self, key, default=None):
+    def _get(self, key: ElementKey, default: Any = None):
         return self._entry().get(key, default)
 
     # --- color properties --------------------------------------------------
@@ -259,7 +263,7 @@ class ThemeManager:
         return {"background": _blend(bg, fg, 0.12), "foreground": fg}
 
     # --- tk kwargs helpers --------------------------------------------------
-    def effective_background(self, override=None):
+    def effective_background(self, override: Any = None):
         """A concrete background color for tk.Frame-like widgets.
 
         ``override`` (an explicit per-widget color) wins; otherwise the
@@ -276,7 +280,7 @@ class ThemeManager:
             return {}
         return {"background": self.background_color}
 
-    def text_kwargs(self, color=None, background_color=None):
+    def text_kwargs(self, color: Optional[Color] = None, background_color: Optional[Color] = None):
         """tk kwargs for plain text-ish widgets."""
         kwargs = {}
         bg = background_color if background_color is not None else self.background_color
@@ -287,8 +291,11 @@ class ThemeManager:
             kwargs["foreground"] = fg
         return kwargs
 
-    def input_kwargs(self, text_color=None, background_color=None,
-            include_caret=True):
+    def input_kwargs(
+        self,
+        text_color: Optional[Color] = None,
+        background_color: Optional[Color] = None,
+        include_caret: bool = True):
         """tk kwargs for input widgets.
 
         ``include_caret=False`` drops ``insertbackground`` for widgets that
@@ -315,7 +322,7 @@ class ThemeManager:
             kwargs["selectforeground"] = contrast_on(accent)
         return kwargs
 
-    def button_kwargs(self, button_color=None):
+    def button_kwargs(self, button_color: Optional[Color] = None):
         """tk kwargs for classic (tk) buttons."""
         colors = button_color if button_color is not None else self.button_colors
         kwargs = {}
@@ -331,7 +338,7 @@ class ThemeManager:
         return kwargs
 
     # --- ttk styling ---------------------------------------------------------
-    def ttk_widget_style(self, master, base, **options):
+    def ttk_widget_style(self, master: tk.Misc, base: Any, **options: Any):
         """Return a ttk style name honouring per-widget option overrides.
 
         ``base`` is a ttk style class such as ``"TEntry"``. When every option
@@ -353,7 +360,7 @@ class ThemeManager:
             style.configure(name, **effective)
         return name
 
-    def configure_ttk(self, style):
+    def configure_ttk(self, style: "ttk.Style"):
         """Apply the current theme to a ``ttk.Style``.
 
         Under the native look this *restores*: the ttk engine returns to the
@@ -423,7 +430,7 @@ class ThemeManager:
         }
         for base in ("TButton", "TMenubutton"):
             style.configure(base, **button_config)
-            style.map(base, **button_map)
+            style.map(base, **button_map)  # ty: ignore[no-matching-overload]  dynamic tk query
 
         # --- entries: quiet border, accent focus ring, dim disabled field ---
         entry_map = {
@@ -440,7 +447,7 @@ class ThemeManager:
                 insertcolor=input_fg, selectbackground=accent,
                 selectforeground=accent_fg,
             )
-            style.map(base, **entry_map)
+            style.map(base, **entry_map)  # ty: ignore[no-matching-overload]  dynamic tk query
         for base in ("TSpinbox", "TCombobox"):
             style.configure(base, arrowcolor=input_fg)
             style.map(base, arrowcolor=[("disabled", muted)])
@@ -559,7 +566,7 @@ class ThemeManager:
         for cache_key, name in self._style_cache.items():
             base = cache_key[0]
             if base in ("TButton", "TMenubutton"):
-                style.map(name, **button_map)
+                style.map(name, **button_map)  # ty: ignore[no-matching-overload]  dynamic tk query
             elif base in ("TEntry", "TSpinbox", "TCombobox"):
                 style.map(
                     name,
@@ -579,7 +586,7 @@ theme_manager = ThemeManager()
 _UNSET = object()
 
 
-def theme(name=_UNSET):
+def theme(name: Any = _UNSET):
     """Get or set the current theme.
 
     ``theme()`` returns the current theme name (``None`` = system native).
@@ -596,7 +603,7 @@ def theme_list():
     return sorted(THEMES)
 
 
-def theme_background_color(color=None):
+def theme_background_color(color: Optional[Color] = None):
     """Get or set the current theme's window background color."""
     if color is not None:
         theme_manager._entry()["BACKGROUND"] = color  # noqa: SLF001
@@ -604,7 +611,7 @@ def theme_background_color(color=None):
     return theme_manager.background_color
 
 
-def theme_text_color(color=None):
+def theme_text_color(color: Optional[Color] = None):
     """Get or set the current theme's text color."""
     if color is not None:
         theme_manager._entry()["TEXT"] = color  # noqa: SLF001
@@ -612,7 +619,7 @@ def theme_text_color(color=None):
     return theme_manager.text_color
 
 
-def theme_button_color(color=None):
+def theme_button_color(color: Optional[Color] = None):
     """Get or set the current theme's button (text, background) colors."""
     if color is not None:
         theme_manager._entry()["BUTTON"] = color  # noqa: SLF001
@@ -620,7 +627,7 @@ def theme_button_color(color=None):
     return theme_manager.button_colors
 
 
-def theme_input_background_color(color=None):
+def theme_input_background_color(color: Optional[Color] = None):
     """Get or set the current theme's input background color."""
     if color is not None:
         theme_manager._entry()["INPUT"] = color  # noqa: SLF001
@@ -628,7 +635,7 @@ def theme_input_background_color(color=None):
     return theme_manager.input_background_color
 
 
-def theme_input_text_color(color=None):
+def theme_input_text_color(color: Optional[Color] = None):
     """Get or set the current theme's input text color."""
     if color is not None:
         theme_manager._entry()["TEXT_INPUT"] = color  # noqa: SLF001
@@ -636,7 +643,9 @@ def theme_input_text_color(color=None):
     return theme_manager.input_text_color
 
 
-def theme_progress_bar_color(bar_color=None, background_color=None):
+def theme_progress_bar_color(
+    bar_color: Optional[Color] = None,
+    background_color: Optional[Color] = None):
     """Get or set the current theme's progress bar (bar, trough) colors."""
     if bar_color is not None or background_color is not None:
         current = theme_manager.progress_bar_colors or (None, None)
@@ -647,7 +656,7 @@ def theme_progress_bar_color(bar_color=None, background_color=None):
     return theme_manager.progress_bar_colors
 
 
-def theme_slider_color(color=None):
+def theme_slider_color(color: Optional[Color] = None):
     """Get or set the current theme's slider color."""
     if color is not None:
         theme_manager._entry()["SCROLL"] = color  # noqa: SLF001
@@ -655,7 +664,7 @@ def theme_slider_color(color=None):
     return theme_manager.slider_color
 
 
-def theme_border_width(width=None):
+def theme_border_width(width: Optional[int] = None):
     """Get or set the current theme's border width."""
     if width is not None:
         theme_manager._entry()["BORDER"] = width  # noqa: SLF001
@@ -663,7 +672,7 @@ def theme_border_width(width=None):
     return theme_manager.border_width
 
 
-def theme_add(name, colors):
+def theme_add(name: str, colors: Any):
     """Register a new theme; returns the canonical name."""
     return theme_manager.add_new(name, colors)
 
@@ -691,7 +700,7 @@ def ttk_themes():
             root.destroy()
 
 
-def ttk_theme(name=None):
+def ttk_theme(name: Optional[str] = None):
     """Get or set the ttk engine theme on every open window.
 
     Independent from the 160 TkSimpleGUI color themes: this selects the
