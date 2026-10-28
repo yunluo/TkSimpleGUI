@@ -20,6 +20,20 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 import TkSimpleGUI as ts  # noqa: E402
 
 
+def _pil_available():
+    try:
+        import PIL  # noqa: F401
+
+        return True
+    except ImportError:
+        return False
+
+
+# TChart's anti-alias backend needs Pillow; CI runs without it, so the
+# raster-asserting tests must skip (the vector fallback is covered too).
+HAS_PIL = _pil_available()
+
+
 class TestMeta(unittest.TestCase):
     def test_version(self):
         self.assertEqual(ts.__version__, "0.1.0")
@@ -1183,6 +1197,7 @@ class TestCharts(unittest.TestCase):
         )
         return window, window["-C-"]
 
+    @unittest.skipUnless(HAS_PIL, "Pillow not installed")
     def test_aa_renders_photo(self):
         window, chart = self._make()
         try:
@@ -1204,6 +1219,7 @@ class TestCharts(unittest.TestCase):
         finally:
             window.close()
 
+    @unittest.skipUnless(HAS_PIL, "Pillow not installed")
     def test_donut_and_stacked_models(self):
         window, chart = self._make(chart_type="donut")
         try:
@@ -1230,6 +1246,7 @@ class TestCharts(unittest.TestCase):
         finally:
             window.close()
 
+    @unittest.skipUnless(HAS_PIL, "Pillow not installed")
     def test_legend_positions_render(self):
         for position in ("top", "bottom", "left", "right"):
             window, chart = self._make(legend_position=position)
@@ -1332,6 +1349,7 @@ class TestScientificChart(unittest.TestCase):
         self.addCleanup(window.close)
         return window["-C-"]
 
+    @unittest.skipUnless(HAS_PIL, "Pillow not installed")
     def test_histogram_auto_binning(self):
         chart = self._chart(chart_type="histogram")
         chart.add_series("v", [1, 2, 2, 3, 3, 3, 4, 4, 5, 9])
@@ -2108,6 +2126,7 @@ class TestChart(unittest.TestCase):
         with self.assertRaises(ValueError):
             ts.TChart(chart_type="radar")
 
+    @unittest.skipUnless(HAS_PIL, "Pillow not installed")
     def test_line_two_series(self):
         chart = self._chart("line")
         chart.add_series("A", [3, 7, 2, 9], labels=["a", "b", "c", "d"])
