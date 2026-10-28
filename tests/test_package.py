@@ -1385,38 +1385,41 @@ class TestDpiScaling(unittest.TestCase):
         self.assertEqual(ts._scaling.scale_pair(3, None), (6, None))
 
     # --- awareness ------------------------------------------------------------------
-    def test_ensure_dpi_awareness_calls_once(self):
+    def test_ensure_dpi_awareness_off_by_default(self):
         calls = []
         original = ts.utils.set_dpi_awareness
 
-        def fake():
+        def fake(*_args, **_kwargs):
             calls.append(1)
             return True
 
         ts.utils.set_dpi_awareness = fake
+        try:
+            self.assertIs(ts.settings.dpi_aware, False)  # opt-in feature
+            ts._scaling._awareness_attempted = False
+            self.assertFalse(ts._scaling.ensure_dpi_awareness())
+            self.assertEqual(len(calls), 0)  # default never touches the API
+        finally:
+            ts.utils.set_dpi_awareness = original
+            ts._scaling._awareness_attempted = True
+
+    def test_ensure_dpi_awareness_calls_once_when_enabled(self):
+        calls = []
+        original = ts.utils.set_dpi_awareness
+
+        def fake(*_args, **_kwargs):
+            calls.append(_kwargs.get("prefer_per_monitor"))
+            return True
+
+        ts.utils.set_dpi_awareness = fake
+        ts.settings.dpi_aware = True
         try:
             ts._scaling._awareness_attempted = False
             self.assertTrue(ts._scaling.ensure_dpi_awareness())
             self.assertTrue(ts._scaling.ensure_dpi_awareness())
             self.assertEqual(len(calls), 1)  # second call is served from cache
-        finally:
-            ts.utils.set_dpi_awareness = original
-            ts._scaling._awareness_attempted = True
-
-    def test_ensure_dpi_awareness_opt_out(self):
-        calls = []
-        original = ts.utils.set_dpi_awareness
-
-        def fake():
-            calls.append(1)
-            return True
-
-        ts.utils.set_dpi_awareness = fake
-        ts.settings.dpi_aware = False
-        try:
-            ts._scaling._awareness_attempted = False
-            self.assertFalse(ts._scaling.ensure_dpi_awareness())
-            self.assertEqual(len(calls), 0)  # opt-out skips the API entirely
+            # the auto path pins SYSTEM awareness: the level Tk 8.6 supports
+            self.assertIs(calls[0], False)
         finally:
             ts.utils.set_dpi_awareness = original
             ts._scaling._awareness_attempted = True
@@ -1442,7 +1445,10 @@ class TestDpiScaling(unittest.TestCase):
         window = ts.Window("t", [[ts.TText("x")]], finalize=True)
         root = window.tk_root
         expected = ts._scaling._native_tk_scaling * ts._scaling.pixel_scale()
-        self.assertAlmostEqual(float(root.tk.call("tk", "scaling")), expected, places=9)
+        actual = float(root.tk.call("tk", "scaling"))
+        # Tk quantizes the stored scaling slightly (2.6667 reads back as
+        # 2.6625 on the tk builds tested); assert the multiplier took effect
+        self.assertLess(abs(actual - expected) / expected, 0.005)
         window.close()
 
     # --- pixel-domain hooks ----------------------------------------------------------

@@ -83,11 +83,11 @@ def apply_tk_scaling(root: tk.Misc) -> float:
 def ensure_dpi_awareness() -> bool:
     """Make the process DPI aware exactly once, before the first tk root.
 
-    Process-wide and sticky: the first call wins, later calls return the
-    cached result without touching the Win32 API again (awareness cannot be
-    changed once windows exist). Set ``ts.settings.dpi_aware = False`` to
-    keep Windows' default DPI virtualization. Returns True when an awareness
-    level is active.
+    Off by default: set ``ts.settings.dpi_aware = True`` **before creating
+    the first window** to enable it (DPI-aware Tk renders point-sized fonts
+    at real pixels instead of blurry virtualization). The first call wins
+    and later calls return the cached result (awareness cannot be changed
+    once windows exist). Returns True when an awareness level is active.
     """
     global _awareness_attempted, _awareness_result
     if _awareness_attempted:
@@ -98,5 +98,8 @@ def ensure_dpi_awareness() -> bool:
         return _awareness_result
     from .utils import set_dpi_awareness
 
-    _awareness_result = bool(set_dpi_awareness())
+    # system awareness on purpose: Tk 8.6 is not per-monitor aware, so the
+    # per-monitor level only changes message delivery without buying
+    # anything; system level still gives Tk the true primary-screen DPI
+    _awareness_result = bool(set_dpi_awareness(prefer_per_monitor=False))
     return _awareness_result

@@ -76,30 +76,30 @@ def _hresult_awareness_set(result: int) -> bool:
     return (result & 0xFFFFFFFF) in (0, 0x80070005)
 
 
-def set_dpi_awareness():
+def set_dpi_awareness(prefer_per_monitor: bool = True):
     """Opt-in Windows DPI awareness for crisp rendering on high-DPI screens.
 
     Call once before creating the first window (a process-wide setting).
-    Tries per-monitor awareness, then system awareness, then the legacy
-    ``SetProcessDPIAware``. No-op on other platforms; returns True when an
-    awareness level is active (including one set by an earlier call). The
-    package calls this automatically at root creation; see
-    ``ts.settings.dpi_aware`` to opt out.
+    Tries per-monitor awareness first (or, with ``prefer_per_monitor=False``,
+    system awareness — the level Tk 8.6 actually supports), then falls back
+    to the legacy ``SetProcessDPIAware``. No-op on other platforms; returns
+    True when an awareness level is active (including one set by an earlier
+    call). The package calls this automatically at root creation with the
+    system level; see ``ts.settings.dpi_aware`` to opt out.
     """
     if not sys.platform.startswith("win"):
         return False
     import ctypes
 
-    try:
-        if _hresult_awareness_set(ctypes.windll.shcore.SetProcessDpiAwareness(2)):
-            return True  # per monitor
-    except Exception:
-        pass
-    try:
-        if _hresult_awareness_set(ctypes.windll.shcore.SetProcessDpiAwareness(1)):
-            return True  # system
-    except Exception:
-        pass
+    levels = (2, 1) if prefer_per_monitor else (1,)
+    for level in levels:
+        try:
+            if _hresult_awareness_set(
+                ctypes.windll.shcore.SetProcessDpiAwareness(level)
+            ):
+                return True
+        except Exception:
+            pass
     try:
         if ctypes.windll.user32.SetProcessDPIAware():
             return True

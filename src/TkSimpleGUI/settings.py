@@ -66,7 +66,7 @@ class Settings:
         self._tooltip_offset = C.DEFAULT_TOOLTIP_OFFSET
         self._keep_on_top = None
         self._scaling = None
-        self._dpi_aware = True
+        self._dpi_aware = False
         self._alpha_channel = 1.0
         self._suppress_error_popups = False
         self._suppress_raise_key_errors = True

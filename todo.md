@@ -378,11 +378,19 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 - [ ] **8/12 canvas 快照回归测试**：**用户拍板跳过**——截图基线跨机器/DPI
       脆弱，维护成本高于收益
 - [x] **9/12 DPI 缩放（2026-10-28）**：调研报告 #3 项三件事全部落地
-      - **感知**：首个窗口/裸根创建前自动 `set_dpi_awareness()`（逐显示器
-        → 系统 → legacy 逐级回退，进程级一次守卫缓存）；
-        `ts.settings.dpi_aware=False` 退出；顺手修 HRESULT 语义——
-        `SetProcessDpiAwareness` 的 E_ACCESSDENIED（已设置）此前被 ctypes
-        静默吞掉，现显式判 S_OK/E_ACCESSDENIED 为成功
+      - **感知（opt-in）**：`ts.settings.dpi_aware=True`（**默认 False**，
+        必须在首个窗口前设置）后，首个窗口/裸根创建时自动调
+        `set_dpi_awareness()`（**系统级**，拿不到回退 legacy，进程级一次
+        守卫缓存；`prefer_per_monitor=False` 新参保公开 API 兼容）；顺手修
+        HRESULT 语义——`SetProcessDpiAwareness` 的 E_ACCESSDENIED（已设置）
+        此前被 ctypes 静默吞掉，现显式判 S_OK/E_ACCESSDENIED 为成功。
+        **关键教训：感知不能默认开启**——CI 两轮归因（conftest 关 awareness
+        → worker 家族测试全过；PMv2/系统级任一级别 → start_task 家族在
+        pytest-timeout 下随机饿死，失败面漂移）钉死触发器是 awareness
+        本身：感知进程的 Tk 8.6 消息泵在高负载下会饿死 worker 线程调度
+        （2 核 CI 是放大器）。96-DPI 机器上感知本就零收益（无虚拟化），
+        改 opt-in 后默认行为与历史版本逐字节一致，CI 确定性恢复；
+        真实高 DPI 用户一行开启即得清晰渲染
       - **字体线**：`apply_tk_scaling` 在每个新根设 `tk scaling` =
         Tk 原生 DPI 基准 × 用户倍率——全库字号皆点数，字体与字符定宽
         控件自动跟随；**基准只捕获一次**（`winfo_fpixels('1i')` 读回的

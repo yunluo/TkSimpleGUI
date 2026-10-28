@@ -46,8 +46,8 @@
 - **系统原生外观** — 不调 `ts.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
 - **主题切换动画** — `ts.theme("Slate", transition_ms=250)` 旧配色缓动混入
   新配色，所有打开的窗口逐帧重绘
-- **DPI 缩放（Windows）** — 首个窗口前自动声明 DPI 感知，高分屏上字体
-  真实像素渲染不再模糊放大；`ts.settings.scaling` 一键整体缩放
+- **DPI 缩放（Windows）** — 一行开启 DPI 感知让高分屏字体真实像素渲染
+  不再模糊；`ts.settings.scaling` 一键整体缩放
 - **Python 3.7+** — 3.8+ 零第三方依赖（3.7 需 `typing_extensions`），Tkinter/ttk + 标准库
 
 ## 与同类库对比
@@ -201,18 +201,21 @@ ts.theme("Slate", transition_ms=250)   # 默认 0 = 立即切换
 
 ## DPI 缩放（Windows）
 
-框架在建第一个窗口时自动把进程声明为 DPI 感知（逐显示器 → 系统级 →
-`SetProcessDPIAware` 逐级回退），Tk 随即拿到真实屏幕 DPI：**点数单位的
-字体按真实像素渲染**——高分屏上不再模糊，也不再需要手动
-`ts.set_dpi_awareness()`（API 保留，重复调用无害）。不想改行为的可以关掉：
+一行声明 DPI 感知后，Tk 拿到真实屏幕 DPI：**点数单位的字体按真实像素
+渲染**——高分屏上不再模糊放大（默认关闭；Tk 8.6 不支持 per-monitor，
+框架按系统级声明——Tk 实际支持的级别）：
 
 ```python
-ts.settings.dpi_aware = False   # 必须在第一个窗口创建前设置
+ts.settings.dpi_aware = True    # 必须在第一个窗口创建前设置
 ```
+
+不开启时维持 Windows 对非感知进程的 DPI 虚拟化，行为与历史版本完全一致
+（`ts.set_dpi_awareness()` 手动 API 保留，重复调用无害）。
 
 `ts.settings.scaling` 是全局缩放倍率（默认 `None` = 不缩放）：设成
 `1.25` / `1.5` 后，字体与布局像素（元素间距、窗口边距/尺寸、画布控件
-尺寸、ttk 内边距）一起等比放大——想在 4K 屏上得到 CTk 式整体放大的话：
+尺寸、ttk 内边距）一起等比放大——想在 4K 屏上得到 CTk 式整体放大的话
+（配合 `dpi_aware = True` 效果最佳）：
 
 ```python
 ts.settings.scaling = 1.5       # 建窗口前设置；建窗后改不影响已画元素
