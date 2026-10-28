@@ -18,6 +18,8 @@
 
 - **零事件循环** — 永远不写 `while True`：`window.run()` 一个入口，
   全局唯一事件循环天然支持多窗口协同
+- **双向绑定** — `ts.Var` 可观察值容器 + `window.bind_var(key, var)`：
+  写 var 扇出全部绑定元素，用户改动泵心跳回拉，跨窗口共享同一个 var
 - **事件绑定走装饰器** — `@ts.bind_event` 绑定模块级 `on_*` 函数，
   `window` / `event` / `values` 按参数名自动注入
 - **面向对象控件** — 每个控件都是真正的类实例，属性读写、方法直调，
@@ -125,6 +127,39 @@ main.children               # [child]
 child.is_child_of(main)     # True
 child.close()               # 级联关闭自己的子窗口
 ```
+
+## 双向绑定（ts.Var）
+
+`ts.Var` 是可观察值容器，`window.bind_var(key, var)` 把元素键桥接到它——
+写 var 扇出到全部绑定元素，用户改动在每个事件泵心跳回拉进 var，并复制到
+同 var 的其他绑定元素（两个窗口共享同一个 var 也一样）：
+
+```python
+count = ts.Var(0)
+
+window = ts.Window("计数器", [
+    [ts.TButton("+1", key="-ADD-")],
+    [ts.TInput("", key="-N-")],
+    [ts.TText("", key="-ECHO-")],
+], finalize=True)
+
+window.bind_var("-N-", count)     # 输入框 ↔ var
+window.bind_var("-ECHO-", count)  # 显示框 ← var（扇出目标）
+
+count.value = 1                   # 输入框与显示框同时变 "1"
+# 在输入框里打字 → 下一次泵 tick：count.value 更新，显示框跟着变
+
+@ts.bind_event("-ADD-")
+def on_add(window, values):
+    count.value = int(count.value or 0) + 1
+
+window.run()
+```
+
+绑定时 var 的值胜出（同 tk Variable 的直觉；`Var()` 默认 None 则不动元素，
+首个泵 tick 采纳元素现值）。要求 finalize 后的窗口；绑定的元素其 `update()`
+须接受 `value=`（与 `window.fill()` 同一契约）。解绑用 `window.unbind_var(key)`，
+窗口关闭时自动解绑。
 
 ## 声明式配置（dataclass）
 

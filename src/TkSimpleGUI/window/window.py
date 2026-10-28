@@ -14,6 +14,7 @@ from .. import constants as C
 from .. import _theming as theme_mod
 from ..settings import settings
 from ..actions import ActionList
+from ..binding import Var
 from ..elements.base import (
     Color,
     Element,
@@ -50,7 +51,10 @@ _NO_PAYLOAD = _NoPayload()
 # window's bind_return_key button; disabled widgets show a non-clickable
 # cursor while hovered. Mirrors ttkbootstrap's class-binding approach.
 _ENTERED_CURSORS = {}
-_CLASS_BINDINGS_DONE = False
+# Bindings live in the Tk interpreter of their root, so the guard tracks
+# WHICH root they were installed on: after a master-root teardown (last
+# window closed) the next root is a fresh interpreter and gets them again.
+_CLASS_BINDINGS_ROOT: Optional[tk.Misc] = None
 
 
 def _class_select_all(event: tk.Event) -> str:
@@ -92,15 +96,16 @@ def _class_leave_restore_cursor(event: tk.Event) -> Optional[str]:
 
 
 def _install_class_bindings(root: tk.Misc) -> None:
-    """Install class bindings once for the whole interpreter.
+    """Install class bindings once per Tk interpreter (per master root).
 
     Called from :meth:`Window._ensure_hidden_main_root`; every window
-    (all of them are Toplevels of that root) inherits the bindings.
+    (all of them are Toplevels of that root) inherits the bindings. A
+    recreated master root is a fresh interpreter and is equipped again.
     """
-    global _CLASS_BINDINGS_DONE
-    if _CLASS_BINDINGS_DONE:
+    global _CLASS_BINDINGS_ROOT
+    if _CLASS_BINDINGS_ROOT is root:
         return
-    _CLASS_BINDINGS_DONE = True
+    _CLASS_BINDINGS_ROOT = root
     entry_classes = ("Entry", "TEntry", "Combobox", "TCombobox",
                      "Spinbox", "TSpinbox")
     for cls in entry_classes + ("Text",):
@@ -183,6 +188,7 @@ class Window:
         "_ttk_style",
         "_drag_offset",
         "_last_values",
+        "_var_bindings",
         "_parent",
         "_children",
     )
@@ -362,6 +368,7 @@ class Window:
         self._ttk_style = None  # ty: ignore[invalid-assignment]
         self._drag_offset = None
         self._last_values = {}
+        self._var_bindings: List[Tuple[ElementKey, Var]] = []
         if actions is not None:
             self.set_actions(actions)
         if finalize:
@@ -571,7 +578,8 @@ class Window:
 
         Every window is a Toplevel of this root, so closing one window can
         never destroy another (Tk kills Toplevels with their master). The
-        master is created lazily and torn down when the last window closes.
+        master is created lazily and lives until interpreter shutdown —
+        tk Variables / PhotoImages may bind to it as the default root.
         """
         if cls._main_root is not None and cls._main_root.winfo_exists():
             return cls._main_root
@@ -1023,6 +1031,8 @@ class Window:
                 window._tk_root.update()
             except tk.TclError:
                 window._mark_closed()
+                continue
+            window._sync_bound_vars()
 
     def _root_alive(self):
         if self._tk_root is None:
@@ -1034,6 +1044,9 @@ class Window:
 
     def _mark_closed(self):
         self._closed = True
+        for _key, var in self._var_bindings:
+            var._detach_window(self)
+        self._var_bindings = []
         if self in Window._open_windows:
             Window._open_windows.remove(self)
         Window._drop_stale_bus_events()
@@ -1091,6 +1104,74 @@ class Window:
             if element is not None:
                 element.update(value=value)
         return self
+
+    # --- two-way data binding ----------------------------------------------------------
+    def bind_var(self, key: ElementKey, var: Var) -> "Window":
+        """Two-way bind the element ``key`` to a
+        :class:`~TkSimpleGUI.binding.Var` holder.
+
+        Like a tk ``Variable``, the var's value wins at bind time: it is
+        pushed into the freshly bound element (``Var()``'s ``None`` default
+        leaves the element untouched until the first pump adopts its value
+        into the var). From then on:
+
+        - ``var.value = x`` writes into this element (and every other
+          element bound to the same var, in any window)
+        - element changes made by the user are pulled into the var on
+          every event-loop tick (:meth:`read` / ``run_application``) and
+          fanned out to the var's other bound elements
+
+        Binding elements whose ``update()`` accepts ``value=`` only —
+        the same contract as :meth:`fill`. Requires a finalized window.
+        Binding the same (key, var) pair twice is a no-op. Returns self.
+        """
+        if not self._finalized:
+            raise RuntimeError("bind_var requires a finalized window")
+        if not isinstance(var, Var):
+            raise TypeError(f"var must be a TkSimpleGUI Var, not {type(var).__name__}")
+        element = self._elements_by_key.get(key)
+        if element is None:
+            raise KeyError(
+                f"No element with key {key!r} in window {self._title!r}"
+            )
+        for bound_key, bound_var in self._var_bindings:
+            if bound_key == key and bound_var is var:
+                return self
+        self._var_bindings.append((key, var))
+        var._attach(self, key)
+        element.update(value=var.value)
+        return self
+
+    def unbind_var(self, key: ElementKey, var: Optional[Var] = None) -> "Window":
+        """Remove bindings for ``key`` (all of them, or one specific var).
+
+        Returns self; unknown keys are ignored.
+        """
+        kept: List[Tuple[ElementKey, Var]] = []
+        for bound_key, bound_var in self._var_bindings:
+            if bound_key == key and (var is None or bound_var is var):
+                bound_var._detach(self, bound_key)
+            else:
+                kept.append((bound_key, bound_var))
+        self._var_bindings = kept
+        return self
+
+    def _sync_bound_vars(self) -> None:
+        """Pull user-made element changes into their bound vars (called on
+        every event-loop pump). The first element whose value diverges from
+        the var acts as the editor; the new value fans out to the var's
+        other bound elements."""
+        for key, var in list(self._var_bindings):
+            element = self._elements_by_key.get(key)
+            if element is None:
+                continue
+            try:
+                current = element.get()
+                if current == var.value:
+                    continue
+            except Exception:
+                continue
+            var._set(current, source=(self, key))
 
     def set_focus(self, element: Any):
         """Give the focus to an element (instance or key)."""
@@ -1514,11 +1595,10 @@ class Window:
             with contextlib.suppress(tk.TclError):
                 self._tk_root.destroy()
             self._tk_root = None  # ty: ignore[invalid-assignment]
-        # last window gone: tear down the hidden master root too
-        if not Window._open_windows and Window._main_root is not None:
-            with contextlib.suppress(tk.TclError):
-                Window._main_root.destroy()
-            Window._main_root = None
+        # the hidden master root is a process-wide singleton that lives on
+        # until interpreter shutdown: tk Variables / PhotoImages can be
+        # bound to it (the default root), and destroying it mid-process
+        # would silently break them. Its memory cost is one hidden window.
 
     def __enter__(self):
         return self.finalize()

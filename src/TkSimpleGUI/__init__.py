@@ -219,6 +219,9 @@ from .animation import fade_in, fade_out, slide, animate_progress
 # --- logging into an TOutput / TMultiline element ----------------------------------------
 from .logger import Logger, find_log_element, log
 
+# --- two-way data binding ------------------------------------------------------------
+from .binding import Var
+
 # --- popups ------------------------------------------------------------------------------
 from .popup import (
     popup,
@@ -279,6 +282,7 @@ __all__ = [
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "block_input", "unblock_input",
     "Logger", "find_log_element", "log",
+    "Var",
     "ElementOptions", "WindowConfig",
     "fade_in", "fade_out", "slide", "animate_progress", "dbg",
     "popup", "popup_yes_no", "popup_ok_cancel", "popup_cancel",

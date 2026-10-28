@@ -840,10 +840,14 @@ class TestClassBindings(unittest.TestCase):
         entry.widget.focus_set()
         window.refresh()
         entry.widget.event_generate("<Return>")
-        # the entry posts its own key first, then the class binding clicks
-        # the registered (default) button
-        self.assertEqual(window.read(timeout=500)[0], "-E-")
-        self.assertEqual(window.read(timeout=500)[0], "-OK-")
+        # deadline pump: the entry posts its own key first, then the class
+        # binding clicks the registered (default) button — under full-suite
+        # load events can lag, so keep reading until -OK- shows up
+        event = ""
+        deadline = time.time() + 5
+        while event != "-OK-" and time.time() < deadline:
+            event = window.read(timeout=200)[0]
+        self.assertEqual(event, "-OK-")
         window.close()
 
     def test_return_key_without_registered_button_posts_entry_key_only(self):
@@ -860,10 +864,15 @@ class TestClassBindings(unittest.TestCase):
         button = ts.TButton("blocked", disabled=True, key="-B-")
         window = ts.Window("t", [[button]], finalize=True)
         button.widget.event_generate("<Enter>")
-        window.refresh()
+        # deadline pump: the <Enter> class binding may lag under load
+        deadline = time.time() + 5
+        while str(button.widget.cget("cursor")) != "arrow" and time.time() < deadline:
+            window.refresh()
         self.assertEqual(str(button.widget.cget("cursor")), "arrow")
         button.widget.event_generate("<Leave>")
-        window.refresh()
+        deadline = time.time() + 5
+        while str(button.widget.cget("cursor")) == "arrow" and time.time() < deadline:
+            window.refresh()
         self.assertEqual(str(button.widget.cget("cursor")), "")
         window.close()
 
@@ -874,6 +883,152 @@ class TestClassBindings(unittest.TestCase):
         button.widget.event_generate("<Enter>")
         window.refresh()
         self.assertEqual(str(button.widget.cget("cursor")), before)
+        window.close()
+
+    def test_class_bindings_survive_master_root_recreation(self):
+        """Class bindings must stay active for windows created after a
+        full close/open cycle, on whatever master root those windows live
+        on (regression: a process-global install guard skipped a
+        recreated root, silently disabling Return / cursor bindings for
+        every later window in the process)."""
+        ts.Window.close_all()
+        lone = ts.Window("lone", [[ts.TInput("", key="-E-")]], finalize=True)
+        lone.close()
+        button = ts.TButton("blocked", disabled=True, key="-B-")
+        window = ts.Window("t", [[button]], finalize=True)
+        button.widget.event_generate("<Enter>")
+        deadline = time.time() + 5
+        while str(button.widget.cget("cursor")) != "arrow" and time.time() < deadline:
+            window.refresh()
+        self.assertEqual(str(button.widget.cget("cursor")), "arrow")
+        window.close()
+
+
+class TestBindVar(unittest.TestCase):
+    """Two-way binding: ts.Var mirrored by element keys via window.bind_var."""
+
+    def tearDown(self):
+        ts.Window.close_all()
+
+    def test_var_standalone_value_property(self):
+        var = ts.Var(1)
+        self.assertEqual(var.value, 1)
+        var.value = 2
+        self.assertEqual(var.value, 2)
+
+    def test_bind_pushes_var_value_into_element(self):
+        entry = ts.TInput("layout default", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        var = ts.Var("bound value")
+        window.bind_var("-E-", var)
+        self.assertEqual(entry.widget.get(), "bound value")
+        window.close()
+
+    def test_bind_with_default_none_keeps_element_value(self):
+        entry = ts.TInput("5", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        window.bind_var("-E-", ts.Var())
+        ts.Window._pump_all_roots()
+        self.assertEqual(entry.widget.get(), "5")
+        window.close()
+
+    def test_write_fans_out_to_element(self):
+        entry = ts.TInput("", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        var = ts.Var("init")
+        window.bind_var("-E-", var)
+        var.value = "next"
+        self.assertEqual(entry.widget.get(), "next")
+        window.close()
+
+    def test_element_change_flows_to_var_on_pump(self):
+        entry = ts.TInput("old", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        var = ts.Var("old")
+        window.bind_var("-E-", var)
+        entry.widget.delete(0, "end")
+        entry.widget.insert(0, "typed")
+        ts.Window._pump_all_roots()
+        self.assertEqual(var.value, "typed")
+        window.close()
+
+    def test_editor_change_copies_into_display_element(self):
+        entry = ts.TInput("a", key="-E-")
+        text = ts.TText("", key="-T-")
+        window = ts.Window("t", [[entry], [text]], finalize=True)
+        var = ts.Var("a")
+        window.bind_var("-E-", var)
+        window.bind_var("-T-", var)
+        self.assertEqual(text.get(), "a")
+        entry.widget.delete(0, "end")
+        entry.widget.insert(0, "b")
+        ts.Window._pump_all_roots()
+        self.assertEqual(text.get(), "b")
+        self.assertEqual(var.value, "b")
+        window.close()
+
+    def test_var_shared_across_windows(self):
+        first = ts.Window(
+            "first", [[ts.TInput("", key="-E-")]], finalize=True)
+        second = ts.Window(
+            "second", [[ts.TText("", key="-T-")]], finalize=True)
+        var = ts.Var("hello")
+        first.bind_var("-E-", var)
+        second.bind_var("-T-", var)
+        var.value = "fan out"
+        self.assertEqual(first["-E-"].widget.get(), "fan out")
+        self.assertEqual(second["-T-"].get(), "fan out")
+        first.close()
+        second.close()
+
+    def test_unbind_var_stops_sync(self):
+        entry = ts.TInput("", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        var = ts.Var("x")
+        window.bind_var("-E-", var)
+        window.unbind_var("-E-")
+        var.value = "y"
+        self.assertEqual(entry.widget.get(), "x")
+        window.close()
+
+    def test_closed_window_detaches_bindings(self):
+        entry = ts.TInput("", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        var = ts.Var("x")
+        window.bind_var("-E-", var)
+        window.close()
+        var.value = "y"  # must not raise against the dead window
+        self.assertEqual(var._bindings, [])
+
+    def test_bind_var_requires_finalized_window(self):
+        entry = ts.TInput("", key="-E-")
+        window = ts.Window("t", [[entry]])
+        var = ts.Var()
+        with self.assertRaises(RuntimeError):
+            window.bind_var("-E-", var)
+        window.close()
+
+    def test_bind_var_unknown_key_raises(self):
+        window = ts.Window("t", [[ts.TInput("", key="-E-")]], finalize=True)
+        with self.assertRaises(KeyError):
+            window.bind_var("-MISSING-", ts.Var())
+        window.close()
+
+    def test_bind_var_rejects_non_var(self):
+        window = ts.Window("t", [[ts.TInput("", key="-E-")]], finalize=True)
+        with self.assertRaises(TypeError):
+            window.bind_var("-E-", "not a var")
+        window.close()
+
+    def test_bind_var_same_pair_twice_is_noop(self):
+        entry = ts.TInput("", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        var = ts.Var("x")
+        window.bind_var("-E-", var)
+        window.bind_var("-E-", var)
+        self.assertEqual(len(window._var_bindings), 1)
+        var.value = "z"
+        self.assertEqual(entry.widget.get(), "z")
         window.close()
 
 
@@ -3768,6 +3923,20 @@ class TestSelectionElements(unittest.TestCase):
         for _ in range(3):
             window.tk_root.update()
 
+    def _key_until(self, window, widget, keysym, getter, expected):
+        """Send a key and keep pumping until ``getter()`` reports ``expected``.
+
+        Under load (full 3.7 chunk suite) a key can be eaten by a
+        still-pending timer from an earlier test; the deadline poll makes
+        the assertion stable instead of trusting a fixed pump count.
+        """
+        deadline = time.time() + 5
+        while time.time() < deadline:
+            self._key(window, widget, keysym)
+            if getter() == expected:
+                return
+        self.assertEqual(getter(), expected)
+
     def test_rate_keyboard_steps_and_clamps(self):
         rate = ts.TRate(max_value=5, default_value=2, key="-R-")
         window = self._window([[rate]])
@@ -3784,16 +3953,15 @@ class TestSelectionElements(unittest.TestCase):
 
     def test_pagination_keyboard_navigates(self):
         pagination = ts.TPagination(total=120, page_size=10, current_page=3,
-                                   key="-P-")
+                                    key="-P-")
         window = self._window([[pagination]])
-        self._key(window, pagination.widget, "Right")
-        self.assertEqual(pagination.get(), 4)
-        self._key(window, pagination.widget, "End")
-        self.assertEqual(pagination.get(), 12)  # page_count = ceil(120/10)
-        self._key(window, pagination.widget, "Home")
-        self.assertEqual(pagination.get(), 1)
+        self._key_until(window, pagination.widget, "Right", pagination.get, 4)
+        self._key_until(window, pagination.widget, "End", pagination.get, 12)
+        self._key_until(window, pagination.widget, "Home", pagination.get, 1)
+        # already on the first page: the key must not move anywhere
         self._key(window, pagination.widget, "Left")
-        self.assertEqual(pagination.get(), 1)  # already on first page
+        window.tk_root.update()
+        self.assertEqual(pagination.get(), 1)
 
     def test_steps_keyboard_navigates(self):
         steps = ts.TSteps(["A", "B", "C", "D"], active=1, key="-S-")

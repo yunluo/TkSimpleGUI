@@ -286,6 +286,54 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
       死类型别名 `WindowPoint`（定义后从未使用）；kwargs 尾下划线 `from_`/`range_`
       为规避关键字的既有约定，保留
 
+## 📋 调研报告行动项队列（从易到难，每项开始前确认）
+
+来源：`docs/2026-10-27-tkinter-ecosystem-survey.md` 第六节。12 条建议按实现难度
+重排为队列，确认一项做一项：
+
+- [x] **1/12 README 对比定位表**（commit 7204ee4）：「与同类库对比」表——本项目
+      vs FreeSimpleGUI/CustomTkinter/ttkbootstrap 12 行对比 + 一句话定位
+- [x] **2/12 类级绑定**（commit 6c60f4e）：`bind_class` 每解释器只装一次——
+      Ctrl+A 全选（输入框/多行框）、Return 触发 `bind_return_key=True` 的按钮、
+      禁用控件悬停 arrow 光标；TButton 新参 `bind_return_key`、Window 新方法
+      `register_return_key_button`；TestClassBindings 6 例
+- [ ] **3/12 布局序列化（from_spec/to_spec）**：**用户拍板跳过**——布局本身已是
+      纯数据（`[[...]]` 直接可 json 化），单独序列化层的收益场景不足
+- [ ] **4/12 图标字体表（内嵌 ttf 字形）**：**用户拍板跳过**——与 ⛔ 清单的
+      「字体图标体系」渊源太近，ttf 内嵌又有许可与体积权衡
+- [x] **5/12 双向绑定 bind_var（2026-10-28）**：新模块 `binding.py` 的 `ts.Var`
+      可观察值容器 + `Window.bind_var(key, var)` / `unbind_var`——
+      - 写 var 扇出到全部绑定元素（跨窗口共享同一 var，写入即广播）；
+        用户改动在 `_pump_all_roots` 泵心跳回拉进 var，首个偏差元素当编辑器，
+        新值复制到同 var 的其余绑定元素（同 tick 只有一个偏差源，无回环）
+      - 绑定时 var 值胜出（同 tk Variable 直觉；`Var()` 默认 None 不动元素，
+        首泵采纳元素现值）；同 (key, var) 重复绑定是 no-op；
+        契约与 `fill()` 一致：元素 `update()` 须接受 `value=`
+      - `bind_var` 要求 finalize 后的窗口（与 `element.bind()` 同先例）；
+        窗口关闭/被 WM 销毁（`_mark_closed`）自动从 var 解绑，无泄漏
+      - `ts.Var` 导出包根；README 新增「双向绑定（ts.Var）」章节 + 特性条目；
+        TestBindVar 13 例（读写/初值方向/泵回拉/多元素扇出/跨窗口/解绑/
+        关闭解绑/三类守卫异常/重复绑定 no-op）
+      - 过程抓到 6c60f4e 引入的两个真 bug（新测试按字母序恰好排在
+        TestClassBindings 之前而显形）：
+        ①类绑定安装守卫 `_CLASS_BINDINGS_DONE` 是进程级——主 root 一旦销毁
+        重建，新解释器上绑定全部静默死亡（Control-A 因 Tk 8.6 Windows 原生
+        就有全选而侥幸通过，真正依赖绑定的 Return/禁用光标用例失败）；守卫
+        改 per-root（`_CLASS_BINDINGS_ROOT`），加回归测试
+        `test_class_bindings_survive_master_root_recreation`
+        ②「最后一个窗口关闭时销毁主 root」在常规 close 路径因注册表移除
+        滞后永不触发（泄漏），却会被"关闭未 finalize 窗口"误触发；实装后
+        3.12 套件暴露 3 例确定性失败（StringVar/PhotoImage 绑定 default
+        root，解释器更替即失效）。定稿：**主 root 为进程级单例**（隐藏窗口
+        约 1MB，与既有事实行为一致），删除销毁逻辑，文档串改为
+        "lives until interpreter shutdown"
+      - 顺带加固 3 例 event_generate 时序敏感测试（Return 键改 deadline
+        读循环、禁用光标改 deadline 刷新循环、分页器键盘新增 `_key_until`
+        截止期限轮询助手）——unittest 全量负载变化让既有抖动显形，
+        deadline 泵模式与 start_task 用例同款
+- 队列余项：6 drop_target 拖放 → 7 _paint 颜色 tween → 8 canvas 快照回归 →
+  9 DPI 缩放 → 10 标配对话框三件 → 11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
@@ -296,7 +344,7 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m pytest tests -q`（298 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 测试：`python -m pytest tests -q`（319 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
 - 类型：`python tests/check_types.py`（ty 守卫；找不到 ty 时返回非零。注意 PATH 上的 ty 0.0.53 会对既有
   `elements/buttons.py` 报 34 条 ttk stub 误报——基线如此，与本批次无关；`D:\bin\ty.exe`（0.0.32）零诊断）
 - Lint：`ruff check src tests demos`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）
