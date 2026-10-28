@@ -1519,6 +1519,84 @@ class TestDpiScaling(unittest.TestCase):
         window.close()
 
 
+class TestPopupPickers(unittest.TestCase):
+    """Standard picker dialogs.
+
+    The native chooser is mocked so no GUI dialog ever opens; the font
+    filter is a pure function tested directly.
+    """
+
+    def _patch_askcolor(self, result):
+        import tkinter.colorchooser
+
+        calls = []
+        original = tkinter.colorchooser.askcolor
+
+        def fake(**kwargs):
+            calls.append(kwargs)
+            return result
+
+        tkinter.colorchooser.askcolor = fake
+        self.addCleanup(setattr, tkinter.colorchooser, "askcolor", original)
+        return calls
+
+    def test_popup_get_color_returns_hex(self):
+        calls = self._patch_askcolor(((58, 123, 213), "#3a7bd5"))
+        picked = ts.popup_get_color("Pick one", title="Color", default_color="#ffffff")
+        self.assertEqual(picked, "#3a7bd5")
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(calls[0]["title"], "Color")
+        self.assertEqual(calls[0]["color"], "#ffffff")
+
+    def test_popup_get_color_cancel_returns_none(self):
+        self._patch_askcolor((None, None))
+        self.assertIsNone(ts.popup_get_color())
+
+    def test_popup_get_color_title_fallback(self):
+        calls = self._patch_askcolor((None, None))
+        ts.popup_get_color()
+        self.assertEqual(calls[0]["title"], "Pick a color")
+        ts.popup_get_color(message="选个颜色")
+        self.assertEqual(calls[1]["title"], "选个颜色")
+
+    def test_popup_get_date_has_no_dead_dateformat(self):
+        import inspect
+
+        params = inspect.signature(ts.popup_get_date).parameters
+        self.assertNotIn("dateformat", params)  # returns a date object; dead param
+        self.assertEqual(tuple(params), ("message", "title", "default_date"))
+
+    def test_filter_families(self):
+        from TkSimpleGUI.popup import _filter_families
+
+        families = ["Arial", "Courier New", "arial black", "Segoe UI"]
+        self.assertEqual(_filter_families(families, ""), families)
+        self.assertEqual(_filter_families(families, "  "), families)
+        self.assertEqual(_filter_families(families, "ARIAL"), ["Arial", "arial black"])
+        self.assertEqual(_filter_families(families, "new"), ["Courier New"])
+        self.assertEqual(_filter_families(families, "zzz"), [])
+
+    def test_popup_get_font_build_path(self):
+        """Real widgets build (filter box, families, preview); read mocked.
+
+        The short-circuited read exercises the full dialog construction —
+        layout, family fill, filter bind and preview wiring — then returns
+        through the OK/Cancel paths like a real click would.
+        """
+        import sys
+
+        popup_module = sys.modules["TkSimpleGUI.popup"]
+        original_read = popup_module.Window.read
+        try:
+            popup_module.Window.read = lambda self, *a, **k: ("Cancel", {})
+            self.assertIsNone(popup_module.popup_get_font(include_bold_italic=True))
+            popup_module.Window.read = lambda self, *a, **k: ("OK", {})
+            picked = popup_module.popup_get_font(default_font=("Courier New", 14))
+            self.assertEqual(picked, ("Courier New", 14))
+        finally:
+            popup_module.Window.read = original_read
+
+
 class TestNativeCoverage(unittest.TestCase):
     """Per-widget coverage of the native Tk/ttk passthrough APIs."""
 

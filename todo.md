@@ -414,8 +414,30 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
         （预期 = `scale_px(原值)`）任意 DPI 成立；主题 setUp/tearDown 密闭
       - README 新增「DPI 缩放（Windows）」章节 + 特性条目；`scale_px`
         （非可选）/`scale_opt`/`scale_pair`（None 直通）三分，ty 零诊断
-- 队列余项：10 标配对话框三件 → 11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
-
+- [x] **10/12 标配对话框三件 colorpicker/fontpicker/date（2026-10-28）**：
+      盘点修订——**date 与 font 弹窗已在库中**（popup_get_date 包 TCalendar
+      返回 date 对象；popup_get_font 字体列表+字号+粗斜体+实时预览），
+      实际工作 = 补 1 个颜色选择器 + 审计另两个
+      - **新增 `popup_get_color(message, title, default_color)`**：原生
+        colorchooser 包装（**用户拍板原生路线**，与 popup_get_file 包装
+        filedialog / TButton.color_chooser 同款先例，零成本稳定）；返回
+        "#rrggbb" 字符串（包颜色约定 Color=str），取消 None；lazy import；
+        导出 171 → 172
+      - **审计 popup_get_date**：删死参数 `dateformat`——它只影响
+        TCalendar.get() 的格式化，而弹窗返回 `.date` 对象从不调 get()
+        （月历显示也不用它）；签名 (message, title, default_date)
+      - **审计 popup_get_font**：字体列表上方加过滤输入框（几百个系统
+        字体滚动难找）——模块级纯函数 `_filter_families`（大小写不敏感
+        子串，空 query 全过）+ `<KeyRelease>` bind 重填 listbox（popup_
+        get_text 的 Return bind 同款手法）并保持当前选择
+      - showcase popup 页加「颜色」demo 按钮（-P-COLOR-，不进 smoke 列表）
+      - 测试 6 例（350 → 356）TestPopupPickers：mock tkinter.colorchooser.
+        askcolor（hex 直通+参数透传/cancel None/标题回退）、date 签名断言
+        （dateformat 已移除）、_filter_families 纯函数、**popup_get_font
+        短路 read 全链路构建**（真 Window 真元素 + mock read 验证布局/
+        字体填充/bind 挂接/OK 与 Cancel 路径——比 SpyWindow 更真实的
+        新测试模式）；双解释器绿
+- 队列余项：11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
@@ -428,7 +450,7 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m pytest tests -q`（350 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 测试：`python -m pytest tests -q`（356 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
 - 类型：`python tests/check_types.py`（ty 守卫；找不到 ty 时返回非零。注意 PATH 上的 ty 0.0.53 会对既有
   `elements/buttons.py` 报 34 条 ttk stub 误报——基线如此，与本批次无关；`D:\bin\ty.exe`（0.0.32）零诊断）
 - Lint：`ruff check src tests demos`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）

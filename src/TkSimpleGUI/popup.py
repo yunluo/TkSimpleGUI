@@ -8,7 +8,7 @@ popups automatically follow the active theme.
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from . import constants as C
-from .constants import Size
+from .constants import Color, Size
 from .settings import settings
 from .elements.buttons import TButton
 from .elements.calendar import TCalendar
@@ -192,11 +192,31 @@ def popup_get_folder(message: str = "", title: str = ""):
     return result if result else None
 
 
+def popup_get_color(
+    message: str = "",
+    title: str = "",
+    default_color: Optional[Color] = None,
+):
+    """Native color chooser; returns a ``"#rrggbb"`` string, or None.
+
+    ``default_color`` preselects a Tk color (hex string or name). The
+    picked value follows the package color convention (``Color = str``);
+    cancelling returns ``None``. Uses the platform's native chooser, the
+    same one behind ``TButton.color_chooser``.
+    """
+    from tkinter import colorchooser
+
+    result = colorchooser.askcolor(
+        color=default_color,
+        title=title or message or "Pick a color",
+    )
+    return result[1] or None
+
+
 def popup_get_date(
     message: str = "Choose a date",
     title: str = "",
-    default_date: Any = None,
-    dateformat: str = "%Y-%m-%d"):
+    default_date: Any = None):
     """TCalendar chooser; returns a :class:`datetime.date` or None.
 
     ``default_date`` accepts a date or a ``(year, month, day)`` tuple
@@ -210,7 +230,7 @@ def popup_get_date(
         default_date = _dt.date(*default_date)
     rows = [
         [TText(message)],
-        [TCalendar(default_date=default_date, dateformat=dateformat, key="-CAL-")],
+        [TCalendar(default_date=default_date, key="-CAL-")],
         [TButton("OK", key="OK"), TButton("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
@@ -326,6 +346,60 @@ def popup_replace(multiline: TMultiline, title: str = "Replace", case_sensitive:
     return count
 
 
+def _filter_families(families: Sequence[str], query: str) -> List[str]:
+    """Font families matching a case-insensitive substring query."""
+    needle = str(query).strip().lower()
+    if not needle:
+        return list(families)
+    return [name for name in families if needle in name.lower()]
+
+
+def _font_option_rows(
+    family: str,
+    size: int,
+    bold: bool,
+    italic: bool,
+    include_bold_italic: bool,
+) -> List[ElementRow]:
+    """Size / bold / italic / preview rows of the font picker's option column."""
+    rows: List[ElementRow] = [
+        [TText("Size")],
+        [TSpin([str(n) for n in range(1, 101)], initial_value=str(size), key="-SIZE-")],
+    ]
+    if include_bold_italic:
+        rows.append([TCheckbox("Bold", key="-BOLD-", default=bold)])
+        rows.append([TCheckbox("Italic", key="-ITALIC-", default=italic)])
+    rows.append(
+        [TMultiline("AaBbYyZz 123", key="-PREVIEW-", size=(20, 3), font=(family, size))]
+    )
+    return rows
+
+
+def _wire_font_filter(
+    window: Any,
+    listbox: Any,
+    families: Sequence[str],
+    family: str,
+):
+    """Fill the font listbox and wire the filter box to refill it.
+
+    A refill keeps the current selection selected when it still matches.
+    """
+    listbox.update(values=families)
+    if family in families:
+        listbox.update(set_to_index=families.index(family))
+
+    def _refill(*_event: Any):
+        picked = listbox.get()
+        current = picked[0] if picked else family
+        visible = _filter_families(families, window["-FILTER-"].get() or "")
+        listbox.update(values=visible)
+        if current in visible:
+            listbox.update(set_to_index=visible.index(current))
+
+    window["-FILTER-"].widget.bind("<KeyRelease>", _refill)
+
+
 def popup_get_font(
     message: str = "Pick a font",
     title: str = "",
@@ -343,31 +417,22 @@ def popup_get_font(
     bold = len(default_font) > 2 and "bold" in default_font[2:]
     italic = len(default_font) > 2 and "italic" in default_font[2:]
 
-    option_rows: List[ElementRow] = [
-        [TText("Size")],
-        [TSpin([str(n) for n in range(1, 101)], initial_value=str(size), key="-SIZE-")],
-    ]
-    if include_bold_italic:
-        option_rows.append([TCheckbox("Bold", key="-BOLD-", default=bold)])
-        option_rows.append([TCheckbox("Italic", key="-ITALIC-", default=italic)])
-    option_rows.append(
-        [TMultiline("AaBbYyZz 123", key="-PREVIEW-", size=(20, 3), font=(family, size))]
-    )
+    option_rows = _font_option_rows(family, size, bold, italic, include_bold_italic)
     rows: List[ElementRow] = [
         [TText(message)],
-        [TColumn([[TListbox([], key="-FONTS-", size=(26, 10), enable_events=True)]]),
+        [TColumn([
+            [TInput("", key="-FILTER-", size=(26, 1))],
+            [TListbox([], key="-FONTS-", size=(26, 10), enable_events=True)],
+        ]),
          TColumn(option_rows)],
         [TButton("OK", key="OK"), TButton("Cancel", key="Cancel")],
     ]
     window = Window(title, rows, finalize=True, modal=True, disable_close=False)
     families = sorted(tkfont.families(root=window.tk_root))
-    listbox = window["-FONTS-"]
-    listbox.update(values=families)
-    if family in families:
-        listbox.update(set_to_index=families.index(family))
+    _wire_font_filter(window, window["-FONTS-"], families, family)
 
     def _current_font():
-        chosen = listbox.get()
+        chosen = window["-FONTS-"].get()
         picked_family = chosen[0] if chosen else family
         try:
             picked_size = int(window["-SIZE-"].get())

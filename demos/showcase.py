@@ -499,6 +499,7 @@ def tab_system():
                              ts.TButton("滚动文本", key="-P-SCROLL-"),
                      ts.TButton("输入", key="-P-TEXT-"), ts.TButton("文件", key="-P-FILE-"),
                      ts.TButton("文件夹", key="-P-FOLDER-"), ts.TButton("日期", key="-P-DATE-"),
+                     ts.TButton("颜色", key="-P-COLOR-"),
                      ts.TButton("字体", key="-P-FONT-")]])],
         [ts.TColumn([[ts.TText("窗口控制（运行时 API）")],
                     [ts.TButton("居中", key="-W-CENTER-"), ts.TButton("最大化", key="-W-MAX-"),
@@ -1157,6 +1158,11 @@ def on_p_folder(window, values):
 @ts.bind_event("-P-DATE-")
 def on_p_date(window, values):
     log(f"选择的日期：{ts.popup_get_date()}")
+
+
+@ts.bind_event("-P-COLOR-")
+def on_p_color(window, values):
+    log(f"选择的颜色：{ts.popup_get_color()}")
 
 
 @ts.bind_event("-P-FONT-")
