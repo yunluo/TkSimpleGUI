@@ -35,12 +35,14 @@ class TButton(Element):
         "_toggle",
         "_group_id",
         "_down",
+        "_bind_return_key",
     )
 
     def __init__(
         self,
         button_text: str = "",
         key: Optional[ElementKey] = None,
+        bind_return_key: bool = False,
         button_type: Any = C.ButtonType.READ,
         button_color: Optional[Color] = None,
         size: Size = (None, None),
@@ -89,6 +91,7 @@ class TButton(Element):
         self._toggle = bool(toggle)
         self._group_id = group_id
         self._down = bool(down)
+        self._bind_return_key = bool(bind_return_key)
 
     @classmethod
     def browse_file(
@@ -258,6 +261,8 @@ class TButton(Element):
             self._widget.bind("<ButtonRelease-1>", self._on_release)
         else:
             self._widget.configure(command=self._on_click)
+        if self._bind_return_key and self._window is not None:
+            self._window.register_return_key_button(self)
 
     def apply_theme(self):
         """Repaint theme-derived button colors (explicit colors are kept)."""

@@ -806,6 +806,77 @@ class TestWindowManagement(unittest.TestCase):
         window.close()
 
 
+class TestClassBindings(unittest.TestCase):
+    """Class-level bindings installed once per interpreter: Ctrl+A select
+    all, Return invokes the bind_return_key button, disabled cursor."""
+
+    def tearDown(self):
+        ts.Window.close_all()
+
+    def test_control_a_selects_all_in_entry(self):
+        entry = ts.TInput("hello world", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        entry.widget.focus_set()
+        window.refresh()
+        entry.widget.event_generate("<Control-a>")
+        window.refresh()
+        self.assertTrue(entry.widget.selection_present())
+        window.close()
+
+    def test_control_a_selects_all_in_multiline(self):
+        multiline = ts.TMultiline("abc", key="-M-")
+        window = ts.Window("t", [[multiline]], finalize=True)
+        multiline._text.focus_set()
+        window.refresh()
+        multiline._text.event_generate("<Control-a>")
+        window.refresh()
+        self.assertTrue(multiline._text.tag_ranges("sel"))
+        window.close()
+
+    def test_return_key_invokes_registered_button(self):
+        entry = ts.TInput("", key="-E-")
+        button = ts.TButton("OK", key="-OK-", bind_return_key=True)
+        window = ts.Window("t", [[entry], [button]], finalize=True)
+        entry.widget.focus_set()
+        window.refresh()
+        entry.widget.event_generate("<Return>")
+        # the entry posts its own key first, then the class binding clicks
+        # the registered (default) button
+        self.assertEqual(window.read(timeout=500)[0], "-E-")
+        self.assertEqual(window.read(timeout=500)[0], "-OK-")
+        window.close()
+
+    def test_return_key_without_registered_button_posts_entry_key_only(self):
+        entry = ts.TInput("", key="-E-")
+        window = ts.Window("t", [[entry]], finalize=True)
+        entry.widget.focus_set()
+        window.refresh()
+        entry.widget.event_generate("<Return>")
+        self.assertEqual(window.read(timeout=200)[0], "-E-")
+        self.assertEqual(window.read(timeout=200)[0], ts.TIMEOUT_KEY)
+        window.close()
+
+    def test_disabled_button_hover_shows_arrow_cursor(self):
+        button = ts.TButton("blocked", disabled=True, key="-B-")
+        window = ts.Window("t", [[button]], finalize=True)
+        button.widget.event_generate("<Enter>")
+        window.refresh()
+        self.assertEqual(str(button.widget.cget("cursor")), "arrow")
+        button.widget.event_generate("<Leave>")
+        window.refresh()
+        self.assertEqual(str(button.widget.cget("cursor")), "")
+        window.close()
+
+    def test_enabled_button_hover_keeps_default_cursor(self):
+        button = ts.TButton("click me", key="-B-")
+        window = ts.Window("t", [[button]], finalize=True)
+        before = str(button.widget.cget("cursor"))
+        button.widget.event_generate("<Enter>")
+        window.refresh()
+        self.assertEqual(str(button.widget.cget("cursor")), before)
+        window.close()
+
+
 class TestTkIntegration(unittest.TestCase):
     """Deep tk/ttk API exposure: logo, graph handles, sorting, clipboard."""
 

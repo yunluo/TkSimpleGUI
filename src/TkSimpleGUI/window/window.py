@@ -8,7 +8,7 @@ import threading
 import time
 import tkinter as tk
 from tkinter import ttk
-from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union
+from typing import Any, Callable, Dict, Iterable, List, Optional, Tuple, Union, cast
 
 from .. import constants as C
 from .. import _theming as theme_mod
@@ -44,6 +44,73 @@ class _NoPayload:
 
 
 _NO_PAYLOAD = _NoPayload()
+
+# --- tk class-level bindings (installed once per interpreter) ---------------
+# Ctrl+A selects all entry-like content; Return in an entry invokes the
+# window's bind_return_key button; disabled widgets show a non-clickable
+# cursor while hovered. Mirrors ttkbootstrap's class-binding approach.
+_ENTERED_CURSORS = {}
+_CLASS_BINDINGS_DONE = False
+
+
+def _class_select_all(event: tk.Event) -> str:
+    widget = cast(Any, event.widget)
+    if isinstance(widget, tk.Text):
+        widget.tag_add("sel", "1.0", "end")
+    elif hasattr(widget, "select_range"):
+        widget.select_range(0, "end")
+    elif hasattr(widget, "selection_range"):
+        widget.selection_range(0, "end")
+    return "break"
+
+
+def _class_return_key(event: tk.Event) -> Optional[str]:
+    top = cast(Any, event.widget).winfo_toplevel()
+    for window in Window._open_windows:
+        if window._tk_root is top and window._return_key_buttons:
+            window._return_key_buttons[-1].click()
+            return "break"
+    return None
+
+
+def _class_enter_disabled_cursor(event: tk.Event) -> Optional[str]:
+    widget = event.widget
+    with contextlib.suppress(tk.TclError):
+        if str(widget.cget("state")) == "disabled":
+            _ENTERED_CURSORS[widget] = str(widget.cget("cursor"))
+            widget.configure(cursor="arrow")  # ty: ignore[unknown-argument]  tk stub
+    return None
+
+
+def _class_leave_restore_cursor(event: tk.Event) -> Optional[str]:
+    widget = event.widget
+    cursor = _ENTERED_CURSORS.pop(widget, None)
+    if cursor is not None:
+        with contextlib.suppress(tk.TclError):
+            widget.configure(cursor=cursor)  # ty: ignore[unknown-argument]  tk stub
+    return None
+
+
+def _install_class_bindings(root: tk.Misc) -> None:
+    """Install class bindings once for the whole interpreter.
+
+    Called from :meth:`Window._ensure_hidden_main_root`; every window
+    (all of them are Toplevels of that root) inherits the bindings.
+    """
+    global _CLASS_BINDINGS_DONE
+    if _CLASS_BINDINGS_DONE:
+        return
+    _CLASS_BINDINGS_DONE = True
+    entry_classes = ("Entry", "TEntry", "Combobox", "TCombobox",
+                     "Spinbox", "TSpinbox")
+    for cls in entry_classes + ("Text",):
+        root.bind_class(cls, "<Control-a>", _class_select_all)
+    for cls in entry_classes:
+        root.bind_class(cls, "<Return>", _class_return_key)
+    for cls in ("TButton", "TMenubutton", "TEntry", "Entry",
+                "TCombobox", "TSpinbox", "Spinbox", "Text"):
+        root.bind_class(cls, "<Enter>", _class_enter_disabled_cursor, add="+")
+        root.bind_class(cls, "<Leave>", _class_leave_restore_cursor, add="+")
 
 # Failed start_task workers are reported here; attach the project's logging
 # bridge (Logger.attach_logging) to see them in a log box.
@@ -112,6 +179,7 @@ class Window:
         "_event_binds",
         "_radio_groups",
         "_toggle_groups",
+        "_return_key_buttons",
         "_ttk_style",
         "_drag_offset",
         "_last_values",
@@ -290,6 +358,7 @@ class Window:
         self._event_binds = []
         self._radio_groups = {}
         self._toggle_groups = {}
+        self._return_key_buttons: List[Any] = []
         self._ttk_style = None  # ty: ignore[invalid-assignment]
         self._drag_offset = None
         self._last_values = {}
@@ -508,6 +577,7 @@ class Window:
             return cls._main_root
         cls._main_root = tk.Tk()
         cls._main_root.withdraw()
+        _install_class_bindings(cls._main_root)
         return cls._main_root
 
     def _create_root(self):
@@ -700,6 +770,15 @@ class Window:
             self._action_by_text[action.text] = action
             if action.shortcut:
                 self.bind(action.shortcut, action.key)
+        return self
+
+    def register_return_key_button(self, button: Any):
+        """Make ``button`` this window's Return-key (default) button.
+
+        Pressing Return inside any entry-like widget of this window invokes
+        the button registered last (PSG ``bind_return_key=True`` behavior).
+        """
+        self._return_key_buttons.append(button)
         return self
 
     def bind(self, shortcut: Any, key: Optional[ElementKey] = None):
