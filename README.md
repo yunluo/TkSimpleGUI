@@ -33,7 +33,7 @@
   声明式参数包，可共享复用
 - **100% 类型标注** — `py.typed`（PEP 561），ty 零诊断，IDE 全程补全与检查
 - **超越 Tk** — 圆角按钮、图像按钮、文字进度条、全局热键、任务栏进度、
-  系统托盘、日历控件、表格编辑/排序、拆分器、流式面板……Tk/ttk 没有的这里也有
+  系统托盘、文件拖放、日历控件、表格编辑/排序、拆分器、流式面板……Tk/ttk 没有的这里也有
 - **自绘展示控件** — Element Plus 风格的标签/徽章/头像/统计数值/空状态/结果页/
   步骤条/时间线/骨架屏/警告条/水印/描述列表/卡片/分段控制器/评分/分页器/穿梭框：
   全部 TCanvas 自绘或原生组合，随主题自动换色，零新依赖
@@ -160,6 +160,27 @@ window.run()
 首个泵 tick 采纳元素现值）。要求 finalize 后的窗口；绑定的元素其 `update()`
 须接受 `value=`（与 `window.fill()` 同一契约）。解绑用 `window.unbind_var(key)`，
 窗口关闭时自动解绑。
+
+## 文件拖放（Windows）
+
+`window.drop_target(func)` 让窗口接受资源管理器拖来的文件——纯 ctypes 走
+`WM_DROPFILES` shell 路线，零依赖、无需 tkdnd 扩展：
+
+```python
+window = ts.Window("拖放", [
+    [ts.TText("把文件拖进来", key="-HINT-")],
+    [ts.TMultiline("", key="-LOG-")],
+], finalize=True)
+
+def on_drop(files):
+    window["-LOG-"].write("\n".join(files) + "\n")
+
+window.drop_target(on_drop)   # None 撤销；重复注册即替换
+window.run()
+```
+
+`files` 是绝对路径字符串列表。回调在**主线程**随消息泵触发，可直接操作
+控件；关窗自动撤销。非 Windows 平台抛 `NotImplementedError`。
 
 ## 声明式配置（dataclass）
 

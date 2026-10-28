@@ -331,12 +331,33 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
         读循环、禁用光标改 deadline 刷新循环、分页器键盘新增 `_key_until`
         截止期限轮询助手）——unittest 全量负载变化让既有抖动显形，
         deadline 泵模式与 start_task 用例同款
-- 队列余项：6 drop_target 拖放 → 7 _paint 颜色 tween → 8 canvas 快照回归 →
-  9 DPI 缩放 → 10 标配对话框三件 → 11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
+- [x] **6/12 文件拖放 `window.drop_target(func)`（2026-10-28）**：⛔ 清单
+      翻案——不走 tkdnd 扩展，新私有模块 `_dnd.py` 纯 ctypes 实现
+      - 路线 = windnd 同款老式 shell API：`DragAcceptFiles` 开关 +
+        WndProc 子类化收 `WM_DROPFILES`（0x233）——纯窗口消息，回调由
+        Tk 消息泵在**主线程**派发（read/run_application 任意泵即触发），
+        无 COM/STA 复杂度；32/64 位经 `GetWindowLongPtrW`/`GetWindowLongW`
+        分支处理；`DragQueryFileW` 全长宽字符路径 → str 列表
+      - API：`drop_target(func)` 接受 `func([path, ...])`；`drop_target(None)`
+        撤销（恢复原 WndProc + `DragAcceptFiles(False)`）；重复注册即替换；
+        关窗在 `_destroy_root` 里自动撤销；要求 finalize 后窗口；
+        非 Windows 抛 `NotImplementedError`（`_dnd` 模块在任意平台可导入）
+      - 回调异常不穿透 WndProc：进 `TkSimpleGUI.drop` logger（attach_logging
+        可见）
+      - 测试 7 例：注册/撤销/替换/未 finalize 守卫/非 callable 守卫/关窗撤销/
+        **伪造真实 HDROP**（GlobalAlloc DROPFILES 结构 + 宽字符文件表）走
+        `_deliver_drop_files` 全真实路径（DragQueryFileW 解析 + DragFinish
+        释放）+ 回调异常不抛；测试助手补 kernel32 argtypes（64 位句柄截断
+        教训）；skipUnless(win32) 守卫
+      - README 新增「文件拖放（Windows）」章节 + 特性条目；测试 319 → 326
+- 队列余项：7 _paint 颜色 tween → 8 canvas 快照回归 → 9 DPI 缩放 →
+  10 标配对话框三件 → 11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
 
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
-- 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
+- WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
+  （**文件拖放原列于此，2026-10-28 翻案**：不走 tkdnd 扩展，`window.drop_target` 以纯 ctypes
+  `WM_DROPFILES` 老式 shell 路线实现，与 windnd 同路线）
 - Element Plus 对照中的"文档流概念"组件：Affix 固钉、Anchor 锚点、Backtop 回到顶部、PageHeader 页头、
   Breadcrumb（桌面无长页面滚动模型）、Row/Col 24 栅格（Tk grid 本身就是栅格）、字体图标体系
 - 待评估的后续批次（未排期）：B 批弹层族（Popover/Popconfirm/Loading/Drawer/折叠面板/弹出式日期时间）、

@@ -1032,6 +1032,89 @@ class TestBindVar(unittest.TestCase):
         window.close()
 
 
+@unittest.skipUnless(sys.platform == "win32", "Windows-only API")
+class TestDropTarget(unittest.TestCase):
+    """window.drop_target: legacy shell file drop (WM_DROPFILES route)."""
+
+    def tearDown(self):
+        ts.Window.close_all()
+
+    def test_register_and_revoke_cycle(self):
+        window = ts.Window("t", [[ts.TInput("", key="-E-")]], finalize=True)
+        seen = []
+        self.assertIs(window.drop_target(seen.append), window)
+        self.assertIs(window.drop_target(None), window)
+        window.close()
+
+    def test_replacing_registration_is_fine(self):
+        window = ts.Window("t", [[ts.TInput("", key="-E-")]], finalize=True)
+        window.drop_target(lambda files: None)
+        window.drop_target(lambda files: None)
+        window.drop_target(None)
+        window.close()
+
+    def test_requires_finalized_window(self):
+        window = ts.Window("t", [[ts.TInput("", key="-E-")]])
+        with self.assertRaises(RuntimeError):
+            window.drop_target(lambda files: None)
+        window.close()
+
+    def test_rejects_non_callable(self):
+        window = ts.Window("t", [[ts.TInput("", key="-E-")]], finalize=True)
+        with self.assertRaises(TypeError):
+            window.drop_target("not callable")
+        window.close()
+
+    def test_close_revokes_registration(self):
+        window = ts.Window("t", [[ts.TInput("", key="-E-")]], finalize=True)
+        window.drop_target(lambda files: None)
+        window.close()
+        window.close()  # second close stays inert
+
+    def _fabricate_hdrop(self):
+        """A real GlobalAlloc'd HDROP blob (DROPFILES struct + wide list)."""
+        class DropFiles(ctypes.Structure):
+            _fields_ = [
+                ("p_files", ctypes.c_uint32),
+                ("point_x", ctypes.c_long),
+                ("point_y", ctypes.c_long),
+                ("f_nc", ctypes.c_long),
+                ("f_wide", ctypes.c_long),
+            ]
+
+        header = ctypes.string_at(ctypes.byref(DropFiles(20, 0, 0, 0, 1)),
+                                  ctypes.sizeof(DropFiles))
+        blob = "C:\\a.txt\0C:\\b dir\\c.txt\0".encode("utf-16-le") + b"\x00\x00"
+        size = len(header) + len(blob)
+        kernel32 = ctypes.windll.kernel32
+        # declare the real signatures: default restype would truncate the
+        # 64-bit HGLOBAL to a 32-bit int and GlobalLock would return NULL
+        kernel32.GlobalAlloc.argtypes = [ctypes.c_uint, ctypes.c_size_t]
+        kernel32.GlobalAlloc.restype = ctypes.c_void_p
+        kernel32.GlobalLock.argtypes = [ctypes.c_void_p]
+        kernel32.GlobalLock.restype = ctypes.c_void_p
+        kernel32.GlobalUnlock.argtypes = [ctypes.c_void_p]
+        hglobal = kernel32.GlobalAlloc(0x0002, size)  # GMEM_MOVEABLE
+        pointer = kernel32.GlobalLock(hglobal)
+        ctypes.memmove(pointer, header + blob, size)
+        kernel32.GlobalUnlock(hglobal)
+        return hglobal
+
+    def test_hdrop_payload_parses_real_files(self):
+        dnd = ts._dnd
+        received = []
+        dnd._deliver_drop_files(self._fabricate_hdrop(), received.extend)
+        self.assertEqual(received, ["C:\\a.txt", "C:\\b dir\\c.txt"])
+
+    def test_failing_callback_is_reported_not_raised(self):
+        dnd = ts._dnd
+
+        def boom(files):
+            raise RuntimeError("boom")
+
+        dnd._deliver_drop_files(self._fabricate_hdrop(), boom)  # must not raise
+
+
 class TestTkIntegration(unittest.TestCase):
     """Deep tk/ttk API exposure: logo, graph handles, sorting, clipboard."""
 

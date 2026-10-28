@@ -4,6 +4,7 @@
 import contextlib
 import logging
 import queue
+import sys
 import threading
 import time
 import tkinter as tk
@@ -15,6 +16,7 @@ from .. import _theming as theme_mod
 from ..settings import settings
 from ..actions import ActionList
 from ..binding import Var
+from .._dnd import register_drop_target, revoke_drop_target
 from ..elements.base import (
     Color,
     Element,
@@ -189,6 +191,7 @@ class Window:
         "_drag_offset",
         "_last_values",
         "_var_bindings",
+        "_drop_target",
         "_parent",
         "_children",
     )
@@ -369,6 +372,7 @@ class Window:
         self._drag_offset = None
         self._last_values = {}
         self._var_bindings: List[Tuple[ElementKey, Var]] = []
+        self._drop_target: Optional[Callable[[List[str]], Any]] = None
         if actions is not None:
             self.set_actions(actions)
         if finalize:
@@ -1173,6 +1177,35 @@ class Window:
                 continue
             var._set(current, source=(self, key))
 
+    # --- file drag-and-drop (Windows) -----------------------------------------------
+    def drop_target(self, func: Optional[Callable[[List[str]], Any]]) -> "Window":
+        """Make this window accept files dragged from the Explorer.
+
+        ``func([path, ...])`` receives the absolute file paths as plain
+        strings. The call happens on the **main thread** as part of the
+        ordinary message pump (:meth:`read` / ``run_application``), so it
+        may touch elements directly.
+
+        Passing ``None`` stops accepting drops. Registering again replaces
+        the previous handler; closing the window revokes automatically.
+        Windows only — other platforms raise ``NotImplementedError``.
+        Returns self.
+        """
+        if not self._finalized:
+            raise RuntimeError("drop_target requires a finalized window")
+        if func is None:
+            if self._drop_target is not None:
+                revoke_drop_target(self._tk_root.winfo_id())
+                self._drop_target = None
+            return self
+        if not callable(func):
+            raise TypeError(f"func must be callable, not {type(func).__name__}")
+        if sys.platform != "win32":
+            raise NotImplementedError("drop_target requires Windows")
+        register_drop_target(self._tk_root.winfo_id(), func)
+        self._drop_target = func
+        return self
+
     def set_focus(self, element: Any):
         """Give the focus to an element (instance or key)."""
         if isinstance(element, str):
@@ -1591,6 +1624,10 @@ class Window:
         return self
 
     def _destroy_root(self):
+        if self._drop_target is not None and self._tk_root is not None:
+            with contextlib.suppress(tk.TclError):
+                revoke_drop_target(self._tk_root.winfo_id())
+            self._drop_target = None
         if self._tk_root is not None:
             with contextlib.suppress(tk.TclError):
                 self._tk_root.destroy()
