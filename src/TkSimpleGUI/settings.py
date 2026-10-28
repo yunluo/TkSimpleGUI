@@ -22,6 +22,7 @@ _KNOWN_OPTIONS = (
     "tooltip_offset",
     "keep_on_top",
     "scaling",
+    "dpi_aware",
     "alpha_channel",
     "suppress_error_popups",
     "suppress_raise_key_errors",
@@ -45,6 +46,7 @@ class Settings:
         "_tooltip_offset",
         "_keep_on_top",
         "_scaling",
+        "_dpi_aware",
         "_alpha_channel",
         "_suppress_error_popups",
         "_suppress_raise_key_errors",
@@ -64,6 +66,7 @@ class Settings:
         self._tooltip_offset = C.DEFAULT_TOOLTIP_OFFSET
         self._keep_on_top = None
         self._scaling = None
+        self._dpi_aware = True
         self._alpha_channel = 1.0
         self._suppress_error_popups = False
         self._suppress_raise_key_errors = True
@@ -159,7 +162,19 @@ class Settings:
 
     @scaling.setter
     def scaling(self, value: Any):
+        if value is not None:
+            value = float(value)
+            if value <= 0:
+                raise ValueError("scaling must be None or a positive number")
         self._scaling = value
+
+    @property
+    def dpi_aware(self):
+        return self._dpi_aware
+
+    @dpi_aware.setter
+    def dpi_aware(self, value: Any):
+        self._dpi_aware = bool(value)
 
     @property
     def alpha_channel(self):

@@ -66,33 +66,46 @@ def running_windows():
     return sys.platform.startswith("win")
 
 
+def _hresult_awareness_set(result: int) -> bool:
+    """True for S_OK or E_ACCESSDENIED (an awareness level is already set).
+
+    ctypes returns the HRESULT as a plain c_int without raising, so failure
+    codes must be checked explicitly; E_ACCESSDENIED means an earlier call
+    (ours or a manifest) already set awareness, which is success for us.
+    """
+    return (result & 0xFFFFFFFF) in (0, 0x80070005)
+
+
 def set_dpi_awareness():
     """Opt-in Windows DPI awareness for crisp rendering on high-DPI screens.
 
     Call once before creating the first window (a process-wide setting).
     Tries per-monitor awareness, then system awareness, then the legacy
-    ``SetProcessDPIAware``. No-op on other platforms; returns True when a
-    level was successfully set.
+    ``SetProcessDPIAware``. No-op on other platforms; returns True when an
+    awareness level is active (including one set by an earlier call). The
+    package calls this automatically at root creation; see
+    ``ts.settings.dpi_aware`` to opt out.
     """
     if not sys.platform.startswith("win"):
         return False
     import ctypes
 
     try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(2)  # per monitor
-        return True
+        if _hresult_awareness_set(ctypes.windll.shcore.SetProcessDpiAwareness(2)):
+            return True  # per monitor
     except Exception:
         pass
     try:
-        ctypes.windll.shcore.SetProcessDpiAwareness(1)  # system
-        return True
+        if _hresult_awareness_set(ctypes.windll.shcore.SetProcessDpiAwareness(1)):
+            return True  # system
     except Exception:
         pass
     try:
-        ctypes.windll.user32.SetProcessDPIAware()
-        return True
+        if ctypes.windll.user32.SetProcessDPIAware():
+            return True
     except Exception:
         return False
+    return False
 
 
 # --- font tools (tkinter.font, needs a tk root) ---------------------------------
@@ -112,7 +125,11 @@ def _font_root():
             return window.tk_root
     import tkinter as tk
 
+    from ._scaling import apply_tk_scaling, ensure_dpi_awareness
+
+    ensure_dpi_awareness()
     root = tk.Tk()
+    apply_tk_scaling(root)
     root.withdraw()
     return root
 

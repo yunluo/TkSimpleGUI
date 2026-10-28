@@ -25,6 +25,7 @@ from typing import Any, Dict, Optional, Tuple
 from . import _paint
 from .base import Color, Element, ElementKey, FontSpec, MenuDefinition, PadSpec, Size
 from .. import _theming as theme_mod
+from .._scaling import scale_opt, scale_px
 
 # status glyph families, shared by the TResult circle and the TAlert icon
 _GLYPH_CHECK = "check"
@@ -201,12 +202,20 @@ class TTag(Element):
         return self._font if self._font is not None else ("TkDefaultFont", 10)
 
     def _geometry(self, widget: Optional[tk.Misc] = None):
-        """(width, height): sized to the text plus 10px padding per side."""
-        height = self._size[1] or 22
+        """(width, height): sized to the text plus 10px padding per side.
+
+        Font-derived measurements already carry the scaling multiplier (they
+        come from the scaled font), so only literal sizes are scaled.
+        """
+        height = scale_px(self._size[1] or 22)
         target = widget if widget is not None else self._widget
         text_width = _paint.measure_text(target, self._text, self._font_spec())
-        reserve = self._CLOSE_ZONE if self._closable else 0
-        width = self._size[0] or max(40, text_width + 20 + reserve)
+        reserve = scale_px(self._CLOSE_ZONE) if self._closable else 0
+        width = (
+            scale_px(self._size[0])
+            if self._size[0]
+            else max(scale_px(40), text_width + scale_px(20) + reserve)
+        )
         return (int(width), int(height))
 
     def _style(self, colors: Dict[str, str]) -> Tuple[str, str, str, int]:
@@ -481,16 +490,20 @@ class TBadge(Element):
         return str(number)
 
     def _geometry(self, widget: Optional[tk.Misc] = None):
-        """(width, height): a dot is square, a count is a pill around the text."""
+        """(width, height): a dot is square, a count is a pill around the text.
+
+        Font-derived measurements already carry the scaling multiplier, so
+        only literal/explicit sizes are scaled.
+        """
         if self._value is None and not self._is_dot:
-            return (int(self._size[0] or 1), int(self._size[1] or 1))
+            return (scale_px(self._size[0] or 1), scale_px(self._size[1] or 1))
         if self._is_dot:
-            diameter = int(self._size[1] or 10)
+            diameter = scale_px(self._size[1] or 10)
             return (diameter, diameter)
-        height = int(self._size[1] or 18)
+        height = scale_px(self._size[1] or 18)
         target = widget if widget is not None else self._widget
         text_width = _paint.measure_text(target, self._label(), self._font_spec())
-        width = max(height, text_width + 10, int(self._size[0] or 0))
+        width = max(height, text_width + scale_px(10), scale_px(self._size[0] or 0))
         return (width, height)
 
     # --- rendering ------------------------------------------------------------
@@ -662,8 +675,8 @@ class TAvatar(Element):
         self._text_color = text_color
         self._font = font
         self._enable_events = bool(enable_events)
-        self._width = int(self._size[0] or 40)
-        self._height = int(self._size[1] or 40)
+        self._width = scale_px(self._size[0] or 40)
+        self._height = scale_px(self._size[1] or 40)
         self._photo = None
 
     # --- geometry / fonts ---------------------------------------------------------
@@ -905,8 +918,8 @@ class TStatistic(Element):
         self._label_font = label_font
         self._label_color = label_color
         self._value_color = value_color
-        self._width = int(self._size[0] or 170)
-        self._height = int(self._size[1] or 70)
+        self._width = scale_px(self._size[0] or 170)
+        self._height = scale_px(self._size[1] or 70)
 
     # --- geometry / text ----------------------------------------------------------
     def _geometry(self):
@@ -926,13 +939,13 @@ class TStatistic(Element):
         if self._suffix:
             width += _paint.measure_text(widget, self._suffix, self._AFFIX_FONT)
         if self._trend:
-            width += 12.0 + 8.0 + _paint.measure_text(
+            width += scale_px(12.0) + scale_px(8.0) + _paint.measure_text(
                 widget, self._trend_label(), self._LABEL_FONT
             )
         label_width = _paint.measure_text(
             widget, self._label, self._label_font or self._LABEL_FONT
         )
-        return int(max(width, label_width)) + 4
+        return int(max(width, label_width)) + scale_px(4)
 
     def _refit(self, widget: Optional[tk.Misc] = None):
         """Widen the canvas when the content needs more room than ``size``."""
@@ -1165,11 +1178,11 @@ class TEmpty(Element):
         # verbatim (back-compat for the 160×110 web-style hero).
         requested_w, requested_h = self._size
         if requested_w is None and requested_h is None:
-            self._width = self._COMPACT_ICON + 6 + 140  # icon + gap + ~text
-            self._height = self._COMPACT_ICON
+            self._width = scale_px(self._COMPACT_ICON + 6 + 140)  # icon + gap + ~text
+            self._height = scale_px(self._COMPACT_ICON)
         else:
-            self._width = int(requested_w or self._LEGACY_DEFAULT[0])
-            self._height = int(requested_h or self._LEGACY_DEFAULT[1])
+            self._width = scale_px(requested_w or self._LEGACY_DEFAULT[0])
+            self._height = scale_px(requested_h or self._LEGACY_DEFAULT[1])
         self._photo = None
 
     # --- geometry -------------------------------------------------------------
@@ -1370,8 +1383,8 @@ class TResult(Element):
         self._icon_color = icon_color
         self._title_color = title_color
         self._font = font
-        self._width = int(self._size[0] or 300)
-        self._height = int(self._size[1] or 200)
+        self._width = scale_px(self._size[0] or 300)
+        self._height = scale_px(self._size[1] or 200)
 
     # --- geometry -------------------------------------------------------------
     def _geometry(self):
@@ -1523,8 +1536,8 @@ class TSkeleton(Element):
         self._rows = max(1, int(rows))
         self._animated = bool(animated)
         self._avatar = bool(avatar)
-        self._bar_height = max(1, int(bar_height))
-        self._gap = max(0, int(gap))
+        self._bar_height = scale_px(max(1, int(bar_height)))
+        self._gap = scale_px(max(0, int(gap)))
         self._timer = None
         self._phase = False
         width, height = self._geometry()
@@ -1534,12 +1547,12 @@ class TSkeleton(Element):
     # --- geometry -------------------------------------------------------------
     def _geometry(self):
         """(width, height): 240 wide, row count tall (at least 40 with avatar)."""
-        height = self._size[1]
+        height = scale_opt(self._size[1])
         if height is None:
             height = self._rows * self._bar_height + max(self._rows - 1, 0) * self._gap
             if self._avatar:
-                height = max(height, 40)
-        return (int(self._size[0] or 240), int(height))
+                height = max(height, scale_px(40))
+        return (scale_px(self._size[0] or 240), int(height))
 
     def _bar_box(self, index: int, height: int):
         """(left, top, right) of one bar: the last of many is 60% wide."""
@@ -2021,10 +2034,10 @@ class TWatermark(Element):
         self._text = "" if text is None else str(text)
         self._font = font
         self._color = color
-        self._gap = (max(1, int(gap[0])), max(1, int(gap[1])))
+        self._gap = (scale_px(max(1, int(gap[0]))), scale_px(max(1, int(gap[1]))))
         self._angle = float(angle or 0.0)
-        self._width = int(self._size[0] or 400)
-        self._height = int(self._size[1] or 260)
+        self._width = scale_px(self._size[0] or 400)
+        self._height = scale_px(self._size[1] or 260)
         self._photo = None
 
     # --- geometry -------------------------------------------------------------

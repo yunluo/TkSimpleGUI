@@ -17,6 +17,7 @@ from ..settings import settings
 from ..actions import ActionList
 from ..binding import Var
 from .._dnd import register_drop_target, revoke_drop_target
+from .._scaling import apply_tk_scaling, ensure_dpi_awareness, scale_px
 from ..elements.base import (
     Color,
     Element,
@@ -561,7 +562,13 @@ class Window:
             margins = self._margins
             self._tk_root.rowconfigure(0, weight=1)
             self._tk_root.columnconfigure(0, weight=1)
-            content.grid(row=0, column=0, padx=margins[0], pady=margins[1], sticky="nsew")
+            content.grid(
+                row=0,
+                column=0,
+                padx=scale_px(margins[0]),
+                pady=scale_px(margins[1]),
+                sticky="nsew",
+            )
             self._build_layout(self._layout, content)
         except Exception:
             self._destroy_root()
@@ -587,7 +594,11 @@ class Window:
         """
         if cls._main_root is not None and cls._main_root.winfo_exists():
             return cls._main_root
+        # DPI awareness is process-wide and must precede the first window;
+        # tk scaling (pixels per point) must land before any widget/font
+        ensure_dpi_awareness()
         cls._main_root = tk.Tk()
+        apply_tk_scaling(cls._main_root)
         cls._main_root.withdraw()
         _install_class_bindings(cls._main_root)
         return cls._main_root
@@ -595,6 +606,9 @@ class Window:
     def _create_root(self):
         main_root = Window._ensure_hidden_main_root()
         self._tk_root = tk.Toplevel(main_root)
+        # tk scaling is interpreter-wide; re-apply per window so a
+        # ts.settings.scaling set after the master root was born still lands
+        apply_tk_scaling(self._tk_root)
         Window._open_windows.append(self)
         self._tk_root.withdraw()
         self._ttk_style = ttk.Style(self._tk_root)
@@ -616,10 +630,10 @@ class Window:
         # iconphoto/iconbitmap call means Tk shows the embedded Python icon.
         width, height = self._size
         if width is not None and height is not None:
-            root.geometry(f"{int(width)}x{int(height)}")
+            root.geometry(f"{int(scale_px(width))}x{int(scale_px(height))}")
         # a floor small enough that the title bar buttons (minimize /
         # maximize / close) always stay visible and clickable
-        root.minsize(C.WINDOW_MIN_WIDTH, C.WINDOW_MIN_HEIGHT)
+        root.minsize(scale_px(C.WINDOW_MIN_WIDTH), scale_px(C.WINDOW_MIN_HEIGHT))
         if self._location is not None:
             x, y = self._location
             if x is not None and y is not None:
@@ -1218,13 +1232,15 @@ class Window:
     def set_size(self, size: Tuple[int, int]):
         """Resize the window to ``(width, height)`` pixels."""
         if self._root_alive() and size is not None:
-            self._tk_root.geometry(f"{int(size[0])}x{int(size[1])}")
+            self._tk_root.geometry(
+                f"{int(scale_px(size[0]))}x{int(scale_px(size[1]))}"
+            )
         return self
 
     def set_min_size(self, size: Tuple[int, int]):
         """Set the smallest allowed window size ``(width, height)``."""
         if self._root_alive() and size is not None:
-            self._tk_root.minsize(int(size[0]), int(size[1]))
+            self._tk_root.minsize(scale_px(size[0]), scale_px(size[1]))
         return self
 
     def current_location(self):

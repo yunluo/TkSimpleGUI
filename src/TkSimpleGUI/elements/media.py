@@ -7,6 +7,7 @@ from typing import Any, Callable, Optional, Sequence, Tuple, Union
 
 from .base import Color, Element, ElementKey, FontSpec, MenuDefinition, PadSpec, Size
 from .. import _theming as theme_mod
+from .._scaling import scale_pair
 import contextlib
 
 # A drawing point in user/graph coordinates.
@@ -258,7 +259,9 @@ class TCanvas(Element):
             metadata=metadata,
         )
         self._background_color = background_color
-        self._canvas_size = size
+        # scale once at storage time so the canvas config, every drawing
+        # coordinate derived from _canvas_size and the PIL frame all agree
+        self._canvas_size = scale_pair(size[0], size[1])
 
     def _create_widget(self, master: tk.Misc):
         kwargs = {}

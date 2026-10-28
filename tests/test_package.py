@@ -1328,6 +1328,191 @@ class TestTkIntegration(unittest.TestCase):
         self.assertIsInstance(result, bool)
 
 
+class TestDpiScaling(unittest.TestCase):
+    """DPI awareness + ts.settings.scaling.
+
+    Every expectation is written as a formula against ``ts._scaling`` (or the
+    live ``winfo_fpixels``) so the suite stays green on any-DPI machines; with
+    the default multiplier 1 the scaled values equal the unscaled ones.
+    """
+
+    def setUp(self):
+        self._previous_scaling = ts.settings.scaling
+        self._previous_dpi_aware = ts.settings.dpi_aware
+        self._previous_theme = ts.theme()
+
+    def tearDown(self):
+        ts.settings.scaling = self._previous_scaling
+        ts.settings.dpi_aware = self._previous_dpi_aware
+        ts.theme(self._previous_theme)
+        ts.Window.close_all()
+
+    @staticmethod
+    def _first(value):
+        """First number of a grid_info pad entry (tk collapses equal pairs)."""
+        return int(value[0] if isinstance(value, (tuple, list)) else value)
+
+    # --- settings ---------------------------------------------------------------
+    def test_pixel_scale_defaults_to_one(self):
+        ts.settings.scaling = None
+        self.assertEqual(ts._scaling.pixel_scale(), 1.0)
+
+    def test_pixel_scale_multiplier(self):
+        ts.settings.scaling = 2.5
+        self.assertEqual(ts._scaling.pixel_scale(), 2.5)
+
+    def test_scaling_validation(self):
+        with self.assertRaises(ValueError):
+            ts.settings.scaling = 0
+        with self.assertRaises(ValueError):
+            ts.settings.scaling = -1.5
+        self.assertIsNone(ts.settings.scaling)
+
+    def test_dpi_aware_setting_coerced(self):
+        ts.settings.dpi_aware = 0
+        self.assertIs(ts.settings.dpi_aware, False)
+        ts.settings.dpi_aware = True
+        self.assertIs(ts.settings.dpi_aware, True)
+
+    # --- pure helpers -------------------------------------------------------------
+    def test_scale_px_math(self):
+        ts.settings.scaling = 2.0
+        self.assertEqual(ts._scaling.scale_px(5), 10)
+        self.assertEqual(ts._scaling.scale_px(2.4), 5)  # rounds to int
+        self.assertEqual(ts._scaling.scale_px(-3), -6)
+        self.assertIsNone(ts._scaling.scale_opt(None))
+        self.assertEqual(ts._scaling.scale_opt(3), 6)
+        self.assertEqual(ts._scaling.scale_pair(3, None), (6, None))
+
+    # --- awareness ------------------------------------------------------------------
+    def test_ensure_dpi_awareness_calls_once(self):
+        calls = []
+        original = ts.utils.set_dpi_awareness
+
+        def fake():
+            calls.append(1)
+            return True
+
+        ts.utils.set_dpi_awareness = fake
+        try:
+            ts._scaling._awareness_attempted = False
+            self.assertTrue(ts._scaling.ensure_dpi_awareness())
+            self.assertTrue(ts._scaling.ensure_dpi_awareness())
+            self.assertEqual(len(calls), 1)  # second call is served from cache
+        finally:
+            ts.utils.set_dpi_awareness = original
+            ts._scaling._awareness_attempted = True
+
+    def test_ensure_dpi_awareness_opt_out(self):
+        calls = []
+        original = ts.utils.set_dpi_awareness
+
+        def fake():
+            calls.append(1)
+            return True
+
+        ts.utils.set_dpi_awareness = fake
+        ts.settings.dpi_aware = False
+        try:
+            ts._scaling._awareness_attempted = False
+            self.assertFalse(ts._scaling.ensure_dpi_awareness())
+            self.assertEqual(len(calls), 0)  # opt-out skips the API entirely
+        finally:
+            ts.utils.set_dpi_awareness = original
+            ts._scaling._awareness_attempted = True
+
+    @unittest.skipUnless(not ts.running_windows(), "non-Windows only")
+    def test_set_dpi_awareness_non_windows_noop(self):
+        self.assertFalse(ts.set_dpi_awareness())
+
+    # --- tk scaling (the font line) --------------------------------------------------
+    def test_tk_scaling_keeps_tk_own_dpi_value(self):
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        root = window.tk_root
+        base = ts._scaling._native_tk_scaling
+        self.assertIsNotNone(base)
+        self.assertGreater(base, 0)
+        self.assertAlmostEqual(float(root.tk.call("tk", "scaling")), base, places=9)
+        # at multiplier 1 winfo_fpixels reads back the DPI Tk captured from
+        self.assertAlmostEqual(root.winfo_fpixels("1i") / 72.0, base, places=9)
+        window.close()
+
+    def test_tk_scaling_follows_multiplier(self):
+        ts.settings.scaling = 2.0
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        root = window.tk_root
+        expected = ts._scaling._native_tk_scaling * ts._scaling.pixel_scale()
+        self.assertAlmostEqual(float(root.tk.call("tk", "scaling")), expected, places=9)
+        window.close()
+
+    # --- pixel-domain hooks ----------------------------------------------------------
+    def test_element_padding_scaled(self):
+        ts.settings.scaling = 2.0
+        window = ts.Window("t", [[ts.TText("x", key="-X-")]], finalize=True)
+        info = window.find_element("-X-").widget.grid_info()
+        self.assertEqual(self._first(info["padx"]), ts._scaling.scale_px(5))
+        self.assertEqual(self._first(info["pady"]), ts._scaling.scale_px(3))
+        window.close()
+
+    def test_window_margins_scaled(self):
+        ts.settings.scaling = 2.0
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        content = window.tk_root.grid_slaves(row=0, column=0)[0]
+        info = content.grid_info()
+        self.assertEqual(self._first(info["padx"]), ts._scaling.scale_px(10))
+        self.assertEqual(self._first(info["pady"]), ts._scaling.scale_px(5))
+        window.close()
+
+    def test_window_geometry_scaled(self):
+        ts.settings.scaling = 2.0
+        window = ts.Window("t", [[ts.TText("x")]], size=(400, 300), finalize=True)
+        root = window.tk_root
+        deadline = time.time() + 3
+        while time.time() < deadline and root.winfo_width() < 2:
+            window.refresh()
+        self.assertEqual(root.winfo_width(), ts._scaling.scale_px(400))
+        self.assertEqual(root.winfo_height(), ts._scaling.scale_px(300))
+        window.close()
+
+    def test_minsize_scaled(self):
+        ts.settings.scaling = 2.0
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        window.set_min_size((200, 100))
+        self.assertEqual(
+            window.tk_root.minsize(),
+            (ts._scaling.scale_px(200), ts._scaling.scale_px(100)),
+        )
+        window.close()
+
+    def test_chart_canvas_scaled(self):
+        ts.settings.scaling = 2.0
+        chart = ts.TChart(canvas_size=(420, 280))
+        window = ts.Window("t", [[chart]], finalize=True)
+        self.assertEqual(int(chart.widget.cget("width")), ts._scaling.scale_px(420))
+        self.assertEqual(int(chart.widget.cget("height")), ts._scaling.scale_px(280))
+        self.assertEqual(chart._canvas_size, ts._scaling.scale_pair(420, 280))
+        window.close()
+
+    def test_display_canvas_scaled(self):
+        ts.settings.scaling = 2.0
+        tag = ts.TTag("Sized", size=(90, 26))
+        window = ts.Window("t", [[tag]], finalize=True)
+        self.assertEqual(int(tag.widget.cget("width")), ts._scaling.scale_px(90))
+        self.assertEqual(int(tag.widget.cget("height")), ts._scaling.scale_px(26))
+        window.close()
+
+    def test_ttk_notebook_padding_scaled(self):
+        ts.theme("Slate")  # native engine restores skip the custom paddings
+        ts.settings.scaling = 2.0
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        from tkinter import ttk
+
+        padding = ttk.Style(window.tk_root).lookup("TNotebook.Tab", "padding")
+        parts = [int(part) for part in str(padding).split()]
+        self.assertEqual(parts, [ts._scaling.scale_px(10), ts._scaling.scale_px(5)])
+        window.close()
+
+
 class TestNativeCoverage(unittest.TestCase):
     """Per-widget coverage of the native Tk/ttk passthrough APIs."""
 
@@ -3970,7 +4155,20 @@ class TestSelectionElements(unittest.TestCase):
         self.assertEqual(rate._value_at(5), 0.5)
         self._click(window, rate.widget, 5, 13)
         self.assertIn("-RATE-", self._events(window))
-        self.assertEqual(rate.get(), 0.5)
+        # pump the bus quiet and count strays: one click must post exactly
+        # once, so a late duplicate delivery (seen under full-suite load)
+        # fails here with the right semantics, not inside the drain below
+        deadline = time.time() + 2
+        quiet_reads = 0
+        extra_posts = 0
+        while time.time() < deadline and quiet_reads < 5:
+            event, _values = window.read(timeout=20)
+            if event == "-RATE-":
+                extra_posts += 1
+                quiet_reads = 0
+            elif event == ts.TIMEOUT_KEY:
+                quiet_reads += 1
+        self.assertEqual(extra_posts, 0)
         # clicking the same value again changes nothing: no event at all
         self._click(window, rate.widget, 5, 13)
         self.assertNotIn("-RATE-", self._events(window, timeout=200))

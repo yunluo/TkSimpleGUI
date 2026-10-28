@@ -24,6 +24,7 @@ import tkinter as tk
 
 from .. import constants as C
 from .. import _theming as theme_mod
+from .._scaling import scale_px
 from ..settings import settings
 
 # A user-visible element key (str or any hashable); None means "no key".
@@ -267,6 +268,10 @@ class Element(metaclass=ElementBaseMeta):
         left, right, top, bottom = _parse_pad(
             self._pad if self._pad is not None else default_pad
         )
+        left = scale_px(left)
+        right = scale_px(right)
+        top = scale_px(top)
+        bottom = scale_px(bottom)
         if self._expand_x:
             sticky_x = "we"
         else:
@@ -434,8 +439,8 @@ class Tooltip:
         self._id = None
         if self._tip is not None:
             return None
-        x = self._widget.winfo_rootx() + 10
-        y = self._widget.winfo_rooty() + self._widget.winfo_height() + 10
+        x = self._widget.winfo_rootx() + scale_px(10)
+        y = self._widget.winfo_rooty() + self._widget.winfo_height() + scale_px(10)
         self._tip = tk_wrapper = self._make_tip_window(x, y)
         return tk_wrapper
 

@@ -141,7 +141,11 @@ class SystemTray:
                 return
         import tkinter as tk
 
+        from .._scaling import apply_tk_scaling, ensure_dpi_awareness
+
+        ensure_dpi_awareness()
         self._tk_root = tk.Tk()
+        apply_tk_scaling(self._tk_root)
         self._tk_root.withdraw()
         self._owns_root = True
 

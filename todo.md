@@ -377,8 +377,36 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
         窗口泄漏级联）一并消除
 - [ ] **8/12 canvas 快照回归测试**：**用户拍板跳过**——截图基线跨机器/DPI
       脆弱，维护成本高于收益
-- 队列余项：9 DPI 缩放 → 10 标配对话框三件 → 11 圆角抗锯齿 →
-  12 亮暗跟随 + DWM 美化
+- [x] **9/12 DPI 缩放（2026-10-28）**：调研报告 #3 项三件事全部落地
+      - **感知**：首个窗口/裸根创建前自动 `set_dpi_awareness()`（逐显示器
+        → 系统 → legacy 逐级回退，进程级一次守卫缓存）；
+        `ts.settings.dpi_aware=False` 退出；顺手修 HRESULT 语义——
+        `SetProcessDpiAwareness` 的 E_ACCESSDENIED（已设置）此前被 ctypes
+        静默吞掉，现显式判 S_OK/E_ACCESSDENIED 为成功
+      - **字体线**：`apply_tk_scaling` 在每个新根设 `tk scaling` =
+        Tk 原生 DPI 基准 × 用户倍率——全库字号皆点数，字体与字符定宽
+        控件自动跟随；**基准只捕获一次**（`winfo_fpixels('1i')` 读回的
+        就是 tk scaling 本身，直接复算会复利放大——测试序列里炸出过
+        interp scaling 被推到 42.3 的指数增长）
+      - **像素线（opt-in）**：`ts.settings.scaling` 倍率作用于中央钩子——
+        grid padx/pady（`_grid_into`）、窗口 margins/geometry/minsize/
+        set_size/set_min_size、tooltip 偏移、configure_ttk 四处内边距、
+        TCanvas `_canvas_size`（图表全家 + PIL 帧一致）、display 八元素
+        最终尺寸；字体派生测量（measure_text）自带倍率，只缩字面量
+      - **设计取舍**：像素域不随 DPI 自动缩放（默认因子恒 1）——canvas
+        内部装饰字面量未逐点改写，自动缩放会出现"画布大内部不随"的
+        不一致，且十余处精确值断言会在 >100% DPI 真机集体变红；
+        opt-in 下 CI/真机默认零改动，既有 333 测试零改动全绿
+      - 覆盖四个裸 `tk.Tk()` 处（主根/`_font_root`/`ttk_themes`/托盘泵根），
+        防止先建裸根把进程锁死在 unaware
+      - 测试 17 例（333 → 350）：倍率语义与校验/scale 数学/awareness 进程
+        级一次缓存与 opt-out（monkeypatch 计数）/tk scaling 双断言（基准
+        保持 + 倍率跟随）/端到端（元素 padx/窗口 margins/geometry deadline
+        泵/minsize/TChart/TTag 画布/TNotebook.Tab padding），全部公式断言
+        （预期 = `scale_px(原值)`）任意 DPI 成立；主题 setUp/tearDown 密闭
+      - README 新增「DPI 缩放（Windows）」章节 + 特性条目；`scale_px`
+        （非可选）/`scale_opt`/`scale_pair`（None 直通）三分，ty 零诊断
+- 队列余项：10 标配对话框三件 → 11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
 
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
@@ -392,7 +420,7 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m pytest tests -q`（319 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 测试：`python -m pytest tests -q`（350 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
 - 类型：`python tests/check_types.py`（ty 守卫；找不到 ty 时返回非零。注意 PATH 上的 ty 0.0.53 会对既有
   `elements/buttons.py` 报 34 条 ttk stub 误报——基线如此，与本批次无关；`D:\bin\ty.exe`（0.0.32）零诊断）
 - Lint：`ruff check src tests demos`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）

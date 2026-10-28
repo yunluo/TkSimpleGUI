@@ -15,6 +15,7 @@ import tkinter as tk
 from tkinter import ttk
 
 from . import constants as C
+from ._scaling import apply_tk_scaling, ensure_dpi_awareness, scale_px
 from ._theme_data import THEMES
 from .constants import Color, ElementKey
 
@@ -612,12 +613,12 @@ class ThemeManager:
         # --- notebook: raised selected tab, dimmed idle tabs ------------------
         style.configure(
             "TNotebook", background=bg, bordercolor=border, lightcolor=bg,
-            darkcolor=bg, tabmargins=(6, 4, 6, 0),
+            darkcolor=bg, tabmargins=(scale_px(6), scale_px(4), scale_px(6), 0),
         )
         style.configure(
             "TNotebook.Tab", background=bg, foreground=muted,
             bordercolor=border, lightcolor=border, darkcolor=border,
-            padding=(10, 5),
+            padding=(scale_px(10), scale_px(5)),
         )
         style.map(
             "TNotebook.Tab",
@@ -642,7 +643,7 @@ class ThemeManager:
         style.configure(
             "Treeview.Heading", background=bg, foreground=_blend(fg, bg, 0.25),
             bordercolor=border, lightcolor=border, darkcolor=border,
-            relief="flat", padding=(6, 4),
+            relief="flat", padding=(scale_px(6), scale_px(4)),
         )
         style.map("Treeview.Heading", foreground=[("active", fg)])
 
@@ -654,7 +655,7 @@ class ThemeManager:
         style.configure("TLabelframe.Label", background=bg, foreground=fg)
         style.configure("TSeparator", background=border)
         style.configure("TPanedwindow", background=bg)
-        style.configure("Sash", sashthickness=6, gripcount=0, background=border)
+        style.configure("Sash", sashthickness=scale_px(6), gripcount=0, background=border)
         style.configure("TSizegrip", background=bg)
 
         # per-widget derived styles (explicit user colors) need the same
@@ -791,7 +792,9 @@ def ttk_themes():
             break
     temporary = root is None
     if temporary:
+        ensure_dpi_awareness()
         root = tk.Tk()
+        apply_tk_scaling(root)
         root.withdraw()
     try:
         return sorted(ttk.Style(root).theme_names())
