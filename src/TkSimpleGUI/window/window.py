@@ -26,8 +26,6 @@ from ..elements.base import (
 )
 from ..elements.containers import TMenu
 
-# A Window size or on-screen position as (x, y) pixels.
-WindowPoint = Tuple[int, int]
 # Sizes/locations accept None components ("let the wm decide").
 OptionalPoint = Tuple[Optional[int], Optional[int]]
 

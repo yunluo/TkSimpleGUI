@@ -279,6 +279,13 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
       至 40 个
 - [x] 验证：ruff 0 / ty 0、299 测试双解释器全绿、语法门双解释器、showcase --smoke OK
 
+- [x] **命名规范全量审计（同日）**："除类可驼峰，其余一律蛇形"——AST 扫描器核对
+      全部 def/class/模块级与类级赋值：公开函数与方法 100% 蛇形、类 CamelCase、
+      公共常量与枚举成员 ALL_CAPS、类型别名 CamelCase（ElementKey/FontSpec/Size/
+      OptionalPoint 等类型名）、私有名 `_` 前缀——**0 违规**；顺手删除 window.py 的
+      死类型别名 `WindowPoint`（定义后从未使用）；kwargs 尾下划线 `from_`/`range_`
+      为规避关键字的既有约定，保留
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
