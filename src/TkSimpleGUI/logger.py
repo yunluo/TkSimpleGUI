@@ -122,7 +122,7 @@ class Logger:
         mirror: Any = None,
         drain_ms: int = 100,
     ):
-        if element is None or not hasattr(element, "print"):
+        if element is None or not hasattr(element, "write"):
             raise TypeError(
                 "Logger needs a TMultiline / TOutput element to write into"
             )
@@ -188,7 +188,7 @@ class Logger:
 
     # --- rendering -------------------------------------------------------------
     def _emit(self, args: Any, level: str, color: Optional[Color], timestamp: Optional[str]):
-        """One line, on the Tk thread: filter, format, mirror, print."""
+        """One line, on the Tk thread: filter, format, mirror, write."""
         if _LEVEL_RANK.get(level, 20) < _LEVEL_RANK.get(self._min_level, 10):
             return
         line = self._format(args, level, timestamp)
@@ -200,7 +200,7 @@ class Logger:
         if color is not None:
             paint = color
         try:
-            element.print(line, text_color=paint)
+            element.write(line, text_color=paint)
         except Exception:
             # the window went away mid-write (TclError); the mirror has it
             return

@@ -255,6 +255,30 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 - [x] ruff 两份二进制均已自动升级至 0.17.2，新版启用 PLR0917（位置参数过多），与
       PLR0913 同理进 ignore——位置参数构造正是本框架的布局调用约定
 
+## 🧹 API 设计审计：不合理 API 清除（2026-10-28）
+
+全量公开面审计（`__all__` 去重、内建遮蔽参数、PSG 腔命名、重复概念），7 项处理，
+导出 176 → 170：
+
+- [x] **删除重复概念**：`popup_ok`（≡`popup`，两者都是 OK 按钮消息框）、
+      `popup_no_buttons`（收编进 `popup_notify(duration=3)`，一个概念一个名字）、
+      `popup` 的 `auto_close`/`auto_close_duration` 形参（≡`popup_auto_close`）、
+      `main_loop`（PSG 腔别名，`run_application`/`.run()` 是唯一入口）、
+      `timer_start`/`timer_stop`/`_ModuleTimer`（模块级隐藏全局秒表，`Timer` 类已覆盖）
+- [x] **删除误导命名**：`Window.hide_row`/`unhide_row`（隐藏的是元素不是行，PSG 遗留
+      词汇；`window["-KEY-"].hide()` 与 `element.hide/unhide` 已覆盖）
+- [x] **内建遮蔽修复**：`TAlert` 的 `type` 参数改 `status`（对齐框架既有
+      `_paint.status_color`/`_status_glyph` 词汇，属性 `_type`→`_status` 同步 slots）；
+      `TSlider` 的 `range` 改 `range_`（与 TSpin 既有约定一致，不再遮蔽内建）
+- [x] **PSG 腔命名**：`Window.set_alpha_channel` → `set_opacity`
+- [x] **`Multiline.print` → `write`**（类方法遮蔽内建 print 的坏味道；logger 桥接、
+      Output 继承同步）
+- [x] **`__all__` 去重**：`SelectMode` 重复项删除
+- [x] 调用点全量同步：tests（main_loop→run_application、set_opacity、write、status=、
+      popup_notify）、showcase（popup、set_opacity、write、status=）；遗留名断言扩充
+      至 40 个
+- [x] 验证：ruff 0 / ty 0、299 测试双解释器全绿、语法门双解释器、showcase --smoke OK
+
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - 文件拖放（需 tkdnd 扩展）、WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS

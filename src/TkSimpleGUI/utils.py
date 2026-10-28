@@ -48,30 +48,6 @@ class Timer:
         return self
 
 
-class _ModuleTimer:
-    """Backing state for the module level timer_start/timer_stop helpers."""
-
-    _start = 0.0
-
-    @classmethod
-    def start(cls):
-        cls._start = time.time()
-
-    @classmethod
-    def stop_ms(cls):
-        return int((time.time() - cls._start) * 1000)
-
-
-def timer_start():
-    """Start the module level convenience timer."""
-    _ModuleTimer.start()
-
-
-def timer_stop():
-    """Milliseconds elapsed since :func:`timer_start`."""
-    return _ModuleTimer.stop_ms()
-
-
 def formatted_datetime_now():
     """Current local time as ``YYYY-MM-DD HH:MM:SS``."""
     return time.strftime("%Y-%m-%d %H:%M:%S")

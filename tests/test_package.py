@@ -306,6 +306,9 @@ class TestElementConstruction(unittest.TestCase):
             "popup_annoying", "popup_no_titlebar", "popup_non_blocking",
             "popup_error_with_traceback", "list_of_look_and_feel_values",
             "theme_add_new", "LOOK_AND_FEEL_TABLE", "DEFAULT_WINDOW_ICON",
+            "popup_ok", "popup_no_buttons", "main_loop",
+            "timer_start", "timer_stop", "hide_row", "unhide_row",
+            "set_alpha_channel",
         ):
             self.assertFalse(hasattr(ts, name), f"{name} should be gone")
         self.assertTrue(hasattr(ts, "settings"))
@@ -748,7 +751,7 @@ class TestWindowManagement(unittest.TestCase):
         window.set_size((320, 200))
         window.refresh()
         self.assertGreaterEqual(window.size[0], 300)
-        window.set_alpha_channel(0.8)
+        window.set_opacity(0.8)
         window.keep_on_top()
         window.hide()
         window.unhide()
@@ -859,11 +862,11 @@ class TestTkIntegration(unittest.TestCase):
         self.assertEqual(table.values[0], ["cherry", 1])  # values kept in sync
         window.close()
 
-    def test_multiline_undo_and_colored_print(self):
+    def test_multiline_undo_and_colored_write(self):
         multiline = ts.TMultiline("", key="-ML-")
         window = ts.Window("t", [[multiline]], finalize=True)
-        multiline.print("line-one")
-        multiline.print("bad", text_color="#cc0000")
+        multiline.write("line-one")
+        multiline.write("bad", text_color="#cc0000")
         self.assertIn("line-one", multiline.get())
         self.assertIn("bad", multiline.get())
         multiline._text.insert("end", "extra")
@@ -1921,9 +1924,9 @@ class TestThirdBatch(unittest.TestCase):
             self.assertIn(name, buffer.getvalue())
 
     def test_dbg_returns_quickly(self):
-        # dbg formats args and delegates to the buttonless quick popup
+        # dbg formats args and delegates to the notification popup
         self.assertTrue(callable(ts.dbg))
-        self.assertTrue(callable(ts.popup_no_buttons))
+        self.assertTrue(callable(ts.popup_notify))
 
 
 class TestLineA(unittest.TestCase):
@@ -1972,7 +1975,7 @@ class TestLineA(unittest.TestCase):
     def test_multiline_link_and_search(self):
         multiline = ts.TMultiline("", key="-ML-")
         window = ts.Window("t", [[multiline]], finalize=True)
-        multiline.print("Visit ")
+        multiline.write("Visit ")
         multiline.link("TkSimpleGUI", key="-LINK-")
         self.assertEqual(multiline.search_all("Simple"), 1)
         ranges = multiline._text.tag_ranges("search_all")
@@ -2315,7 +2318,7 @@ class TestLineB(unittest.TestCase):
 
 
 class TestUnifiedLoop(unittest.TestCase):
-    """Single event loop: global bus + main_loop, multi-window by design."""
+    """Single event loop: global bus + run_application, multi-window by design."""
 
     def tearDown(self):
         ts.Window.close_all()
@@ -2377,11 +2380,11 @@ class TestUnifiedLoop(unittest.TestCase):
             window.close()  # last window gone -> loop ends
 
         window.write_event_value("-QUIT-")  # fires once the loop pumps
-        ts.main_loop(window, app)
+        ts.run_application(window, app)
         self.assertEqual(seen, ["quit"])
         self.assertEqual(ts.Window.active_windows(), [])
 
-    def test_main_loop_dispatches_to_on_handlers(self):
+    def test_run_application_dispatches_to_on_handlers(self):
         app = ts.TkSimpleEvent()
         main = ts.Window("main", [[ts.TButton("open", key="-OPEN-")]], finalize=True)
         received = []
@@ -2397,11 +2400,11 @@ class TestUnifiedLoop(unittest.TestCase):
             ts.Window.close_all()
 
         main.write_event_value("-OPEN-")  # fires inside the loop
-        ts.main_loop(main, app)
+        ts.run_application(main, app)
         self.assertEqual(received, ["child"])  # handler got the CHILD window
         self.assertEqual(ts.Window.active_windows(), [])
 
-    def test_main_loop_with_action_callbacks(self):
+    def test_run_application_with_action_callbacks(self):
         calls = []
         app = ts.TkSimpleEvent()
         ok_action = ts.Action("OK", key="OK",
@@ -2415,7 +2418,7 @@ class TestUnifiedLoop(unittest.TestCase):
             ts.Window.close_all()
 
         window.write_event_value("OK")  # fires inside the loop
-        ts.main_loop(window, app)
+        ts.run_application(window, app)
         self.assertEqual(calls, ["ok", "handler"])
 
     def test_close_all_drops_stale_events(self):
@@ -3189,7 +3192,7 @@ class TestDisplayElements(unittest.TestCase):
 
     def test_alert_effects_and_types_render(self):
         alerts = [
-            ts.TAlert("message", type=kind, title="Header", effect=effect)
+            ts.TAlert("message", status=kind, title="Header", effect=effect)
             for effect in ("light", "dark")
             for kind in ("info", "success", "warning", "error")
         ]
@@ -3211,7 +3214,7 @@ class TestDisplayElements(unittest.TestCase):
         self._click(window, alert._close_canvas, 8, 8)
         self.assertIn(("-ALERT-", "close"), self._events(window))
         self.assertFalse(alert.visible)
-        alert.update(text="changed", type="error")
+        alert.update(text="changed", status="error")
         self.assertEqual(alert.get(), "changed")
         # the repaint keeps the labels on the bar's own background
         self.assertEqual(

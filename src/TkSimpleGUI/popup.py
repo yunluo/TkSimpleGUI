@@ -69,18 +69,9 @@ def _message_lines(args: Any):
     return lines or [""]
 
 
-def popup(*args: Any, title: Any = "", auto_close: Any = False, auto_close_duration: Any = None):
+def popup(*args: Any, title: Any = ""):
     """Show a message with an OK button; returns the clicked button text."""
-    if auto_close:
-        return popup_auto_close(
-            *args, title=title, auto_close_duration=auto_close_duration
-        )
     return _popup_window(title, _message_lines(args))
-
-
-def popup_ok(*args: Any, title: Any = ""):
-    """Show a message with an OK button; returns ``"OK"``."""
-    return _popup_window(title, _message_lines(args), buttons=("OK",))
 
 
 def popup_yes_no(*args: Any, title: Any = ""):
@@ -103,14 +94,14 @@ def popup_error(*args: Any, title: Any = "Error"):
     return _popup_window(title, _message_lines(args), buttons=("OK",))
 
 
-def popup_no_buttons(*args: Any, title: Any = "", auto_close_duration: Any = None):
-    """Show a message without buttons; auto closes. Returns ``""``."""
+def popup_notify(*args: Any, title: Any = "Notification", duration: Any = 3):
+    """Show a short auto-closing notification (no buttons). Returns ``""``."""
     return _popup_window(
         title,
         _message_lines(args),
         buttons=(),
         no_buttons=True,
-        auto_close_duration=auto_close_duration,
+        auto_close_duration=duration,
     )
 
 
@@ -145,11 +136,6 @@ def popup_scrolled(*args: Any, title: Any = "", size: Any = (80, 20)):
     if event == "Cancel":
         return None
     return "\n".join(_message_lines(args))
-
-
-def popup_notify(*args: Any, title: Any = "Notification"):
-    """Show a short auto closing notification."""
-    return popup_no_buttons(*args, title=title, auto_close_duration=3)
 
 
 def popup_get_text(message: str, title: str = "", default_text: str = ""):

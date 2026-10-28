@@ -128,7 +128,7 @@ class Window:
 
     # Global event bus: every element event lands here as
     # (window, event, values). There is ONE event loop for the whole
-    # application; any Window.read() (or ts.main_loop) consumes events
+    # application; any Window.read() (or run_application) consumes events
     # raised by ANY window, so multi window support is inherent.
     _event_bus: "queue.Queue[Any]" = queue.Queue()
 
@@ -426,7 +426,7 @@ class Window:
         window is finalized out of the registry — with the single
         application loop this means "all windows closed → returns
         (None, WIN_CLOSED, {})" once the last one goes away, so callers can
-        simply loop until then (or use :func:`ts.main_loop`).
+        simply loop until then (or use :func:`run_application`).
         """
         deadline = None if timeout is None else time.time() + timeout / 1000.0
         while True:
@@ -724,7 +724,7 @@ class Window:
 
     def _post_event(self, key: ElementKey, value: Any = _NO_PAYLOAD):
         """Queue an event on the global bus (elements/user code; consumed by
-        any ``Window.read`` or ``ts.main_loop``).
+        any ``Window.read`` or ``run_application``).
 
         Safe from any thread: off the main thread the event is handed to
         :attr:`_pending_posts` and the main thread forwards it onto the bus
@@ -1023,22 +1023,6 @@ class Window:
             element.set_focus()
         return self
 
-    def hide_row(self, element: Any):
-        """Hide the element (instance or key)."""
-        if isinstance(element, str):
-            element = self._elements_by_key.get(element)
-        if element is not None:
-            element.hide()
-        return self
-
-    def unhide_row(self, element: Any):
-        """Show a previously hidden element (instance or key)."""
-        if isinstance(element, str):
-            element = self._elements_by_key.get(element)
-        if element is not None:
-            element.unhide()
-        return self
-
     # --- window management ---------------------------------------------------------------
     def set_size(self, size: Tuple[int, int]):
         """Resize the window to ``(width, height)`` pixels."""
@@ -1103,7 +1087,7 @@ class Window:
                 self._tk_root.deiconify()
         return self
 
-    def set_alpha_channel(self, alpha: float):
+    def set_opacity(self, alpha: float):
         """Set the window transparency (``0.0`` invisible - ``1.0`` opaque)."""
         if self._root_alive():
             with contextlib.suppress(tk.TclError):

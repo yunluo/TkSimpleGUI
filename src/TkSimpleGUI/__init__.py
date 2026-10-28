@@ -65,8 +65,6 @@ from .constants import (
 from .utils import (
     rgb,
     Timer,
-    timer_start,
-    timer_stop,
     formatted_datetime_now,
     running_windows,
     running_linux,
@@ -204,14 +202,6 @@ def bind_event(event_names: Any):
     return default_app().bind_event(event_names)
 
 
-def main_loop(window: Window, app: Any = None):
-    """Run the single application event loop (user code never writes one).
-
-    The lighter form is ``window.run()`` / ``ts.SystemTray(...).run()`` —
-    same loop, called on the root object itself.
-    """
-    return run_application(window, app=app)
-
 # --- actions ------------------------------------------------------------------------------
 from .actions import Action, ActionList
 
@@ -232,13 +222,11 @@ from .logger import Logger, find_log_element, log
 # --- popups ------------------------------------------------------------------------------
 from .popup import (
     popup,
-    popup_ok,
     popup_yes_no,
     popup_ok_cancel,
     popup_cancel,
     popup_error,
     popup_scrolled,
-    popup_no_buttons,
     popup_auto_close,
     popup_notify,
     popup_get_text,
@@ -254,14 +242,14 @@ from .popup import (
 __all__ = [
     "__version__", "__author__", "__email__", "__license__",
     "WIN_CLOSED", "TIMEOUT_KEY", "TIMER_KEY",
-    "SelectMode", "ButtonType", "Location",
+    "ButtonType", "Location",
     "DEFAULT_ELEMENT_SIZE", "DEFAULT_BUTTON_ELEMENT_SIZE", "DEFAULT_MARGINS",
     "DEFAULT_ELEMENT_PADDING", "DEFAULT_FONT", "DEFAULT_AUTOCLOSE_TIME",
     "DEFAULT_PROGRESS_BAR_SIZE", "COLOR_SYSTEM_DEFAULT",
     "BROWSE_FILES_DELIMITER", "FILE_TYPES_ALL_FILES",
     "DEFAULT_BASE64_ICON", "DEFAULT_BASE64_ICON_SMALL",
     "BLANK_BASE64",
-    "rgb", "Timer", "timer_start", "timer_stop", "formatted_datetime_now",
+    "rgb", "Timer", "formatted_datetime_now",
     "running_windows", "running_linux", "running_mac", "set_dpi_awareness",
     "font_families", "font_measure", "font_actual",
     "settings",
@@ -286,15 +274,15 @@ __all__ = [
     "TAlert", "TWatermark", "TCard", "TDescriptions", "TSteps", "TTimeline",
     "TSegmented", "TRate", "TPagination", "TTransfer",
     "validate_integer", "validate_float", "validate_regex",
-    "Window", "SystemTray", "TkSimpleEvent", "singleton_window", "main_loop",
+    "Window", "SystemTray", "TkSimpleEvent", "singleton_window",
     "default_app", "run_application", "bind_event",
     "Action", "ActionList", "UserSettings", "GlobalHotkeys", "taskbar_progress",
     "block_input", "unblock_input",
     "Logger", "find_log_element", "log",
     "ElementOptions", "WindowConfig",
     "fade_in", "fade_out", "slide", "animate_progress", "dbg",
-    "popup", "popup_ok", "popup_yes_no", "popup_ok_cancel", "popup_cancel",
-    "popup_error", "popup_scrolled", "popup_no_buttons", "popup_auto_close",
+    "popup", "popup_yes_no", "popup_ok_cancel", "popup_cancel",
+    "popup_error", "popup_scrolled", "popup_auto_close",
     "popup_notify", "popup_get_text",
     "popup_get_file", "popup_get_folder", "popup_get_date",
     "popup_get_font", "popup_find", "popup_replace",
@@ -309,7 +297,7 @@ def dbg(*args: Any, **kwargs: Any):
     text = " ".join(
         str(arg) if not isinstance(arg, str) else arg for arg in args
     )
-    return popup_no_buttons(text, title=kwargs.get("title", "Debug"))
+    return popup_notify(text, title=kwargs.get("title", "Debug"))
 
 
 def main(argv: Optional[List[str]] = None):

@@ -1176,7 +1176,7 @@ class TSlider(InputElement):
 
     def __init__(
         self,
-        range: Tuple[int, int] = (1, 10),
+        range_: Tuple[int, int] = (1, 10),
         default_value: Any = None,
         orientation: Optional[str] = "h",
         key: Optional[ElementKey] = None,
@@ -1205,9 +1205,9 @@ class TSlider(InputElement):
             right_click_menu=right_click_menu,
             metadata=metadata,
         )
-        self._range = range
+        self._range = range_
         self._default_value = (
-            default_value if default_value is not None else range[0]
+            default_value if default_value is not None else range_[0]
         )
         self._orientation = orientation
         self._enable_events = enable_events
@@ -1319,12 +1319,12 @@ class TSlider(InputElement):
     def update(
         self,
         value: Any = None,
-        range: Optional[Tuple[int, int]] = None,
+        range_: Optional[Tuple[int, int]] = None,
         disabled: Optional[bool] = None,
         visible: Optional[bool] = None):
-        if range is not None:
-            self._range = range
-            self._widget.configure(from_=range[0], to=range[1])
+        if range_ is not None:
+            self._range = range_
+            self._widget.configure(from_=range_[0], to=range_[1])
         if value is not None:
             self._widget.set(value)
         if disabled is not None:
@@ -1466,13 +1466,13 @@ class TMultiline(InputElement):
         """State a freshly written widget should be left in."""
         return "disabled" if self._disabled else "normal"
 
-    def print(self, *args: Any, **kwargs: Any):
-        """Append text (``print`` style); ``text_color`` colors the line.
+    def write(self, *args: Any, **kwargs: Any):
+        """Append text; ``text_color`` colors the line.
 
         Colors use a native tk.Text tag, so mixed-color output works::
 
-            multiline.print("ok", text_color="#00aa00")
-            multiline.print("failed", text_color="#cc0000")
+            multiline.write("ok", text_color="#00aa00")
+            multiline.write("failed", text_color="#cc0000")
         """
         sep = kwargs.get("sep", " ")
         end = kwargs.get("end", "\n")
@@ -1480,7 +1480,7 @@ class TMultiline(InputElement):
         self._text.configure(state="normal")
         text = sep.join(str(a) for a in args) + end
         if text_color is not None:
-            tag = f"print_{str(text_color).lstrip('#')}"
+            tag = f"tc_{str(text_color).lstrip('#')}"
             self._text.tag_configure(tag, foreground=text_color)
             self._text.insert("end", text, tag)
         else:
@@ -1493,7 +1493,7 @@ class TMultiline(InputElement):
     def line_count(self) -> int:
         """TText lines currently held (0 while empty).
 
-        The trailing newline every :meth:`print` leaves behind does not
+        The trailing newline every :meth:`write` leaves behind does not
         count as a line of its own, so the number matches what the user
         sees — and what the log ring buffer trims against.
         """

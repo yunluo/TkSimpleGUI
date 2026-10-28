@@ -1669,7 +1669,7 @@ class TAlert(Element):
     __slots__ = (
         "_text",
         "_title",
-        "_type",
+        "_status",
         "_closable",
         "_show_icon",
         "_effect",
@@ -1695,7 +1695,7 @@ class TAlert(Element):
     def __init__(
         self,
         text: str,
-        type: str = "info",
+        status: str = "info",
         title: Optional[str] = None,
         closable: bool = True,
         show_icon: bool = True,
@@ -1726,7 +1726,7 @@ class TAlert(Element):
         )
         self._text = "" if text is None else str(text)
         self._title = "" if title is None else str(title)
-        self._type = type or "info"
+        self._status = status or "info"
         self._closable = bool(closable)
         self._show_icon = bool(show_icon)
         self._effect = str(effect or "light").lower()
@@ -1739,7 +1739,7 @@ class TAlert(Element):
     # --- colors ---------------------------------------------------------------
     def _style(self, colors: Dict[str, str]) -> Dict[str, str]:
         """(fill, border, text, accent) for the active type and effect."""
-        accent = _paint.status_color(self._type, colors)
+        accent = _paint.status_color(self._status, colors)
         if self._effect == "dark":
             return {
                 "fill": accent,
@@ -1837,7 +1837,7 @@ class TAlert(Element):
         size = self._ICON_SIZE
         center = size / 2.0
         canvas.create_oval(0, 0, size, size, fill=accent, outline="")
-        glyph = _status_glyph(self._type)
+        glyph = _status_glyph(self._status)
         if glyph == _GLYPH_CHECK:
             _paint.check_mark(canvas, center, center, 9, fill=ink, width=2)
         elif glyph == _GLYPH_CROSS:
@@ -1940,7 +1940,7 @@ class TAlert(Element):
         self,
         text: Optional[str] = None,
         title: Optional[str] = None,
-        type: Any = None,
+        status: Any = None,
         visible: Optional[bool] = None):
         """Change the message, title or status; ``""`` clears the title."""
         redraw = False
@@ -1951,8 +1951,8 @@ class TAlert(Element):
         if title is not None:
             self._title = str(title)
             redraw = True
-        if type is not None:
-            self._type = type
+        if status is not None:
+            self._status = status
             redraw = True
         if redraw and self._widget is not None:
             self._sync_title()

@@ -442,11 +442,11 @@ def _components_rows():
                       subtitle="TWatermark -- 平铺水印（有 Pillow 时按角度旋转）",
                       key="-CARD-WM-")])],
 
-        [ts.TAlert("生产环境连接正常，两条告警待处理。", type="info", title="提示",
+        [ts.TAlert("生产环境连接正常，两条告警待处理。", status="info", title="提示",
                    key="-ALERT-INFO-", expand_x=True)],
-        [ts.TAlert("磁盘剩余空间不足 10%，请及时清理。", type="warning", title="注意",
+        [ts.TAlert("磁盘剩余空间不足 10%，请及时清理。", status="warning", title="注意",
                    key="-ALERT-WARN-", expand_x=True)],
-        [ts.TAlert("同步失败：远端拒绝连接（已重试 3 次）。", type="error",
+        [ts.TAlert("同步失败：远端拒绝连接（已重试 3 次）。", status="error",
                    closable=True, key="-ALERT-ERR-", expand_x=True)],
     ]
 
@@ -732,10 +732,10 @@ def on_slider(window, values):
 @ts.bind_event("-B-COLOR-")
 def on_color_print(window, values):
     ml = window["-ML-"]
-    ml.print("信息：原生 tk.Text 标签着色", text_color="#1565c0")
-    ml.print("成功：一切正常", text_color="#2e7d32")
-    ml.print("警告：一条黄色警告", text_color="#b8860b")
-    ml.print("错误：一条红色错误", text_color="#c62828")
+    ml.write("信息：原生 tk.Text 标签着色", text_color="#1565c0")
+    ml.write("成功：一切正常", text_color="#2e7d32")
+    ml.write("警告：一条黄色警告", text_color="#b8860b")
+    ml.write("错误：一条红色错误", text_color="#c62828")
 
 
 @ts.bind_event(["-B-UNDO-"])
@@ -1187,12 +1187,12 @@ def on_w_norm(window, values):
 
 @ts.bind_event("-W-ALPHA-")
 def on_w_alpha(window, values):
-    window.set_alpha_channel(0.5)
+    window.set_opacity(0.5)
 
 
 @ts.bind_event("-W-ALPHA1-")
 def on_w_alpha1(window, values):
-    window.set_alpha_channel(1.0)
+    window.set_opacity(1.0)
 
 
 @ts.bind_event("-W-FADE-")
@@ -1369,7 +1369,7 @@ def on_clear_log(window, values):
 
 @ts.bind_event("-ACT-ABOUT-")
 def on_about(window, values):
-    ts.popup_ok(
+    ts.popup(
         f"TkSimpleGUI {ts.__version__}\n\n基于 PySimpleGUI 4.x 的面向对象重写分支\n"
         "零依赖 / Python 3.7+ / 默认原生外观",
         title="关于")
