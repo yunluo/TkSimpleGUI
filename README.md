@@ -44,6 +44,30 @@
 - **系统原生外观** — 不调 `ts.theme()` 就不覆盖任何颜色，ttk 用操作系统原生主题
 - **Python 3.7+** — 3.8+ 零第三方依赖（3.7 需 `typing_extensions`），Tkinter/ttk + 标准库
 
+## 与同类库对比
+
+同为 Tkinter 封装的主流方案，与 TkSimpleGUI 的横向对比
+（数据来自各家官方文档 / PyPI，2026-10）：
+
+| | **TkSimpleGUI** | FreeSimpleGUI | CustomTkinter | ttkbootstrap 2.x |
+|---|---|---|---|---|
+| 定位 | OO 重写的现代 Tk 框架 | PSG4 社区分叉（原版续命） | 现代外观控件集 | ttk 主题 + Bootstrap 观感 |
+| 许可 | GPL-3.0-or-later | LGPL-3.0 | MIT | MIT |
+| Python 下限 | **3.7** | 3.8+ | 3.8+ | **3.10+** |
+| 第三方依赖 | **无**（3.7 需 typing_extensions） | 无 | darkdetect（可选） | **Pillow 硬依赖** |
+| 编程范式 | 面向对象 + 全局事件总线 | 过程式 + read 轮询（PSG 契约） | 命令回调（无事件抽象） | ttk 主题 + 命令回调 |
+| API 风格 | T 前缀 + snake_case 唯一写法，100% 类型标注 | PascalCase 主 + snake 别名（保 PSG 兼容） | `CTk` 前缀 | ttkbootstrap 前缀 |
+| 多窗口 | **一等公民**：隐藏主 root + 全局总线，任意窗口间发事件 | read_all_windows 轮询 | 单窗口为主，多窗口手工管理 | **单 root 强制**，第二个 root 直接报错 |
+| 布局 | `[[...]]` list-of-lists + pack/grid 抽象 | `[[...]]` list-of-lists | 无布局抽象（place 手工） | pack/grid 手工 |
+| 控件数量 | 60+（含 17 个 Element Plus 风格自绘） | PSG4 全家桶（巨石拆包） | ~20 个（社区补件碎片化） | ttk 全量 + Meter 等增强 |
+| 主题 | 5 套手工低饱和配色 + 原生观感（不调 theme 即系统默认） | PSG 主题表继承 | 亮/暗双模式 + json 主题 | Bootstrap 色系 + 主题编辑器 |
+| 类型标注 | **py.typed，全量** | 部分 | 部分 | 部分 |
+| 适合谁 | 要 OO/类型/多窗口/长维护的现代 Python 项目 | PSG4 老用户零成本迁移 | 只需要几个现代观感控件 | 喜欢 Bootstrap 观感、固定 3.10+ |
+
+> 一句话：**FreeSimpleGUI 保 PSG 兼容、CustomTkinter 补观感、ttkbootstrap 给主题——
+> TkSimpleGUI 把这些换成一个统一的现代 OO 框架**：事件总线、类型标注、多窗口、
+> 零依赖、3.7 起步。
+
 ## 安装
 
 ```bash
