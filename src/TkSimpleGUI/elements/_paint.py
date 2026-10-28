@@ -150,6 +150,24 @@ def shade(color: Color, colors: ColorMap, ratio: float = 0.30) -> Color:
     return blend(color, colors["ink"], ratio)
 
 
+def ease_out_cubic(t: float) -> float:
+    """Easing curve from 0 to 1 — fast start, soft landing; input clamped."""
+    t = min(max(float(t), 0.0), 1.0)
+    return 1.0 - (1.0 - t) ** 3
+
+
+def tween_color(widget: tk.Misc, start: Color, end: Color, t: float) -> Color:
+    """The color at linear progress ``t`` (0..1) between ``start`` and ``end``.
+
+    Accepts anything :func:`to_hex` understands (hex, Tk color names,
+    native system colors — those are sampled on ``widget``); values that
+    cannot be parsed snap to ``start``. Linear by design — pair with
+    :func:`ease_out_cubic` when the motion should feel eased.
+    """
+    ratio = min(max(float(t), 0.0), 1.0)
+    return blend(to_hex(widget, start), to_hex(widget, end), ratio)
+
+
 def themed_canvas(master: tk.Misc, width: int, height: int, surface: Color) -> tk.Canvas:
     """A flat canvas without highlight ring, on the given surface color."""
     return tk.Canvas(

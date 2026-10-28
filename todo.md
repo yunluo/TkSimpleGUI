@@ -350,8 +350,35 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
         释放）+ 回调异常不抛；测试助手补 kernel32 argtypes（64 位句柄截断
         教训）；skipUnless(win32) 守卫
       - README 新增「文件拖放（Windows）」章节 + 特性条目；测试 319 → 326
-- 队列余项：7 _paint 颜色 tween → 8 canvas 快照回归 → 9 DPI 缩放 →
-  10 标配对话框三件 → 11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
+- [x] **7/12 `_paint` 颜色 tween / 主题切换动画（2026-10-28）**：
+      - **原语**：`_paint.ease_out_cubic(t)`（缓动曲线）+ `_paint.tween_color(
+        widget, start, end, t)`（线性混色，接受 to_hex 认识的一切——hex/
+        Tk 色名/原生系统色在 widget 上采样；不可解析值跳变为 start）
+      - **主题切换动画**（主要落点）：`ts.theme(name, transition_ms=250)`——
+        混色做在 **ThemeManager 八个取色叶点**（BACKGROUND/TEXT/INPUT/
+        TEXT_INPUT/BUTTON/PROGRESS/SCROLL/COLOR_LIST 各自 `_transitioned`
+        包裹），palette/configure_ttk/kwargs 助手/元素 apply_theme 等
+        下游自动拿到混色值，**零元素改动**；元组/列表值逐成员混
+      - 驱动：旧主题 entry 快照 → `after` 20ms 帧循环（ease-out cubic）→
+        每帧 `update_theme()` 只刷顶层窗口（递归覆盖子窗口）→ 末帧精确
+        新色后清态；`apply` 语义：无活窗口/任一端原生（None/System）/
+        单色覆盖场景直接跳变；过渡中再调 `theme()` 会安全终止旧循环
+      - `theme()` 新参 `transition_ms=0`（默认立即，签名向后兼容）；
+        README 新增「主题切换动画」章节 + 特性条目
+      - 测试 7 例（326 → 333）：裸 apply 不建态/前主题 entry 快照捕获/
+        取色器两端点精确混值（近 0 = 旧色、钟拨完 = 精确新色）/tick 收尾
+        清态/原生端点跳变/活窗口 3 秒 deadline 泵到稳定色/tween+ease
+        原语数学
+      - **顺手修一颗既有套件地雷**：`test_theme_version_bumps_on_change`
+        调 `ts.theme_background_color("#101010")` 原地改写 THEMES["Slate"]
+        条目且从不恢复——本进程内 Slate 背景色从此变 #101010，此前无测试
+        在其后断言精确色值所以潜伏（我的精确色断言把它炸出）；测试改为
+        save/restore entry，全量下三处连带失败（含下游 test_lifecycle 的
+        窗口泄漏级联）一并消除
+- [ ] **8/12 canvas 快照回归测试**：**用户拍板跳过**——截图基线跨机器/DPI
+      脆弱，维护成本高于收益
+- 队列余项：9 DPI 缩放 → 10 标配对话框三件 → 11 圆角抗锯齿 →
+  12 亮暗跟随 + DWM 美化
 
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 

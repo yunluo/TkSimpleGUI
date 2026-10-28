@@ -122,15 +122,22 @@ class TestThemes(unittest.TestCase):
         ts.theme(None)
 
     def test_theme_version_bumps_on_change(self):
+        from TkSimpleGUI._theme_data import THEMES
         from TkSimpleGUI._theming import theme_manager
-        start = theme_manager.theme_version
-        ts.theme("Slate")
-        after_apply = theme_manager.theme_version
-        ts.theme_background_color("#101010")
-        after_bg = theme_manager.theme_version
-        ts.theme(None)
-        self.assertGreater(after_apply, start)
-        self.assertGreater(after_bg, after_apply)
+        saved = dict(THEMES.get("Slate") or {})
+        try:
+            start = theme_manager.theme_version
+            ts.theme("Slate")
+            after_apply = theme_manager.theme_version
+            ts.theme_background_color("#101010")
+            after_bg = theme_manager.theme_version
+            self.assertGreater(after_apply, start)
+            self.assertGreater(after_bg, after_apply)
+        finally:
+            # theme_background_color writes the THEMES entry in place —
+            # restore it or every later test sees the poisoned color
+            ts.theme(None)
+            THEMES["Slate"] = saved
 
     def test_update_theme_repaints_live_window(self):
         """update_theme() repaints an already visible window immediately."""
@@ -242,6 +249,92 @@ class TestThemes(unittest.TestCase):
         ts.theme(None)
         self.assertIsNone(theme_manager.accent_color())
         self.assertEqual(theme_manager.tooltip_colors(), {})
+
+
+class TestThemeTransition(unittest.TestCase):
+    """Animated theme switches: ts.theme(name, transition_ms=...) eases the
+    old palette into the new one while open windows repaint per frame."""
+
+    def setUp(self):
+        self._previous_theme = ts.theme()
+        ts.theme("Daylight")
+
+    def tearDown(self):
+        # kill a possibly running transition loop before restoring
+        ts.theme_manager._transition_from = None
+        ts.theme(self._previous_theme)
+
+    def test_plain_apply_does_not_transition(self):
+        manager = ts.theme_manager
+        ts.theme("Slate")
+        self.assertIsNone(manager._transition_from)
+        self.assertEqual(ts.theme(), "Slate")
+
+    def test_transition_captures_previous_entry(self):
+        from TkSimpleGUI._theme_data import THEMES
+        manager = ts.theme_manager
+        window = ts.Window("t", [[ts.TText("x", key="-X-")]], finalize=True)
+        ts.theme("Slate", transition_ms=500)
+        self.assertEqual(manager._transition_from, THEMES["Daylight"])
+        self.assertEqual(ts.theme(), "Slate")
+        window.close()
+
+    def test_getters_blend_from_old_to_new(self):
+        from TkSimpleGUI._theme_data import THEMES
+        manager = ts.theme_manager
+        window = ts.Window("t", [[ts.TText("x", key="-X-")]], finalize=True)
+        ts.theme("Slate", transition_ms=10000)
+        # frozen near progress 0: the getter still reports the old color
+        self.assertEqual(manager.background_color, THEMES["Daylight"]["BACKGROUND"])
+        # a fully elapsed clock reports the exact new color
+        manager._transition_start -= manager._transition_ms
+        self.assertEqual(manager.background_color, THEMES["Slate"]["BACKGROUND"])
+        window.close()
+
+    def test_tick_ends_transition_and_repaints(self):
+        manager = ts.theme_manager
+        ts.theme("Slate", transition_ms=10000)
+        manager._transition_start -= manager._transition_ms
+        manager._tick()
+        self.assertIsNone(manager._transition_from)
+        self.assertEqual(manager.background_color, "#1f2329")
+
+    def test_native_endpoints_snap(self):
+        manager = ts.theme_manager
+        ts.theme("Daylight")
+        ts.theme(None, transition_ms=500)
+        self.assertIsNone(manager._transition_from)
+        ts.theme(None)
+        ts.theme("Slate", transition_ms=500)
+        self.assertIsNone(manager._transition_from)
+        ts.theme(None)
+
+    def test_transition_settles_on_live_window(self):
+        window = ts.Window("t", [[ts.TText("x", key="-X-")]], finalize=True)
+        ts.theme("Slate", transition_ms=60)
+        deadline = time.time() + 3
+        while str(window.tk_root.cget("background")) != "#1f2329" \
+                and time.time() < deadline:
+            window.refresh()
+        self.assertEqual(str(window.tk_root.cget("background")), "#1f2329")
+        window.close()
+
+    def test_tween_color_and_ease_primitives(self):
+        from TkSimpleGUI.elements import _paint
+        window = ts.Window("t", [[ts.TText("x", key="-X-")]], finalize=True)
+        self.assertEqual(_paint.tween_color(window.tk_root, "#000000", "#ffffff", 0.5),
+                         "#808080")
+        self.assertEqual(_paint.tween_color(window.tk_root, "#000000", "#ffffff", 0.0),
+                         "#000000")
+        self.assertEqual(_paint.tween_color(window.tk_root, "#000000", "#ffffff", 1.0),
+                         "#ffffff")
+        self.assertEqual(_paint.tween_color(window.tk_root, "#000000", "#ffffff", 9.0),
+                         "#ffffff")
+        eased = [_paint.ease_out_cubic(i / 10) for i in range(11)]
+        self.assertEqual(eased[0], 0.0)
+        self.assertEqual(eased[10], 1.0)
+        self.assertTrue(all(a <= b for a, b in zip(eased, eased[1:])))
+        window.close()
 
 
 class TestSettings(unittest.TestCase):

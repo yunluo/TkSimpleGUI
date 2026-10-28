@@ -10,6 +10,7 @@ theme from :data:`THEMES` switches to TkSimpleGUI colors.
 
 from typing import Any, Optional, Sequence
 import contextlib
+import time
 import tkinter as tk
 from tkinter import ttk
 
@@ -103,13 +104,20 @@ class ThemeManager:
     their colors (see :meth:`Window.update_theme`).
     """
 
-    __slots__ = ("_name", "_style_cache", "_theme_version", "_native_engine")
+    __slots__ = ("_name", "_style_cache", "_theme_version", "_native_engine",
+                 "_transition_from", "_transition_start", "_transition_ms")
+
+    # frame interval of the theme-switch transition loop (milliseconds)
+    _FRAME_MS = 20
 
     def __init__(self):
         self._name = None
         self._style_cache = {}
         self._theme_version = 0
         self._native_engine = None
+        self._transition_from: Optional[Any] = None
+        self._transition_start = 0.0
+        self._transition_ms = 1.0
 
     @property
     def theme_version(self):
@@ -133,10 +141,18 @@ class ThemeManager:
         """
         return self._name is None or self._name == "System"
 
-    def apply(self, name: str):
-        """Apply a theme by name (case insensitive). Returns the canonical name."""
+    def apply(self, name: str, transition_ms: int = 0):
+        """Apply a theme by name (case insensitive). Returns the canonical name.
+
+        With ``transition_ms > 0`` the switch is animated: the previous
+        theme's colors ease-blend into the new ones over the given
+        duration while every open window repaints per frame. Both the old
+        and the new look must be non-native for a transition to run —
+        anything else (native look at either end, no live windows) snaps.
+        """
         if name is None:
             self._name = None
+            self._transition_from = None
             return None
         if not isinstance(name, str):
             raise TypeError("theme name must be a string or None")
@@ -153,8 +169,16 @@ class ThemeManager:
                     f"Invalid theme name: {name!r}. Use theme_list() "
                     "for the available themes."
                 )
+        previous = None
+        if transition_ms and transition_ms > 0 and self._name is not None \
+                and not self.is_native:
+            previous = dict(self._entry())
         self._name = canonical
         self._theme_version += 1
+        if previous is not None and not self.is_native:
+            self._start_transition(previous, int(transition_ms))
+        else:
+            self._transition_from = None
         return canonical
 
     def add_new(self, name: str, colors: Any):
@@ -174,28 +198,100 @@ class ThemeManager:
     def _get(self, key: ElementKey, default: Any = None):
         return self._entry().get(key, default)
 
+    # --- theme-switch transition -------------------------------------------
+    def _start_transition(self, previous: Any, ms: int):
+        """Begin blending ``previous`` (old theme entry) into the current
+        theme over ``ms`` milliseconds."""
+        self._transition_from = previous
+        self._transition_start = time.time()
+        self._transition_ms = max(int(ms), 50) / 1000.0
+        self._schedule_tick()
+
+    def _schedule_tick(self):
+        """Queue the next animation frame on the hidden master root."""
+        from .window.window import Window
+
+        root = Window._main_root
+        if root is None:
+            self._transition_from = None  # nothing live to animate on
+            return
+        try:
+            root.after(self._FRAME_MS, self._tick)
+        except tk.TclError:
+            self._transition_from = None
+
+    def _tick(self):
+        """One animation frame: repaint every window with the blended
+        palette; the final frame paints the exact new colors."""
+        if self._transition_from is None:
+            return
+        finished = time.time() - self._transition_start >= self._transition_ms
+        self._repaint_windows()
+        if finished:
+            self._transition_from = None
+        else:
+            self._schedule_tick()
+
+    def _repaint_windows(self):
+        from .window.window import Window
+
+        for window in list(Window._open_windows):
+            if window._parent is None:  # update_theme recurses into children
+                window.update_theme()
+
+    def _progress(self):
+        """Eased transition progress 0..1 (ease-out cubic)."""
+        progress = min(
+            max((time.time() - self._transition_start) / self._transition_ms, 0.0),
+            1.0)
+        return 1.0 - (1.0 - progress) ** 3
+
+    def _blend_pair(self, old: Any, new: Any):
+        """Blend one color from the old theme into the current value; a
+        missing or native endpoint snaps to ``new`` untouched."""
+        if self._transition_from is None or _is_system_default(new) \
+                or old is None or _is_system_default(old):
+            return new
+        return _blend(old, new, self._progress())
+
+    def _transitioned(self, key: ElementKey, value: Any):
+        """A leaf theme color while a transition is active: the eased mix
+        of the previous entry's value into the current one."""
+        if self._transition_from is None:
+            return value
+        old = self._transition_from.get(key)
+        if isinstance(value, (tuple, list)):
+            old_values = old if isinstance(old, (tuple, list)) else ()
+            blended = [
+                self._blend_pair(
+                    old_values[i] if i < len(old_values) else None, item)
+                for i, item in enumerate(value)
+            ]
+            return type(value)(blended)
+        return self._blend_pair(old, value)
+
     # --- color properties --------------------------------------------------
     @property
     def background_color(self):
         """Window background color, or None for native."""
-        return self._get("BACKGROUND")
+        return self._transitioned("BACKGROUND", self._get("BACKGROUND"))
 
     @property
     def text_color(self):
-        return self._get("TEXT")
+        return self._transitioned("TEXT", self._get("TEXT"))
 
     @property
     def input_background_color(self):
-        return self._get("INPUT")
+        return self._transitioned("INPUT", self._get("INPUT"))
 
     @property
     def input_text_color(self):
-        return self._get("TEXT_INPUT")
+        return self._transitioned("TEXT_INPUT", self._get("TEXT_INPUT"))
 
     @property
     def button_colors(self):
         """(text_color, background_color) tuple for buttons, or None."""
-        value = self._get("BUTTON")
+        value = self._transitioned("BUTTON", self._get("BUTTON"))
         if value is None:
             return None
         if isinstance(value, str):  # some entries store a single color
@@ -204,7 +300,7 @@ class ThemeManager:
 
     @property
     def progress_bar_colors(self):
-        value = self._get("PROGRESS")
+        value = self._transitioned("PROGRESS", self._get("PROGRESS"))
         if value is None:
             return None
         if isinstance(value, str):
@@ -213,7 +309,7 @@ class ThemeManager:
 
     @property
     def slider_color(self):
-        return self._get("SCROLL")
+        return self._transitioned("SCROLL", self._get("SCROLL"))
 
     @property
     def border_width(self):
@@ -225,7 +321,7 @@ class ThemeManager:
 
     @property
     def color_list(self):
-        return self._get("COLOR_LIST", [])
+        return self._transitioned("COLOR_LIST", self._get("COLOR_LIST", []))
 
     def accent_color(self):
         """The theme's accent hue — selections, slider handles, focus rings.
@@ -586,16 +682,20 @@ theme_manager = ThemeManager()
 _UNSET = object()
 
 
-def theme(name: Any = _UNSET):
+def theme(name: Any = _UNSET, transition_ms: int = 0):
     """Get or set the current theme.
 
     ``theme()`` returns the current theme name (``None`` = system native).
     ``theme("DarkBlue3")`` applies a theme and returns its canonical name.
     ``theme(None)`` explicitly resets to the native system look and returns None.
+    ``theme("DarkBlue3", transition_ms=250)`` morphs the colors smoothly:
+    the old palette eases into the new one over the given duration while
+    every open window repaints per frame (needs a non-native look at both
+    ends and at least one live window, otherwise it snaps).
     """
     if name is _UNSET:
         return theme_manager.name
-    return theme_manager.apply(name)
+    return theme_manager.apply(name, transition_ms=transition_ms)
 
 
 def theme_list():
