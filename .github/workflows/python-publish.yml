@@ -46,32 +46,5 @@ jobs:
       - name: Demo smoke
         run: python demos/showcase.py --smoke
 
-  deploy:
-    needs: test
-    if: startsWith(github.ref, 'refs/tags/v')
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write  # trusted PyPI publishing
-      contents: write
-    steps:
-      - uses: actions/checkout@v4
-      - name: Setup Python
-        uses: actions/setup-python@v4
-        with:
-          python-version: '3.x'
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v6
-
-      - name: Build package
-        run: |
-          uv build
-
-      - name: Publish package
-        uses: pypa/gh-action-pypi-publish@release/v1
-      - name: GH Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: "dist/*"
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+  # PyPI auto-publish on tags is TEMPORARILY disabled (2026-10-28).
+  # To re-enable, restore the deploy job from git history (this commit).

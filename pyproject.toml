@@ -134,6 +134,12 @@ ignore = [
 # ``from .base import Color``); the redundant-alias form marks that intent.
 "src/TkSimpleGUI/elements/base.py" = ["PLC0414"]
 
+[tool.ty.analysis]
+# Pillow is the OPTIONAL chart anti-alias backend (lazy ``from PIL import``
+# inside try/except). Environments without it (CI) must not fail the type
+# gate on these three lazy imports.
+allowed-unresolved-imports = ["PIL", "PIL.*"]
+
 [tool.coverage.run]
 source = ["TkSimpleGUI"]
 omit = ["tests/*", "*__pycache__*"]
