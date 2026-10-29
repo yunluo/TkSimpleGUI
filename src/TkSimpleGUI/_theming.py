@@ -8,7 +8,7 @@ system's native look (Windows Vista style, macOS Aqua, ...). Applying a named
 theme from :data:`THEMES` switches to TkSimpleGUI colors.
 """
 
-from typing import Any, Optional, Sequence
+from typing import Any, Dict, Optional, Sequence
 import contextlib
 import time
 import tkinter as tk
@@ -141,6 +141,16 @@ class ThemeManager:
         show through.
         """
         return self._name is None or self._name == "System"
+
+    @property
+    def is_dark(self):
+        """True when the current theme describes itself as dark.
+
+        Judged from the theme's ``DESCRIPTION`` tags (a ``"dark"`` tag).
+        ``None`` for the native look — the platform decides, callers can
+        fall back to ``_appearance.system_prefers_dark()``.
+        """
+        return is_dark_theme(self._name)
 
     def apply(self, name: str, transition_ms: int = 0):
         """Apply a theme by name (case insensitive). Returns the canonical name.
@@ -702,6 +712,26 @@ def theme(name: Any = _UNSET, transition_ms: int = 0):
 def theme_list():
     """Sorted list of available theme names."""
     return sorted(THEMES)
+
+
+def is_dark_theme(name: Optional[str]) -> Optional[bool]:
+    """True when the named theme describes itself as dark ("dark" tag).
+
+    ``None`` for the native look (``None``/"System") or an unknown name —
+    the platform decides.
+    """
+    if name is None or not isinstance(name, str) or name == "System":
+        return None
+    canonical = None
+    for candidate in THEMES:
+        if candidate.lower() == name.lower():
+            canonical = candidate
+            break
+    if canonical is None:
+        return None
+    entry: Dict[str, Any] = THEMES[canonical]
+    tags = [str(tag).lower() for tag in entry.get("DESCRIPTION") or []]
+    return "dark" in tags
 
 
 def theme_background_color(color: Optional[Color] = None):

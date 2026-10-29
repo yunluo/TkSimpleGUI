@@ -48,6 +48,8 @@
   新配色，所有打开的窗口逐帧重绘
 - **DPI 缩放（Windows）** — 一行开启 DPI 感知让高分屏字体真实像素渲染
   不再模糊；`ts.settings.scaling` 一键整体缩放
+- **亮暗跟随 + DWM 美化（Windows）** — `theme_follow_system` 跟随系统
+  亮暗自动换主题；`dark_titlebar` 深色标题栏随主题自动切换
 - **Python 3.7+** — 3.8+ 零第三方依赖（3.7 需 `typing_extensions`），Tkinter/ttk + 标准库
 
 ## 与同类库对比
@@ -226,6 +228,35 @@ ts.settings.scaling = 1.5       # 建窗口前设置；建窗后改不影响已�
 装饰字面量（图表坐标轴边距、图形内衬）保持 96-DPI 逻辑像素；窗口位置
 坐标与 `PhotoImage` 像素数据不缩放；跨显示器拖动不触发动态重排
 （Tk 8.6 限制）。
+
+## 亮暗跟随与 DWM 美化（Windows）
+
+**跟随系统亮暗**：开启后每 2 秒轮询一次 Windows 个性化设置（注册表
+`AppsUseLightTheme`，CTk 的跟随思路），系统亮暗翻转时自动切换主题——
+亮态用 `theme_light`（默认 `Daylight`）、暗态用 `theme_dark`（默认
+`Slate`），映射可改成任何主题名：
+
+```python
+ts.settings.theme_follow_system = True   # 建窗口前设置
+ts.settings.theme_light = "Sage"         # 可选：自定义亮暗映射
+ts.settings.theme_dark = "Dusk"
+```
+
+**深色标题栏**：`Window(dark_titlebar=...)` 三种取值——`None`（默认）
+**自动**：标题栏随当前主题的亮暗性格走（暗主题配暗标题栏），主题切换
+即跟随；原生外观下跟随 Windows 系统亮暗设置。`True`/`False` 强制指定。
+运行时 `window.set_dark_titlebar(None)` 恢复自动。Windows 10 1809+，
+更老版本静默忽略：
+
+```python
+window = ts.Window("Dark app", layout, dark_titlebar=True)
+```
+
+**Mica / Acrylic 背景**（Win11 22H2+）：`window.set_backdrop("mica")`——
+DWM 边框延伸进客户区再挂系统背景材质。诚实说明：Tk 自己画的背景是
+不透明的，材质只在客户区裸露处可见（比如配合透明色键）；`"none"` 恢复
+默认。窗口圆角交由系统默认，不提供改角接口。非 Windows 平台这些调用
+是安全的 no-op（`_dwm`/`_appearance` 模块任意平台可导入）。
 
 ## 声明式配置（dataclass）
 

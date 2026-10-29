@@ -1519,6 +1519,224 @@ class TestDpiScaling(unittest.TestCase):
         window.close()
 
 
+class TestDarkLightFollow(unittest.TestCase):
+    """Dark/light theme metadata, system preference following, DWM caption.
+
+    The theme save/restore discipline matters: is_dark reads THEMES in
+    place and the follow poll switches the global theme.
+    """
+
+    def setUp(self):
+        self._previous_theme = ts.theme()
+        self._settings = ts.settings.as_dict()
+
+    def tearDown(self):
+        ts._appearance._reset_for_tests()
+        ts.theme(self._previous_theme)
+        ts.settings.apply_options(**self._settings)
+        ts.Window.close_all()
+
+    # --- theme dark/light metadata ------------------------------------------------
+    def test_is_dark_theme_known_names(self):
+        self.assertIs(ts.is_dark_theme("Daylight"), False)
+        self.assertIs(ts.is_dark_theme("Slate"), True)
+        self.assertIs(ts.is_dark_theme("Dusk"), True)
+        self.assertIs(ts.is_dark_theme("Sage"), False)
+        # case-insensitive canonical lookup
+        self.assertIs(ts.is_dark_theme("slate"), True)
+
+    def test_is_dark_theme_native_and_unknown(self):
+        self.assertIsNone(ts.is_dark_theme(None))
+        self.assertIsNone(ts.is_dark_theme("System"))
+        self.assertIsNone(ts.is_dark_theme("NoSuchTheme"))
+
+    def test_theme_manager_is_dark_follows_current(self):
+        ts.theme("Slate")
+        self.assertIs(ts.theme_manager.is_dark, True)
+        ts.theme("Daylight")
+        self.assertIs(ts.theme_manager.is_dark, False)
+        ts.theme(None)
+        self.assertIsNone(ts.theme_manager.is_dark)
+
+    # --- settings ------------------------------------------------------------------
+    def test_follow_settings_defaults_and_validation(self):
+        self.assertIs(ts.settings.theme_follow_system, False)
+        self.assertEqual(ts.settings.theme_light, "Daylight")
+        self.assertEqual(ts.settings.theme_dark, "Slate")
+        ts.settings.theme_follow_system = 1
+        self.assertIs(ts.settings.theme_follow_system, True)
+        ts.settings.theme_light = "Sage"
+        ts.settings.theme_dark = "Dusk"
+        self.assertEqual((ts.settings.theme_light, ts.settings.theme_dark),
+                         ("Sage", "Dusk"))
+        with self.assertRaises(ValueError):
+            ts.settings.theme_light = 3
+        with self.assertRaises(ValueError):
+            ts.settings.theme_dark = object()
+
+    # --- system preference reading ---------------------------------------------------
+    @staticmethod
+    def _patch_registry(value):
+        """Make system_prefers_dark read ``value`` (0/1) from a fake key."""
+        import winreg
+
+        class FakeKey:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_exc):
+                return False
+
+        original_open = winreg.OpenKey
+        original_query = winreg.QueryValueEx
+        winreg.OpenKey = lambda *a, **k: FakeKey()
+        winreg.QueryValueEx = lambda *_a, **_k: (value, winreg.REG_DWORD)
+        return (winreg, original_open, original_query)
+
+    def test_system_prefers_dark_reads_registry(self):
+        registry, open_key, query = self._patch_registry(1)
+        try:
+            self.assertIs(ts.system_prefers_dark(), False)  # 1 = light
+        finally:
+            registry.OpenKey = open_key
+            registry.QueryValueEx = query
+        registry, open_key, query = self._patch_registry(0)
+        try:
+            self.assertIs(ts.system_prefers_dark(), True)
+        finally:
+            registry.OpenKey = open_key
+            registry.QueryValueEx = query
+
+    def test_system_prefers_dark_missing_key_is_none(self):
+        import winreg
+
+        original_open = winreg.OpenKey
+
+        def boom(*_a, **_k):
+            raise OSError("no personalize key")
+
+        winreg.OpenKey = boom
+        try:
+            self.assertIsNone(ts.system_prefers_dark())
+        finally:
+            winreg.OpenKey = original_open
+
+    # --- the follow poll -------------------------------------------------------------
+    def test_poll_once_switches_to_mapped_theme(self):
+        ts.theme("Slate")
+        registry, open_key, query = self._patch_registry(1)
+        try:
+            ts._appearance._reset_for_tests()
+            self.assertIs(ts._appearance.poll_once(), False)
+            self.assertEqual(ts.theme(), "Daylight")  # settings.theme_light
+            self.assertIs(ts._appearance.poll_once(), False)
+            self.assertEqual(ts.theme(), "Daylight")  # no flip, no switch
+        finally:
+            registry.OpenKey = open_key
+            registry.QueryValueEx = query
+
+    def test_poll_once_switches_dark_and_ignores_unknown(self):
+        registry, open_key, query = self._patch_registry(0)
+        try:
+            ts._appearance._reset_for_tests()
+            ts.theme("Daylight")
+            self.assertIs(ts._appearance.poll_once(), True)
+            self.assertEqual(ts.theme(), ts.settings.theme_dark)
+        finally:
+            registry.OpenKey = open_key
+            registry.QueryValueEx = query
+        ts._appearance._reset_for_tests()
+
+    def test_start_follow_requires_readable_preference(self):
+        # the follow chain arms on the master root only while a window
+        # can pump it, so the test keeps one alive
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        ts._appearance._reset_for_tests()
+        registry, open_key, query = self._patch_registry(1)
+        try:
+            self.assertTrue(ts._appearance.start_follow())
+            self.assertTrue(ts._appearance.start_follow())  # idempotent
+        finally:
+            registry.OpenKey = open_key
+            registry.QueryValueEx = query
+        import winreg
+
+        original_open = winreg.OpenKey
+
+        def boom(*_a, **_k):
+            raise OSError("no key")
+
+        winreg.OpenKey = boom
+        try:
+            ts._appearance._reset_for_tests()
+            self.assertFalse(ts._appearance.start_follow())
+        finally:
+            winreg.OpenKey = original_open
+        window.close()
+        ts._appearance._reset_for_tests()
+
+    # --- DWM window methods ------------------------------------------------------------
+    @unittest.skipUnless(sys.platform == "win32", "DWM is Windows only")
+    def test_dwm_hwnd_is_top_level(self):
+        from TkSimpleGUI import _dwm
+
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        hwnd = _dwm.dwm_hwnd(window.tk_root.winfo_id())
+        self.assertIsInstance(hwnd, int)
+        self.assertGreater(hwnd, 0)
+        window.close()
+
+    @unittest.skipUnless(sys.platform == "win32", "DWM is Windows only")
+    def test_dark_titlebar_follows_theme_automatically(self):
+        from TkSimpleGUI import _dwm
+
+        calls = []
+        original = _dwm.apply_dark_titlebar
+        _dwm.apply_dark_titlebar = lambda hwnd, dark: calls.append(bool(dark)) or True
+        try:
+            window = ts.Window("t", [[ts.TText("x")]], dark_titlebar=None,
+                               finalize=True)
+            ts.theme("Slate")
+            window.update_theme()
+            ts.theme("Daylight")
+            window.update_theme()
+            window.close()
+        finally:
+            _dwm.apply_dark_titlebar = original
+        # one apply at finalize + one per theme switch; dark/light track the theme
+        self.assertEqual(calls[0], bool(ts.is_dark_theme(self._previous_theme) or
+                                        ts.system_prefers_dark()))
+        self.assertIn(True, calls)   # Slate repaint applied dark
+        self.assertIn(False, calls)  # Daylight repaint applied light
+
+    @unittest.skipUnless(sys.platform == "win32", "DWM is Windows only")
+    def test_set_dark_titlebar_explicit_and_backdrop(self):
+        window = ts.Window("t", [[ts.TText("x")]], finalize=True)
+        self.assertIs(window.set_dark_titlebar(True), window)
+        self.assertIs(window.set_dark_titlebar(False), window)
+        self.assertIs(window.set_dark_titlebar(None), window)  # back to auto
+        self.assertIs(window.set_backdrop("mica"), window)
+        self.assertIs(window.set_backdrop("none"), window)
+        with self.assertRaises(ValueError):
+            window.set_backdrop("aero")
+        window.close()
+
+    @unittest.skipUnless(sys.platform == "win32", "DWM is Windows only")
+    def test_no_titlebar_skips_dwm(self):
+        from TkSimpleGUI import _dwm
+
+        calls = []
+        original = _dwm.apply_dark_titlebar
+        _dwm.apply_dark_titlebar = lambda hwnd, dark: calls.append(dark) or True
+        try:
+            window = ts.Window("t", [[ts.TText("x")]], no_titlebar=True,
+                               finalize=True)
+            window.close()
+        finally:
+            _dwm.apply_dark_titlebar = original
+        self.assertEqual(calls, [])
+
+
 class TestPopupPickers(unittest.TestCase):
     """Standard picker dialogs.
 

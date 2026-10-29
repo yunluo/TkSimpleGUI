@@ -28,11 +28,15 @@ for every color; the theme manager recognises that sentinel and skips the
 override, leaving the platform's native look intact.
 """
 
+from typing import Any, Dict
+
 from .constants import COLOR_SYSTEM_DEFAULT
 
 _NATIVE = COLOR_SYSTEM_DEFAULT
 
-THEMES = {
+# values mix strings, (text, bg) tuples, ints and lists on purpose — the
+# theme manager and the DESCRIPTION/geometry consumers read what they need
+THEMES: Dict[str, Dict[str, Any]] = {
     # -----------------------------------------------------------------------
     # 1. System -- platform native. The default. No color overrides.
     # -----------------------------------------------------------------------

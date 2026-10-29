@@ -166,6 +166,7 @@ class Window:
         "_keep_on_top",
         "_modal",
         "_no_titlebar",
+        "_dark_titlebar",
         "_grab_anywhere",
         "_return_keyboard_events",
         "_location",
@@ -251,7 +252,7 @@ class Window:
     _parent: Optional["Window"]
     _children: List["Window"]
 
-    def __init__(
+    def __init__(  # noqa: PLR0915  config= splice must mutate locals in place
         self,
         title: Optional[str] = None,
         layout: Optional[List[List[Any]]] = None,
@@ -261,6 +262,7 @@ class Window:
         keep_on_top: bool = False,
         modal: bool = False,
         no_titlebar: bool = False,
+        dark_titlebar: Optional[bool] = None,
         grab_anywhere: bool = False,
         return_keyboard_events: bool = False,
         icon: Any = None,
@@ -291,6 +293,7 @@ class Window:
                 keep_on_top=keep_on_top or None,
                 modal=modal or None,
                 no_titlebar=no_titlebar or None,
+                dark_titlebar=dark_titlebar,
                 grab_anywhere=grab_anywhere or None,
                 return_keyboard_events=return_keyboard_events or None,
                 icon=icon,
@@ -307,10 +310,10 @@ class Window:
             # every WindowConfig field maps 1:1 onto an __init__ local; the
             # pop calls below splice them back into the local namespace
             (title, size, location, parent, layout, finalize, keep_on_top,
-             modal, no_titlebar, grab_anywhere, return_keyboard_events,
-             icon, background_color, margins, resizable, disable_close,
-             disable_esc, system_block, element_justification,
-             right_click_menu) = (
+             modal, no_titlebar, dark_titlebar, grab_anywhere,
+             return_keyboard_events, icon, background_color, margins,
+             resizable, disable_close, disable_esc, system_block,
+             element_justification, right_click_menu) = (
                 resolved.pop("title"),
                 resolved.pop("size"),
                 resolved.pop("location"),
@@ -320,6 +323,7 @@ class Window:
                 resolved.pop("keep_on_top"),
                 resolved.pop("modal"),
                 resolved.pop("no_titlebar"),
+                resolved.pop("dark_titlebar"),
                 resolved.pop("grab_anywhere"),
                 resolved.pop("return_keyboard_events"),
                 resolved.pop("icon"),
@@ -347,6 +351,7 @@ class Window:
         )
         self._modal = modal
         self._no_titlebar = no_titlebar
+        self._dark_titlebar = dark_titlebar
         self._grab_anywhere = grab_anywhere
         self._return_keyboard_events = return_keyboard_events
         self._location = location
@@ -601,6 +606,10 @@ class Window:
         apply_tk_scaling(cls._main_root)
         cls._main_root.withdraw()
         _install_class_bindings(cls._main_root)
+        if settings.theme_follow_system:
+            from .._appearance import start_follow
+
+            start_follow()
         return cls._main_root
 
     def _create_root(self):
@@ -670,6 +679,30 @@ class Window:
             root.bind("<Key>", self._on_keyboard_event)
         for shortcut, key in self._event_binds:
             root.bind(shortcut, lambda _e, k=key: self._post_event(k))
+        # DWM dark title bar (Windows 10 1809+): overrideredirect windows
+        # have no DWM frame, so there is nothing to restyle
+        if sys.platform == "win32" and not self._no_titlebar:
+            from .._dwm import apply_dark_titlebar, dwm_hwnd
+
+            hwnd = dwm_hwnd(self._tk_root.winfo_id())
+            if hwnd:
+                apply_dark_titlebar(hwnd, bool(self._resolve_dark_titlebar()))
+
+    def _resolve_dark_titlebar(self) -> Optional[bool]:
+        """The dark-titlebar state: explicit flag, else follow the theme.
+
+        ``None`` (the default) means automatic — a themed window follows
+        the theme's dark/light character; the native look follows the
+        Windows personalization setting.
+        """
+        if self._dark_titlebar is not None:
+            return self._dark_titlebar
+        themed = theme_mod.theme_manager.is_dark
+        if themed is not None:
+            return themed
+        from .._appearance import system_prefers_dark
+
+        return system_prefers_dark()
 
     def _show_popup_menu(self, event: tk.Event):
         if self._popup_menu is not None:
@@ -1301,6 +1334,40 @@ class Window:
                 self._tk_root.attributes("-alpha", float(alpha))
         return self
 
+    def set_dark_titlebar(self, state: Optional[bool]):
+        """Set the DWM caption mode: True dark, False light, None automatic.
+
+        Automatic follows the theme's dark/light character (the native
+        look follows the Windows personalization setting) and keeps
+        following on every theme switch. Windows 10 1809+; older builds
+        ignore the call. Returns self.
+        """
+        self._dark_titlebar = state
+        if self._root_alive() and sys.platform == "win32" \
+                and not self._no_titlebar:
+            from .._dwm import apply_dark_titlebar, dwm_hwnd
+
+            hwnd = dwm_hwnd(self._tk_root.winfo_id())
+            if hwnd:
+                apply_dark_titlebar(hwnd, bool(self._resolve_dark_titlebar()))
+        return self
+
+    def set_backdrop(self, backdrop: str):
+        """Apply a Win11 22H2+ system backdrop ("mica"/"acrylic"/"mica_alt").
+
+        The DWM frame is extended into the client area first, but Tk paints
+        an opaque background over it — the effect is only visible where the
+        surface is left bare (e.g. a transparent color key). "none" (or
+        ``None``) restores the default. Returns self.
+        """
+        if self._root_alive() and sys.platform == "win32":
+            from .._dwm import apply_backdrop, dwm_hwnd
+
+            hwnd = dwm_hwnd(self._tk_root.winfo_id())
+            if hwnd:
+                apply_backdrop(hwnd, backdrop)
+        return self
+
     def keep_on_top(self):
         """Keep this window above all others."""
         if self._root_alive():
@@ -1593,6 +1660,14 @@ class Window:
                 element.apply_theme()
         for child in self.children:
             child.update_theme()
+        if sys.platform == "win32" and self._dark_titlebar is None \
+                and not self._no_titlebar:
+            # automatic mode: the caption follows the theme's character
+            from .._dwm import apply_dark_titlebar, dwm_hwnd
+
+            hwnd = dwm_hwnd(self._tk_root.winfo_id())
+            if hwnd:
+                apply_dark_titlebar(hwnd, bool(self._resolve_dark_titlebar()))
         self.refresh()
         return self
 

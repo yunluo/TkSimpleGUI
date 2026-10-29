@@ -75,6 +75,9 @@ from .utils import (
     font_actual,
 )
 
+# --- system light/dark following ---------------------------------------------------
+from ._appearance import system_prefers_dark
+
 # --- settings -------------------------------------------------------------------
 from .settings import settings
 
@@ -83,6 +86,7 @@ from ._theming import (
     theme,
     theme_manager,
     theme_list,
+    is_dark_theme,
     theme_background_color,
     theme_text_color,
     theme_button_color,
@@ -255,9 +259,10 @@ __all__ = [
     "BLANK_BASE64",
     "rgb", "Timer", "formatted_datetime_now",
     "running_windows", "running_linux", "running_mac", "set_dpi_awareness",
+    "system_prefers_dark",
     "font_families", "font_measure", "font_actual",
     "settings",
-    "theme", "theme_manager", "theme_list",
+    "theme", "theme_manager", "theme_list", "is_dark_theme",
     "theme_background_color", "theme_text_color", "theme_button_color",
     "theme_input_background_color", "theme_input_text_color",
     "theme_progress_bar_color", "theme_slider_color", "theme_border_width",

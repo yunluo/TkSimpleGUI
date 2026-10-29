@@ -437,7 +437,39 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
         短路 read 全链路构建**（真 Window 真元素 + mock read 验证布局/
         字体填充/bind 挂接/OK 与 Cancel 路径——比 SpyWindow 更真实的
         新测试模式）；双解释器绿
-- 队列余项：11 圆角抗锯齿 → 12 亮暗跟随 + DWM 美化
+- [ ] **11/12 圆角抗锯齿**：**用户拍板跳过（排队顺序调整）**——"先做 12"；
+      另 DWM 圆角偏好 API 也不做（用户口味：喜欢 Win10 方方正正，
+      圆角交由系统默认）
+- [x] **12/12 亮暗跟随 + DWM 美化（2026-10-28）**：
+      - **新模块 `_dwm.py`**（仿 _dnd.py 纪律）：纯 ctypes DwmSetWindowAttribute
+        ——深色标题栏（attr 20，Win10 1809+）+ Mica/Acrylic 背景（attr 38
+        + DwmExtendFrameIntoClientArea 全边距，Win11 22H2+）；HRESULT 非 0
+        或 OSError → False 全静默降级；`dwm_hwnd` 用 GetParent 拿真顶层
+        HWND（hotkey 先例；c_void_p restype 直接回 int——HWND restype 实例
+        int() 转换不稳是探针抓到的坑）；**圆角偏好刻意不包**（用户拍板）
+      - **新模块 `_appearance.py`**：`system_prefers_dark()` winreg 读
+        AppsUseLightTheme（亮 1 → False，键缺失 None）；follow 轮询 =
+        主根 after 2s 自续链（ThemeManager._schedule_tick 先例），系统
+        亮暗翻转 → 切 `settings.theme_light`（默认 Daylight）/
+        `theme_dark`（默认 Slate），映射可改；**首拍即对齐**（探针/测试
+        差异炸出的真 bug：首拍只建基线会让"follow 启动时系统已暗"永远
+        不切——CTk 同款启动对齐语义）；无活窗口不挂链
+      - **主题×标题栏联动（本项灵魂）**：`theme_manager.is_dark` property
+        （解析 DESCRIPTION 的 "dark" 标签；原生 None）+ 模块函数
+        `is_dark_theme(name)`；`Window(dark_titlebar=None)` 默认自动——
+        暗主题配暗标题栏、原生外观跟系统亮暗，finalize 与 update_theme
+        都重应用（主题切换即跟随）；True/False 强制；`set_dark_titlebar
+        (None)` 恢复自动；`set_backdrop("mica"/"acrylic"/"mica_alt"/"none")`
+        运行时方法（文档诚实说明 Tk 不透明背景下材质只在裸露处可见）
+      - settings +3：theme_follow_system=False / theme_light / theme_dark；
+        `WindowConfig` 同步（新参数三处同步坑）；导出 172 → 174
+        （system_prefers_dark/is_dark_theme）
+      - 测试 13 例（356 → 369）TestDarkLightFollow：四主题亮暗判定/
+        原生与未知名 None/is_dark 随当前主题/follow 三选项校验/winreg
+        mock（亮暗读值+键缺失）/poll 对齐与翻转映射/start_follow 幂等
+        与无偏好拒绝/dwm_hwnd 非零/dark_titlebar 自动随主题重应用
+        （spy 计数）/强制与恢复/backdrop 校验/no_titlebar 跳过 DWM
+- 队列余项：11 圆角抗锯齿（已跳过）——**调研报告行动项队列收官**
 ## ⛔ 明确不做（零依赖边界之外，不再反复评估）
 
 - WebView/浏览器内核、打印对话框族、TMediaPlayer、TOleContainer、数据感知 DB 控件全家、FMX 特性（3D/GPU 特效）、QSS
@@ -450,7 +482,7 @@ Python 3.7 `@dataclass` 落地——不改动控件继承体系（`__slots__`/�
 
 ## 附：回归基线
 
-- 测试：`python -m pytest tests -q`（356 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
+- 测试：`python -m pytest tests -q`（369 个，每测试 30s 超时守护；托盘测试以子进程隔离运行，探针在 `tests/probes/`；`python -m unittest discover tests` 同样可跑）
 - 类型：`python tests/check_types.py`（ty 守卫；找不到 ty 时返回非零。注意 PATH 上的 ty 0.0.53 会对既有
   `elements/buttons.py` 报 34 条 ttk stub 误报——基线如此，与本批次无关；`D:\bin\ty.exe`（0.0.32）零诊断）
 - Lint：`ruff check src tests demos`（配置在 pyproject `[tool.ruff]`，退出码 0 为过）

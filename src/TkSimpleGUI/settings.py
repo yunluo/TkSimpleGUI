@@ -23,6 +23,9 @@ _KNOWN_OPTIONS = (
     "keep_on_top",
     "scaling",
     "dpi_aware",
+    "theme_follow_system",
+    "theme_light",
+    "theme_dark",
     "alpha_channel",
     "suppress_error_popups",
     "suppress_raise_key_errors",
@@ -47,6 +50,9 @@ class Settings:
         "_keep_on_top",
         "_scaling",
         "_dpi_aware",
+        "_theme_follow_system",
+        "_theme_light",
+        "_theme_dark",
         "_alpha_channel",
         "_suppress_error_popups",
         "_suppress_raise_key_errors",
@@ -67,6 +73,9 @@ class Settings:
         self._keep_on_top = None
         self._scaling = None
         self._dpi_aware = False
+        self._theme_follow_system = False
+        self._theme_light = "Daylight"
+        self._theme_dark = "Slate"
         self._alpha_channel = 1.0
         self._suppress_error_popups = False
         self._suppress_raise_key_errors = True
@@ -175,6 +184,34 @@ class Settings:
     @dpi_aware.setter
     def dpi_aware(self, value: Any):
         self._dpi_aware = bool(value)
+
+    @property
+    def theme_follow_system(self):
+        return self._theme_follow_system
+
+    @theme_follow_system.setter
+    def theme_follow_system(self, value: Any):
+        self._theme_follow_system = bool(value)
+
+    @property
+    def theme_light(self):
+        return self._theme_light
+
+    @theme_light.setter
+    def theme_light(self, value: Any):
+        if value is not None and not isinstance(value, str):
+            raise ValueError("theme_light must be a theme name string")
+        self._theme_light = value
+
+    @property
+    def theme_dark(self):
+        return self._theme_dark
+
+    @theme_dark.setter
+    def theme_dark(self, value: Any):
+        if value is not None and not isinstance(value, str):
+            raise ValueError("theme_dark must be a theme name string")
+        self._theme_dark = value
 
     @property
     def alpha_channel(self):

@@ -80,6 +80,7 @@ class WindowConfig:
     keep_on_top: bool = False
     modal: bool = False
     no_titlebar: bool = False
+    dark_titlebar: Optional[bool] = None
     grab_anywhere: bool = False
     return_keyboard_events: bool = False
     icon: Optional[Any] = None
@@ -101,7 +102,8 @@ class WindowConfig:
             field_name: getattr(self, field_name)
             for field_name in (
                 "title", "layout", "size", "location", "finalize",
-                "keep_on_top", "modal", "no_titlebar", "grab_anywhere",
+                "keep_on_top", "modal", "no_titlebar", "dark_titlebar",
+                "grab_anywhere",
                 "return_keyboard_events", "icon", "background_color",
                 "margins", "resizable", "disable_close", "disable_esc",
                 "system_block", "element_justification", "right_click_menu",
